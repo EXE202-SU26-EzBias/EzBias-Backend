@@ -1,0 +1,98 @@
+# =========================
+# Build artifacts
+# =========================
+[Bb]in/
+[Oo]bj/
+out/
+publish/
+artifacts/
+
+# User-specific files
+*.rsuser
+*.suo
+*.user
+*.userosscache
+*.sln.docstates
+
+# =========================
+# Visual Studio / Rider / VS Code
+# =========================
+.vs/
+.idea/
+.vscode/
+
+# Rider
+*.sln.iml
+
+# =========================
+# NuGet
+# =========================
+*.nupkg
+*.snupkg
+**/[Pp]ackages/*
+!**/[Pp]ackages/build/
+!**/[Pp]ackages/repositories.config
+.nuget/
+# Uncomment if you don't use lock file
+# packages.lock.json
+
+# =========================
+# Test / coverage
+# =========================
+TestResults/
+*.trx
+*.coverage
+*.coveragexml
+coverage/
+coverage.cobertura.xml
+
+# =========================
+# Logs
+# =========================
+*.log
+logs/
+
+# =========================
+# OS files
+# =========================
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# =========================
+# Environment / secrets
+# =========================
+.env
+.env.*
+!.env.example
+*.pfx
+*.snk
+secrets.json
+
+# appsettings secrets (tuỳ team policy)
+appsettings.Development.json
+appsettings.Local.json
+
+# =========================
+# EF Core / DB local files
+# =========================
+*.mdf
+*.ldf
+*.sqlite
+*.db
+
+# =========================
+# Node (nếu có frontend trong repo)
+# =========================
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# =========================
+# Temporary files
+# =========================
+*.tmp
+*.temp
+~$*
