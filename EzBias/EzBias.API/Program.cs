@@ -64,6 +64,7 @@ builder.Services.AddScoped<IPaymentRepository, PaymentRepository>();
 builder.Services.AddScoped<IEscrowRepository, EscrowRepository>();
 builder.Services.AddScoped<IPayoutRepository, PayoutRepository>();
 builder.Services.AddScoped<IAuctionRepository, AuctionRepository>();
+builder.Services.AddScoped<IBidRepository, BidRepository>();
 builder.Services.AddScoped<IUnitOfWork, UnitOfWork>();
 builder.Services.AddScoped<IAuthApplicationService, AuthApplicationService>();
 builder.Services.AddScoped<ICartApplicationService, CartApplicationService>();
@@ -72,6 +73,7 @@ builder.Services.AddScoped<IPaymentApplicationService, PaymentApplicationService
 builder.Services.AddScoped<IOrderFulfillmentApplicationService, OrderFulfillmentApplicationService>();
 builder.Services.AddScoped<IPayoutApplicationService, PayoutApplicationService>();
 builder.Services.AddScoped<ISellerAuctionApplicationService, SellerAuctionApplicationService>();
+builder.Services.AddScoped<IAuctionBiddingApplicationService, AuctionBiddingApplicationService>();
 
 builder.Services
     .AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
