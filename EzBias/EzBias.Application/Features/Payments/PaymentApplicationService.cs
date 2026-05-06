@@ -43,6 +43,15 @@ public class PaymentApplicationService : IPaymentApplicationService
         {
             po.Order.Status = OrderStatus.Paid;
             po.Order.UpdatedAt = DateTimeOffset.UtcNow;
+
+            foreach (var item in po.Order.Items)
+            {
+                if (item.Product.Stock < item.Quantity)
+                    return (false, $"Insufficient stock for product {item.ProductId}.", null);
+
+                item.Product.Stock -= item.Quantity;
+                item.Product.UpdatedAt = DateTimeOffset.UtcNow;
+            }
         }
 
         var hasHold = await _escrows.ExistsHoldByPaymentIdAsync(payment.Id, ct);
