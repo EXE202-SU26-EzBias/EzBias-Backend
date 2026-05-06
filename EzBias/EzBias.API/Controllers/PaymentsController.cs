@@ -26,7 +26,8 @@ public class PaymentsController : ControllerBase
         if (!result.Success || result.Data is null)
         {
             if (result.Error == "Forbidden.") return Forbid();
-            return NotFound(result.Error);
+            if (result.Error == "Payment not found.") return NotFound(result.Error);
+            return BadRequest(result.Error);
         }
 
         return Ok(result.Data);

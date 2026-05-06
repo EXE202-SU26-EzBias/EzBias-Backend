@@ -20,5 +20,7 @@ public class PaymentRepository : IPaymentRepository
         => _db.Payments
             .Include(x => x.PaymentOrders)
                 .ThenInclude(po => po.Order)
+                    .ThenInclude(o => o.Items)
+                        .ThenInclude(oi => oi.Product)
             .FirstOrDefaultAsync(x => x.Id == paymentId, ct);
 }
