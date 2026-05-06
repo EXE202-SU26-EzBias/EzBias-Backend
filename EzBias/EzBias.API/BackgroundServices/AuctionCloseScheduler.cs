@@ -1,4 +1,5 @@
-using EzBias.Application.Features.Auctions;
+using EzBias.Domain.Enums;
+using EzBias.Domain.Interfaces;
 
 namespace EzBias.API.BackgroundServices;
 
@@ -27,16 +28,45 @@ public class AuctionCloseScheduler : BackgroundService
             try
             {
                 using var scope = _scopeFactory.CreateScope();
-                var closingService = scope.ServiceProvider.GetRequiredService<IAuctionClosingApplicationService>();
+                var auctions = scope.ServiceProvider.GetRequiredService<IAuctionRepository>();
+                var bids = scope.ServiceProvider.GetRequiredService<IBidRepository>();
+                var uow = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
 
-                var result = await closingService.CloseExpiredAsync(stoppingToken);
-                if (result.ClosedCount > 0)
+                var now = DateTimeOffset.UtcNow;
+                var closable = await auctions.GetClosableAsync(now, stoppingToken);
+
+                var noWinner = 0;
+                var pendingPayment = 0;
+
+                foreach (var auction in closable)
                 {
+                    var topBid = await bids.GetTopBidAsync(auction.Id, stoppingToken);
+                    if (topBid is null || (auction.ReservePrice.HasValue && topBid.Amount < auction.ReservePrice.Value))
+                    {
+                        auction.Status = AuctionStatus.EndedNoWinner;
+                        noWinner++;
+                    }
+                    else
+                    {
+                        auction.Status = AuctionStatus.EndedPendingPayment;
+                        auction.WinnerId = topBid.UserId;
+                        auction.FinalPrice = topBid.Amount;
+                        auction.WinnerPaymentDeadline = now.AddHours(24);
+                        pendingPayment++;
+                    }
+
+                    auction.EndedAt = now;
+                    auction.UpdatedAt = now;
+                }
+
+                if (closable.Count > 0)
+                {
+                    await uow.SaveChangesAsync(stoppingToken);
                     _logger.LogInformation(
                         "Auction scheduler closed {ClosedCount} auctions (NoWinner={NoWinner}, PendingPayment={PendingPayment})",
-                        result.ClosedCount,
-                        result.EndedNoWinnerCount,
-                        result.EndedPendingPaymentCount);
+                        closable.Count,
+                        noWinner,
+                        pendingPayment);
                 }
             }
             catch (OperationCanceledException) when (stoppingToken.IsCancellationRequested)
