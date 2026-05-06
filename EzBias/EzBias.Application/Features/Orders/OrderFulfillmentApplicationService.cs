@@ -9,12 +9,14 @@ public class OrderFulfillmentApplicationService : IOrderFulfillmentApplicationSe
 {
     private readonly IOrderRepository _orders;
     private readonly IEscrowRepository _escrows;
+    private readonly IPayoutRepository _payouts;
     private readonly IUnitOfWork _uow;
 
-    public OrderFulfillmentApplicationService(IOrderRepository orders, IEscrowRepository escrows, IUnitOfWork uow)
+    public OrderFulfillmentApplicationService(IOrderRepository orders, IEscrowRepository escrows, IPayoutRepository payouts, IUnitOfWork uow)
     {
         _orders = orders;
         _escrows = escrows;
+        _payouts = payouts;
         _uow = uow;
     }
 
@@ -60,6 +62,19 @@ public class OrderFulfillmentApplicationService : IOrderFulfillmentApplicationSe
                 CreatedAt = DateTimeOffset.UtcNow
             }
         });
+
+        var payout = await _payouts.GetByOrderIdAsync(order.Id, ct);
+        if (payout is null)
+        {
+            _payouts.Add(new Payout
+            {
+                OrderId = order.Id,
+                SellerId = order.SellerId,
+                Amount = order.Total,
+                Status = PayoutStatus.Pending,
+                CreatedAt = DateTimeOffset.UtcNow
+            });
+        }
 
         await _uow.SaveChangesAsync(ct);
         return (true, null, new FulfillmentActionResponse(order.Id, order.Status.ToString()));

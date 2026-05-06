@@ -1,5 +1,4 @@
 using EzBias.Infrastructure.Persistence;
-using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 
@@ -7,7 +6,6 @@ namespace EzBias.API.Controllers;
 
 [ApiController]
 [Route("api/debug")]
-[Authorize]
 public class DebugController : ControllerBase
 {
     private readonly EzBiasDbContext _db;

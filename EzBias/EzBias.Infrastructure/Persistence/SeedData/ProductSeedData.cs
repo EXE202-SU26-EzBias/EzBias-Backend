@@ -21,6 +21,7 @@ public static class ProductSeedData
             await db.SaveChangesAsync(ct);
         }
 
+        await EnsureAdminUserAsync(db, ct);
         var sellers = await EnsureSeedSellersAsync(db, ct);
 
         var existingSeedProductNames = db.Products
@@ -139,6 +140,56 @@ public static class ProductSeedData
 
         db.Products.AddRange(toInsert);
         await db.SaveChangesAsync(ct);
+    }
+
+    private static async Task EnsureAdminUserAsync(EzBiasDbContext db, CancellationToken ct)
+    {
+        const string adminEmail = "admin.demo@ezbias.local";
+        const string adminPassword = "Admin@123";
+
+        var admin = db.Users.FirstOrDefault(x => x.Email == adminEmail);
+        if (admin is null)
+        {
+            admin = new User
+            {
+                FullName = "Demo Admin",
+                Username = "demo_admin",
+                Email = adminEmail,
+                PasswordHash = BCrypt.Net.BCrypt.HashPassword(adminPassword),
+                Role = UserRole.Admin,
+                CreatedAt = DateTimeOffset.UtcNow
+            };
+            db.Users.Add(admin);
+            await db.SaveChangesAsync(ct);
+            return;
+        }
+
+        var changed = false;
+        if (admin.Role != UserRole.Admin)
+        {
+            admin.Role = UserRole.Admin;
+            changed = true;
+        }
+
+        try
+        {
+            if (!BCrypt.Net.BCrypt.Verify(adminPassword, admin.PasswordHash))
+            {
+                admin.PasswordHash = BCrypt.Net.BCrypt.HashPassword(adminPassword);
+                changed = true;
+            }
+        }
+        catch (BCrypt.Net.SaltParseException)
+        {
+            admin.PasswordHash = BCrypt.Net.BCrypt.HashPassword(adminPassword);
+            changed = true;
+        }
+
+        if (changed)
+        {
+            admin.UpdatedAt = DateTimeOffset.UtcNow;
+            await db.SaveChangesAsync(ct);
+        }
     }
 
     private static async Task<List<User>> EnsureSeedSellersAsync(EzBiasDbContext db, CancellationToken ct)
