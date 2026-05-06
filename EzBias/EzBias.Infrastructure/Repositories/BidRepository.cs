@@ -22,4 +22,11 @@ public class BidRepository : IBidRepository
             .OrderByDescending(x => x.Amount)
             .Select(x => (decimal?)x.Amount)
             .FirstOrDefaultAsync(ct);
+
+    public async Task ClearWinningFlagsAsync(long auctionId, CancellationToken ct)
+    {
+        var winning = await _db.Bids.Where(x => x.AuctionId == auctionId && x.IsWinning).ToListAsync(ct);
+        foreach (var item in winning)
+            item.IsWinning = false;
+    }
 }

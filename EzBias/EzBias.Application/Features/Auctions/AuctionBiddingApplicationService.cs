@@ -56,10 +56,23 @@ public class AuctionBiddingApplicationService : IAuctionBiddingApplicationServic
             PlacedAt = DateTimeOffset.UtcNow
         };
 
+        await _bids.ClearWinningFlagsAsync(auction.Id, ct);
         _bids.Add(bid);
 
         auction.CurrentBid = request.Amount;
-        auction.Status = auction.Status == AuctionStatus.Extended ? AuctionStatus.Extended : AuctionStatus.Live;
+
+        var remaining = auction.EndsAt - DateTimeOffset.UtcNow;
+        if (remaining.TotalSeconds <= auction.TriggerBeforeEnd)
+        {
+            auction.EndsAt = auction.EndsAt.AddSeconds(auction.ExtensionSeconds);
+            auction.ExtensionCount += 1;
+            auction.Status = AuctionStatus.Extended;
+        }
+        else
+        {
+            auction.Status = AuctionStatus.Live;
+        }
+
         auction.UpdatedAt = DateTimeOffset.UtcNow;
 
         await _uow.SaveChangesAsync(ct);
