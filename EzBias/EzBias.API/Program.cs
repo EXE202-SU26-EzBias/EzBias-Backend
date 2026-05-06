@@ -2,6 +2,7 @@ using EzBias.Application.Features.Auth;
 using EzBias.Application.Features.Auth.Services;
 using EzBias.Application.Features.Cart;
 using EzBias.Application.Features.Checkout;
+using EzBias.Application.Features.Payments;
 using EzBias.Domain.Interfaces;
 using EzBias.Infrastructure.Auth;
 using EzBias.Infrastructure.Persistence;
@@ -57,10 +58,12 @@ builder.Services.AddScoped<ICartRepository, CartRepository>();
 builder.Services.AddScoped<IProductRepository, ProductRepository>();
 builder.Services.AddScoped<IOrderRepository, OrderRepository>();
 builder.Services.AddScoped<IPaymentRepository, PaymentRepository>();
+builder.Services.AddScoped<IEscrowRepository, EscrowRepository>();
 builder.Services.AddScoped<IUnitOfWork, UnitOfWork>();
 builder.Services.AddScoped<IAuthApplicationService, AuthApplicationService>();
 builder.Services.AddScoped<ICartApplicationService, CartApplicationService>();
 builder.Services.AddScoped<ICheckoutApplicationService, CheckoutApplicationService>();
+builder.Services.AddScoped<IPaymentApplicationService, PaymentApplicationService>();
 
 builder.Services
     .AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
