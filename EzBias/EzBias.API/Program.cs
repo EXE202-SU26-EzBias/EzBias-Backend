@@ -5,6 +5,7 @@ using EzBias.Application.Features.Checkout;
 using EzBias.Application.Features.Orders;
 using EzBias.Application.Features.Payments;
 using EzBias.Application.Features.Payouts;
+using EzBias.Application.Features.Auctions;
 using EzBias.Domain.Interfaces;
 using EzBias.Infrastructure.Auth;
 using EzBias.Infrastructure.Persistence;
@@ -62,6 +63,7 @@ builder.Services.AddScoped<IOrderRepository, OrderRepository>();
 builder.Services.AddScoped<IPaymentRepository, PaymentRepository>();
 builder.Services.AddScoped<IEscrowRepository, EscrowRepository>();
 builder.Services.AddScoped<IPayoutRepository, PayoutRepository>();
+builder.Services.AddScoped<IAuctionRepository, AuctionRepository>();
 builder.Services.AddScoped<IUnitOfWork, UnitOfWork>();
 builder.Services.AddScoped<IAuthApplicationService, AuthApplicationService>();
 builder.Services.AddScoped<ICartApplicationService, CartApplicationService>();
@@ -69,6 +71,7 @@ builder.Services.AddScoped<ICheckoutApplicationService, CheckoutApplicationServi
 builder.Services.AddScoped<IPaymentApplicationService, PaymentApplicationService>();
 builder.Services.AddScoped<IOrderFulfillmentApplicationService, OrderFulfillmentApplicationService>();
 builder.Services.AddScoped<IPayoutApplicationService, PayoutApplicationService>();
+builder.Services.AddScoped<ISellerAuctionApplicationService, SellerAuctionApplicationService>();
 
 builder.Services
     .AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
