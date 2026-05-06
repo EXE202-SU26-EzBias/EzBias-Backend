@@ -1,9 +1,12 @@
 using EzBias.Application.Features.Auth;
 using EzBias.Application.Features.Auth.Services;
+using EzBias.Application.Features.Cart;
+using EzBias.Application.Features.Checkout;
 using EzBias.Domain.Interfaces;
 using EzBias.Infrastructure.Auth;
 using EzBias.Infrastructure.Persistence;
 using EzBias.Infrastructure.Repositories;
+using EzBias.Infrastructure.Persistence.SeedData;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
@@ -50,8 +53,14 @@ builder.Services.AddScoped<IPasswordHasher, PasswordHasher>();
 builder.Services.AddScoped<ITokenService, TokenService>();
 builder.Services.AddScoped<IUserRepository, UserRepository>();
 builder.Services.AddScoped<IRefreshTokenRepository, RefreshTokenRepository>();
+builder.Services.AddScoped<ICartRepository, CartRepository>();
+builder.Services.AddScoped<IProductRepository, ProductRepository>();
+builder.Services.AddScoped<IOrderRepository, OrderRepository>();
+builder.Services.AddScoped<IPaymentRepository, PaymentRepository>();
 builder.Services.AddScoped<IUnitOfWork, UnitOfWork>();
 builder.Services.AddScoped<IAuthApplicationService, AuthApplicationService>();
+builder.Services.AddScoped<ICartApplicationService, CartApplicationService>();
+builder.Services.AddScoped<ICheckoutApplicationService, CheckoutApplicationService>();
 
 builder.Services
     .AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
@@ -79,6 +88,7 @@ using (var scope = app.Services.CreateScope())
 {
     var db = scope.ServiceProvider.GetRequiredService<EzBiasDbContext>();
     db.Database.Migrate();
+    await ProductSeedData.SeedAsync(db);
 }
 
 if (app.Environment.IsDevelopment())
