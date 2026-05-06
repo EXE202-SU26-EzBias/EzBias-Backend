@@ -2,14 +2,14 @@ using EzBias.Application.Features.Auth;
 using EzBias.Application.Features.Auth.Services;
 using EzBias.Application.Features.Cart;
 using EzBias.Application.Features.Checkout;
-using EzBias.Application.Features.Payments;
 using EzBias.Application.Features.Orders;
+using EzBias.Application.Features.Payments;
 using EzBias.Application.Features.Payouts;
 using EzBias.Domain.Interfaces;
 using EzBias.Infrastructure.Auth;
 using EzBias.Infrastructure.Persistence;
-using EzBias.Infrastructure.Repositories;
 using EzBias.Infrastructure.Persistence.SeedData;
+using EzBias.Infrastructure.Repositories;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
@@ -74,6 +74,8 @@ builder.Services
     .AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
     .AddJwtBearer(options =>
     {
+        options.MapInboundClaims = false;
+
         options.TokenValidationParameters = new TokenValidationParameters
         {
             ValidateIssuer = true,
