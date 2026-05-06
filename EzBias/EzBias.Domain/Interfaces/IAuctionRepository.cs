@@ -12,5 +12,6 @@ public interface IAuctionRepository
     Task<bool> HasAnyBidAsync(long auctionId, CancellationToken ct);
     Task<IReadOnlyList<Auction>> GetBySellerAsync(long sellerId, AuctionStatus? status, CancellationToken ct);
     Task<IReadOnlyList<Auction>> GetPublicAsync(AuctionStatus? status, CancellationToken ct);
+    Task<IReadOnlyList<Auction>> GetClosableAsync(DateTimeOffset now, CancellationToken ct);
     void Add(Auction auction);
 }

@@ -6,6 +6,7 @@ using EzBias.Application.Features.Orders;
 using EzBias.Application.Features.Payments;
 using EzBias.Application.Features.Payouts;
 using EzBias.Application.Features.Auctions;
+using EzBias.API.BackgroundServices;
 using EzBias.Domain.Interfaces;
 using EzBias.Infrastructure.Auth;
 using EzBias.Infrastructure.Persistence;
@@ -74,6 +75,8 @@ builder.Services.AddScoped<IOrderFulfillmentApplicationService, OrderFulfillment
 builder.Services.AddScoped<IPayoutApplicationService, PayoutApplicationService>();
 builder.Services.AddScoped<ISellerAuctionApplicationService, SellerAuctionApplicationService>();
 builder.Services.AddScoped<IAuctionBiddingApplicationService, AuctionBiddingApplicationService>();
+builder.Services.AddScoped<IAuctionClosingApplicationService, AuctionClosingApplicationService>();
+builder.Services.AddHostedService<AuctionCloseScheduler>();
 
 builder.Services
     .AddAuthentication(JwtBearerDefaults.AuthenticationScheme)

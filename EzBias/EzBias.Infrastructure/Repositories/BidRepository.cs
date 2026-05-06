@@ -29,4 +29,11 @@ public class BidRepository : IBidRepository
         foreach (var item in winning)
             item.IsWinning = false;
     }
+
+    public Task<Bid?> GetTopBidAsync(long auctionId, CancellationToken ct)
+        => _db.Bids
+            .Where(x => x.AuctionId == auctionId)
+            .OrderByDescending(x => x.Amount)
+            .ThenBy(x => x.PlacedAt)
+            .FirstOrDefaultAsync(ct);
 }

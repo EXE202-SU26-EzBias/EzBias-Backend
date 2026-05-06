@@ -47,5 +47,10 @@ public class AuctionRepository : IAuctionRepository
         return await query.OrderBy(x => x.EndsAt).ToListAsync(ct);
     }
 
+    public async Task<IReadOnlyList<Auction>> GetClosableAsync(DateTimeOffset now, CancellationToken ct)
+        => await _db.Auctions
+            .Where(x => (x.Status == AuctionStatus.Live || x.Status == AuctionStatus.Extended) && x.EndsAt <= now)
+            .ToListAsync(ct);
+
     public void Add(Auction auction) => _db.Auctions.Add(auction);
 }
