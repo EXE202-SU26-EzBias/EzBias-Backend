@@ -7,19 +7,23 @@ public static class ProductSeedData
 {
     public static async Task SeedAsync(EzBiasDbContext db, CancellationToken ct = default)
     {
-        var fandomId = "bts";
-
-        if (!db.Fandoms.Any(x => x.Id == fandomId))
+        var fandomSeeds = new List<Fandom>
         {
-            db.Fandoms.Add(new Fandom
-            {
-                Id = fandomId,
-                Name = "BTS",
-                IsActive = true,
-                CreatedAt = DateTimeOffset.UtcNow
-            });
+            new() { Id = "bts", Name = "BTS", IsActive = true, CreatedAt = DateTimeOffset.UtcNow },
+            new() { Id = "blackpink", Name = "BLACKPINK", IsActive = true, CreatedAt = DateTimeOffset.UtcNow },
+            new() { Id = "newjeans", Name = "NewJeans", IsActive = true, CreatedAt = DateTimeOffset.UtcNow },
+            new() { Id = "twice", Name = "TWICE", IsActive = true, CreatedAt = DateTimeOffset.UtcNow }
+        };
+
+        var existingFandomIds = db.Fandoms.Select(x => x.Id).ToHashSet();
+        var fandomsToInsert = fandomSeeds.Where(x => !existingFandomIds.Contains(x.Id)).ToList();
+        if (fandomsToInsert.Count > 0)
+        {
+            db.Fandoms.AddRange(fandomsToInsert);
             await db.SaveChangesAsync(ct);
         }
+
+        var fandomId = "bts";
 
         await EnsureAdminUserAsync(db, ct);
         var sellers = await EnsureSeedSellersAsync(db, ct);
@@ -125,6 +129,54 @@ public static class ProductSeedData
                 Stock = 15,
                 Description = "Third seller sample card set.",
                 PrimaryImageUrl = "https://picsum.photos/seed/ezbias6/600/600",
+                IsAuction = false,
+                Status = ProductStatus.Active,
+                CreatedAt = now
+            },
+            new()
+            {
+                SellerId = sellers[0].Id,
+                FandomId = "blackpink",
+                Artist = "Jisoo",
+                Name = "[SEED] ME Photocard Set",
+                Type = "Photocard",
+                Condition = ProductCondition.New,
+                Price = 190000,
+                Stock = 8,
+                Description = "BLACKPINK fandom seed product.",
+                PrimaryImageUrl = "https://picsum.photos/seed/ezbias7/600/600",
+                IsAuction = false,
+                Status = ProductStatus.Active,
+                CreatedAt = now
+            },
+            new()
+            {
+                SellerId = sellers[1].Id,
+                FandomId = "newjeans",
+                Artist = "Hanni",
+                Name = "[SEED] Get Up Album Bunny Beach Bag Ver.",
+                Type = "Album",
+                Condition = ProductCondition.New,
+                Price = 350000,
+                Stock = 6,
+                Description = "NewJeans fandom seed product.",
+                PrimaryImageUrl = "https://picsum.photos/seed/ezbias8/600/600",
+                IsAuction = false,
+                Status = ProductStatus.Active,
+                CreatedAt = now
+            },
+            new()
+            {
+                SellerId = sellers[2].Id,
+                FandomId = "twice",
+                Artist = "Nayeon",
+                Name = "[SEED] NA Album Digipack",
+                Type = "Album",
+                Condition = ProductCondition.LikeNew,
+                Price = 240000,
+                Stock = 11,
+                Description = "TWICE fandom seed product.",
+                PrimaryImageUrl = "https://picsum.photos/seed/ezbias9/600/600",
                 IsAuction = false,
                 Status = ProductStatus.Active,
                 CreatedAt = now

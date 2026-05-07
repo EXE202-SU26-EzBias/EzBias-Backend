@@ -26,7 +26,7 @@ public sealed class AuctionConfiguration : IEntityTypeConfiguration<Auction>
         builder.Property(x => x.TriggerBeforeEnd).HasColumnName("trigger_before_end").HasDefaultValue(60).IsRequired();
         builder.Property(x => x.ExtensionCount).HasColumnName("extension_count").HasDefaultValue(0).IsRequired();
 
-        builder.Property(x => x.Status).HasColumnName("status").HasConversion<string>().HasColumnType("text").HasDefaultValue(Domain.Enums.AuctionStatus.Live).IsRequired();
+        builder.Property(x => x.Status).HasColumnName("status").HasConversion<string>().HasColumnType("text").HasDefaultValue(Domain.Enums.AuctionStatus.Draft).IsRequired();
         builder.Property(x => x.WinnerId).HasColumnName("winner_id");
         builder.Property(x => x.FinalPrice).HasColumnName("final_price").HasColumnType("numeric(18,2)");
         builder.Property(x => x.EndsAt).HasColumnName("ends_at").HasColumnType("timestamptz").IsRequired();

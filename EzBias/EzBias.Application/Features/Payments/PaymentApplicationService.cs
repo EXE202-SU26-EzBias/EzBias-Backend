@@ -8,12 +8,14 @@ namespace EzBias.Application.Features.Payments;
 public class PaymentApplicationService : IPaymentApplicationService
 {
     private readonly IPaymentRepository _payments;
+    private readonly IAuctionRepository _auctions;
     private readonly IEscrowRepository _escrows;
     private readonly IUnitOfWork _uow;
 
-    public PaymentApplicationService(IPaymentRepository payments, IEscrowRepository escrows, IUnitOfWork uow)
+    public PaymentApplicationService(IPaymentRepository payments, IAuctionRepository auctions, IEscrowRepository escrows, IUnitOfWork uow)
     {
         _payments = payments;
+        _auctions = auctions;
         _escrows = escrows;
         _uow = uow;
     }
@@ -43,6 +45,17 @@ public class PaymentApplicationService : IPaymentApplicationService
         {
             po.Order.Status = OrderStatus.Paid;
             po.Order.UpdatedAt = DateTimeOffset.UtcNow;
+
+            if (po.Order.Source == OrderSource.Auction && po.Order.AuctionId.HasValue)
+            {
+                var auction = await _auctions.GetByIdAsync(po.Order.AuctionId.Value, ct);
+                if (auction is not null && auction.Status == AuctionStatus.EndedPendingPayment)
+                {
+                    auction.Status = AuctionStatus.Sold;
+                    auction.UpdatedAt = DateTimeOffset.UtcNow;
+                }
+                continue;
+            }
 
             foreach (var item in po.Order.Items)
             {
