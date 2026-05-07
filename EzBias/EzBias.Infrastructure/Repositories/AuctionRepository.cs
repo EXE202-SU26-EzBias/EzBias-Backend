@@ -53,5 +53,12 @@ public class AuctionRepository : IAuctionRepository
             .Where(x => (x.Status == AuctionStatus.Live || x.Status == AuctionStatus.Extended) && x.EndsAt <= now)
             .ToListAsync(ct);
 
+    public async Task<IReadOnlyList<Auction>> GetPendingPaymentExpiredAsync(DateTimeOffset now, CancellationToken ct)
+        => await _db.Auctions
+            .Where(x => x.Status == AuctionStatus.EndedPendingPayment
+                && x.WinnerPaymentDeadline.HasValue
+                && x.WinnerPaymentDeadline.Value <= now)
+            .ToListAsync(ct);
+
     public void Add(Auction auction) => _db.Auctions.Add(auction);
 }

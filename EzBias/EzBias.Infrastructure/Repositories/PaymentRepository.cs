@@ -19,6 +19,13 @@ public class PaymentRepository : IPaymentRepository
     public Task<bool> ExistsByOrderIdAsync(long orderId, CancellationToken ct)
         => _db.PaymentOrders.AnyAsync(x => x.OrderId == orderId, ct);
 
+    public Task<Payment?> GetPendingByAuctionIdAsync(long auctionId, CancellationToken ct)
+        => _db.Payments
+            .Include(x => x.PaymentOrders)
+                .ThenInclude(po => po.Order)
+            .FirstOrDefaultAsync(x => x.Status == Domain.Enums.PaymentStatus.Pending
+                && x.PaymentOrders.Any(po => po.Order.AuctionId == auctionId), ct);
+
     public Task<Payment?> GetByIdWithOrdersAsync(long paymentId, CancellationToken ct)
         => _db.Payments
             .Include(x => x.PaymentOrders)

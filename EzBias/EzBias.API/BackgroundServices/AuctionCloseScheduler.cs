@@ -121,14 +121,47 @@ public class AuctionCloseScheduler : BackgroundService
                     auction.UpdatedAt = now;
                 }
 
-                if (closable.Count > 0)
+                var winnerExpired = await auctions.GetPendingPaymentExpiredAsync(now, stoppingToken);
+                var winnerFailed = 0;
+                foreach (var auction in winnerExpired)
+                {
+                    auction.Status = AuctionStatus.WinnerFailed;
+                    auction.UpdatedAt = now;
+
+                    var pendingAuctionPayment = await payments.GetPendingByAuctionIdAsync(auction.Id, stoppingToken);
+                    if (pendingAuctionPayment is not null)
+                    {
+                        pendingAuctionPayment.Status = PaymentStatus.Failed;
+                        pendingAuctionPayment.UpdatedAt = now;
+                    }
+
+                    var auctionOrder = await orders.GetByAuctionIdAsync(auction.Id, stoppingToken);
+                    if (auctionOrder is not null && auctionOrder.Status == OrderStatus.Pending)
+                    {
+                        auctionOrder.Status = OrderStatus.Canceled;
+                        auctionOrder.UpdatedAt = now;
+                    }
+
+                    winnerFailed++;
+                }
+
+                if (closable.Count > 0 || winnerFailed > 0)
                 {
                     await uow.SaveChangesAsync(stoppingToken);
-                    _logger.LogInformation(
-                        "Auction scheduler closed {ClosedCount} auctions (NoWinner={NoWinner}, PendingPayment={PendingPayment})",
-                        closable.Count,
-                        noWinner,
-                        pendingPayment);
+
+                    if (closable.Count > 0)
+                    {
+                        _logger.LogInformation(
+                            "Auction scheduler closed {ClosedCount} auctions (NoWinner={NoWinner}, PendingPayment={PendingPayment})",
+                            closable.Count,
+                            noWinner,
+                            pendingPayment);
+                    }
+
+                    if (winnerFailed > 0)
+                    {
+                        _logger.LogInformation("Auction scheduler marked {Count} winner-timeout auctions as WinnerFailed", winnerFailed);
+                    }
                 }
             }
             catch (OperationCanceledException) when (stoppingToken.IsCancellationRequested)
