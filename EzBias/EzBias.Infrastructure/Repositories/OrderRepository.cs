@@ -26,4 +26,21 @@ public class OrderRepository : IOrderRepository
 
     public Task<Order?> GetByIdAsync(long orderId, CancellationToken ct)
         => _db.Orders.FirstOrDefaultAsync(x => x.Id == orderId, ct);
+
+    public Task<Order?> GetByIdWithItemsAsync(long orderId, CancellationToken ct)
+        => _db.Orders
+            .Include(x => x.Items)
+            .FirstOrDefaultAsync(x => x.Id == orderId, ct);
+
+    public async Task<IReadOnlyList<Order>> GetByBuyerAsync(long buyerId, CancellationToken ct)
+        => await _db.Orders
+            .Where(x => x.UserId == buyerId)
+            .OrderByDescending(x => x.CreatedAt)
+            .ToListAsync(ct);
+
+    public async Task<IReadOnlyList<Order>> GetBySellerAsync(long sellerId, CancellationToken ct)
+        => await _db.Orders
+            .Where(x => x.SellerId == sellerId)
+            .OrderByDescending(x => x.CreatedAt)
+            .ToListAsync(ct);
 }
