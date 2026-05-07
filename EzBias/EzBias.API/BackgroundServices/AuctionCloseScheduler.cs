@@ -54,8 +54,7 @@ public class AuctionCloseScheduler : BackgroundService
                         auction.Status = AuctionStatus.EndedPendingPayment;
                         auction.WinnerId = topBid.UserId;
                         auction.FinalPrice = topBid.Amount;
-                        //auction.WinnerPaymentDeadline = now.AddHours(24);
-                        auction.WinnerPaymentDeadline = now.AddMinutes(1);
+                        auction.WinnerPaymentDeadline = now.AddHours(24);
 
                         var order = await orders.GetByAuctionIdAsync(auction.Id, stoppingToken);
                         if (order is null)

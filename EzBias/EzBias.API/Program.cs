@@ -75,6 +75,7 @@ builder.Services.AddScoped<IOrderFulfillmentApplicationService, OrderFulfillment
 builder.Services.AddScoped<IPayoutApplicationService, PayoutApplicationService>();
 builder.Services.AddScoped<ISellerAuctionApplicationService, SellerAuctionApplicationService>();
 builder.Services.AddScoped<IAuctionBiddingApplicationService, AuctionBiddingApplicationService>();
+builder.Services.AddScoped<IAuctionPostFlowQueryService, AuctionPostFlowQueryService>();
 builder.Services.AddHostedService<AuctionCloseScheduler>();
 
 builder.Services

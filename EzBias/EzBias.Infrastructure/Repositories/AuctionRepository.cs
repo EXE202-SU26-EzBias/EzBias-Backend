@@ -60,5 +60,21 @@ public class AuctionRepository : IAuctionRepository
                 && x.WinnerPaymentDeadline.Value <= now)
             .ToListAsync(ct);
 
+    public Task<Auction?> GetByOrderIdAsync(long orderId, CancellationToken ct)
+        => _db.Auctions.FirstOrDefaultAsync(x => x.Orders.Any(o => o.Id == orderId), ct);
+
+    public async Task<IReadOnlyList<Auction>> GetWonByBuyerAsync(long buyerId, bool onlyPendingPayment, CancellationToken ct)
+    {
+        var query = _db.Auctions.Where(x => x.WinnerId == buyerId);
+        if (onlyPendingPayment) query = query.Where(x => x.Status == AuctionStatus.EndedPendingPayment);
+        return await query.OrderByDescending(x => x.EndedAt ?? x.UpdatedAt ?? x.CreatedAt).ToListAsync(ct);
+    }
+
+    public async Task<IReadOnlyList<Auction>> GetEndedBySellerAsync(long sellerId, CancellationToken ct)
+        => await _db.Auctions
+            .Where(x => x.SellerId == sellerId && (x.Status == AuctionStatus.EndedNoWinner || x.Status == AuctionStatus.EndedPendingPayment || x.Status == AuctionStatus.WinnerFailed || x.Status == AuctionStatus.Sold))
+            .OrderByDescending(x => x.EndedAt ?? x.UpdatedAt ?? x.CreatedAt)
+            .ToListAsync(ct);
+
     public void Add(Auction auction) => _db.Auctions.Add(auction);
 }
