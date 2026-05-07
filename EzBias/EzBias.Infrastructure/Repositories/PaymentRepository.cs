@@ -16,6 +16,9 @@ public class PaymentRepository : IPaymentRepository
 
     public void Add(Payment payment) => _db.Payments.Add(payment);
 
+    public Task<bool> ExistsByOrderIdAsync(long orderId, CancellationToken ct)
+        => _db.PaymentOrders.AnyAsync(x => x.OrderId == orderId, ct);
+
     public Task<Payment?> GetByIdWithOrdersAsync(long paymentId, CancellationToken ct)
         => _db.Payments
             .Include(x => x.PaymentOrders)

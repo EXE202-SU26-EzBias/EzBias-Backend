@@ -1,3 +1,4 @@
+using EzBias.Domain.Entities;
 using EzBias.Domain.Enums;
 using EzBias.Domain.Interfaces;
 
@@ -30,6 +31,8 @@ public class AuctionCloseScheduler : BackgroundService
                 using var scope = _scopeFactory.CreateScope();
                 var auctions = scope.ServiceProvider.GetRequiredService<IAuctionRepository>();
                 var bids = scope.ServiceProvider.GetRequiredService<IBidRepository>();
+                var orders = scope.ServiceProvider.GetRequiredService<IOrderRepository>();
+                var payments = scope.ServiceProvider.GetRequiredService<IPaymentRepository>();
                 var uow = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
 
                 var now = DateTimeOffset.UtcNow;
@@ -51,7 +54,66 @@ public class AuctionCloseScheduler : BackgroundService
                         auction.Status = AuctionStatus.EndedPendingPayment;
                         auction.WinnerId = topBid.UserId;
                         auction.FinalPrice = topBid.Amount;
-                        auction.WinnerPaymentDeadline = now.AddHours(24);
+                        //auction.WinnerPaymentDeadline = now.AddHours(24);
+                        auction.WinnerPaymentDeadline = now.AddMinutes(1);
+
+                        var order = await orders.GetByAuctionIdAsync(auction.Id, stoppingToken);
+                        if (order is null)
+                        {
+                            var productImage = auction.Product.Images.FirstOrDefault(x => x.SortOrder == 1)?.Url
+                                ?? auction.Product.Images.FirstOrDefault()?.Url
+                                ?? string.Empty;
+
+                            order = new Order
+                            {
+                                UserId = topBid.UserId,
+                                SellerId = auction.SellerId,
+                                Source = OrderSource.Auction,
+                                AuctionId = auction.Id,
+                                ShippingFee = 0m,
+                                Total = topBid.Amount,
+                                Status = OrderStatus.Pending,
+                                AddressSnap = "{}",
+                                CreatedAt = now,
+                                Items =
+                                {
+                                    new OrderItem
+                                    {
+                                        ProductId = auction.ProductId,
+                                        ProductName = auction.Product.Name,
+                                        ProductImage = productImage,
+                                        Quantity = 1,
+                                        UnitPrice = topBid.Amount,
+                                        Subtotal = topBid.Amount
+                                    }
+                                }
+                            };
+
+                            orders.Add(order);
+                        }
+
+                        var hasPayment = order.Id > 0 && await payments.ExistsByOrderIdAsync(order.Id, stoppingToken);
+                        if (!hasPayment)
+                        {
+                            var payment = new Payment
+                            {
+                                UserId = topBid.UserId,
+                                Type = PaymentType.Order,
+                                Amount = topBid.Amount,
+                                Currency = "VND",
+                                Status = PaymentStatus.Pending,
+                                Reference = $"AUC-{auction.Id}-{now:yyyyMMddHHmmss}",
+                                Payload = $"{{\"auctionId\":{auction.Id},\"orderSource\":\"auction\",\"deadline\":\"{auction.WinnerPaymentDeadline:O}\"}}",
+                                CreatedAt = now,
+                                PaymentOrders =
+                                {
+                                    new PaymentOrder { Order = order }
+                                }
+                            };
+
+                            payments.Add(payment);
+                        }
+
                         pendingPayment++;
                     }
 
