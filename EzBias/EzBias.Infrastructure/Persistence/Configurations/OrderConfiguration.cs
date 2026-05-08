@@ -18,7 +18,6 @@ public sealed class OrderConfiguration : IEntityTypeConfiguration<Order>
         builder.Property(x => x.Source).HasColumnName("source").HasConversion<string>().HasColumnType("text").HasDefaultValue(Domain.Enums.OrderSource.Cart).IsRequired();
         builder.Property(x => x.AuctionId).HasColumnName("auction_id");
 
-        builder.Property(x => x.ShippingFee).HasColumnName("shipping_fee").HasColumnType("numeric(18,2)").HasDefaultValue(0m).IsRequired();
         builder.Property(x => x.Total).HasColumnName("total").HasColumnType("numeric(18,2)").IsRequired();
         builder.Property(x => x.Status).HasColumnName("status").HasConversion<string>().HasColumnType("text").HasDefaultValue(Domain.Enums.OrderStatus.Pending).IsRequired();
         builder.Property(x => x.AddressSnap).HasColumnName("address_snap").HasColumnType("jsonb").HasDefaultValue("{}").IsRequired();
