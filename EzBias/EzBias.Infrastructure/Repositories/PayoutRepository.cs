@@ -29,5 +29,12 @@ public class PayoutRepository : IPayoutRepository
         return await query.OrderByDescending(x => x.CreatedAt).ToListAsync(ct);
     }
 
+    public async Task<IReadOnlyList<Payout>> GetAllAsync(PayoutStatus? status, CancellationToken ct)
+    {
+        var query = _db.Payouts.AsQueryable();
+        if (status.HasValue) query = query.Where(x => x.Status == status.Value);
+        return await query.OrderByDescending(x => x.CreatedAt).ToListAsync(ct);
+    }
+
     public void Add(Payout payout) => _db.Payouts.Add(payout);
 }

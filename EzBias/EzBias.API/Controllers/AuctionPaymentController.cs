@@ -1,5 +1,6 @@
 using System.Security.Claims;
 using EzBias.Application.Features.Payments;
+using EzBias.Application.Features.Payments.Dtos;
 using EzBias.Domain.Interfaces;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -34,9 +35,16 @@ public class AuctionPaymentController : ControllerBase
         var payment = await _payments.GetPendingByAuctionIdAsync(auctionId, ct);
         if (payment is null) return NotFound("Pending payment not found.");
 
-        var result = await _paymentService.ConfirmAsync(userId, payment.Id, ct);
-        if (!result.Success || result.Data is null) return BadRequest(result.Error);
-        return Ok(result.Data);
+        var hook = await _paymentService.HandleWebhookAsync(new PaymentWebhookRequest(
+            payment.Reference,
+            payment.ProviderTxnId,
+            payment.TransferContent,
+            payment.Payload), ct);
+        if (!hook.Success) return BadRequest(hook.Error);
+
+        var status = await _paymentService.GetStatusAsync(userId, payment.Id, ct);
+        if (!status.Success || status.Data is null) return BadRequest(status.Error);
+        return Ok(status.Data);
     }
 
     private bool TryGetUserId(out long userId)

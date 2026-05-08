@@ -6,7 +6,7 @@ using Microsoft.AspNetCore.Mvc;
 namespace EzBias.API.Controllers;
 
 [ApiController]
-[Route("api/payouts")]
+[Route("api/admin/payouts")]
 [Authorize(Roles = "Admin")]
 public class PayoutsController : ControllerBase
 {
@@ -17,13 +17,26 @@ public class PayoutsController : ControllerBase
         _service = service;
     }
 
-    [HttpPost("{payoutId:long}/mark-paid")]
-    public async Task<IActionResult> MarkPaid([FromRoute] long payoutId, [FromBody] MarkPayoutPaidRequest request, CancellationToken ct)
+    [HttpGet]
+    public async Task<IActionResult> Get([FromQuery] EzBias.Domain.Enums.PayoutStatus? status, CancellationToken ct)
+    {
+        var data = await _service.GetAdminPayoutsAsync(status, ct);
+        return Ok(data);
+    }
+
+    [HttpPut("{payoutId:long}/approve")]
+    public async Task<IActionResult> Approve([FromRoute] long payoutId, [FromBody] MarkPayoutPaidRequest request, CancellationToken ct)
     {
         var result = await _service.MarkPaidAsync(payoutId, request, ct);
-        if (!result.Success || result.Data is null)
-            return NotFound(result.Error);
+        if (!result.Success || result.Data is null) return BadRequest(result.Error);
+        return Ok(result.Data);
+    }
 
+    [HttpPut("{payoutId:long}/reject")]
+    public async Task<IActionResult> Reject([FromRoute] long payoutId, [FromBody] RejectPayoutRequest request, CancellationToken ct)
+    {
+        var result = await _service.RejectAsync(payoutId, request, ct);
+        if (!result.Success || result.Data is null) return BadRequest(result.Error);
         return Ok(result.Data);
     }
 }
