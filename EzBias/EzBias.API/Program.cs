@@ -1,6 +1,7 @@
 using EzBias.Application.Features.Auth;
 using EzBias.Application.Features.Auth.Services;
 using EzBias.Application.Features.Cart;
+using EzBias.Application.Features.Orders;
 using EzBias.Application.Features.Payments;
 using EzBias.Application.Features.Payouts;
 using EzBias.Application.Features.Auctions;
@@ -86,6 +87,7 @@ builder.Services.AddScoped<IProductManagementApplicationService, ProductManageme
 builder.Services.AddScoped<ICartApplicationService, CartApplicationService>();
 builder.Services.AddScoped<IPaymentApplicationService, PaymentApplicationService>();
 builder.Services.AddScoped<ISePayClient, SePayClient>();
+builder.Services.AddScoped<IOrderApplicationService, OrderApplicationService>();
 builder.Services.AddScoped<IPayoutApplicationService, PayoutApplicationService>();
 builder.Services.AddScoped<IRatingApplicationService, RatingApplicationService>();
 builder.Services.AddScoped<INotificationApplicationService, NotificationApplicationService>();
