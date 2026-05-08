@@ -1,9 +1,8 @@
 using System.Security.Claims;
-using EzBias.Application.Features.Checkout;
-using EzBias.Application.Features.Checkout.Dtos;
-using EzBias.Application.Features.Orders;
 using EzBias.Application.Features.Orders.Dtos;
+using EzBias.Domain.Enums;
 using EzBias.Domain.Interfaces;
+using EzBias.Domain.Entities;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
@@ -14,24 +13,17 @@ namespace EzBias.API.Controllers;
 [Authorize]
 public class OrdersController : ControllerBase
 {
-    private readonly ICheckoutApplicationService _checkout;
     private readonly IOrderRepository _orders;
-    private readonly IOrderFulfillmentApplicationService _fulfillment;
+    private readonly IEscrowRepository _escrows;
+    private readonly IPayoutRepository _payouts;
+    private readonly IUnitOfWork _uow;
 
-    public OrdersController(ICheckoutApplicationService checkout, IOrderRepository orders, IOrderFulfillmentApplicationService fulfillment)
+    public OrdersController(IOrderRepository orders, IEscrowRepository escrows, IPayoutRepository payouts, IUnitOfWork uow)
     {
-        _checkout = checkout;
         _orders = orders;
-        _fulfillment = fulfillment;
-    }
-
-    [HttpPost]
-    public async Task<IActionResult> Create([FromBody] CheckoutSubmitRequest request, CancellationToken ct)
-    {
-        if (!TryGetUserId(out var userId)) return Unauthorized();
-        var result = await _checkout.SubmitAsync(userId, request, ct);
-        if (!result.Success || result.Data is null) return BadRequest(result.Error);
-        return Ok(result.Data);
+        _escrows = escrows;
+        _payouts = payouts;
+        _uow = uow;
     }
 
     [HttpGet]
@@ -56,18 +48,49 @@ public class OrdersController : ControllerBase
     public async Task<IActionResult> Confirm([FromRoute] long id, CancellationToken ct)
     {
         if (!TryGetUserId(out var userId)) return Unauthorized();
-        var result = await _fulfillment.ConfirmReceivedAsync(userId, id, ct);
-        if (!result.Success || result.Data is null)
+        var order = await _orders.GetByIdAsync(id, ct);
+        if (order is null) return NotFound("Order not found.");
+        if (order.UserId != userId) return Forbid();
+        if (order.Status != OrderStatus.Shipped && order.Status != OrderStatus.Delivered)
+            return BadRequest("Order cannot be confirmed in current status.");
+
+        order.DeliveredAt = DateTimeOffset.UtcNow;
+        order.CompletedAt = DateTimeOffset.UtcNow;
+        order.Status = OrderStatus.Completed;
+        order.UpdatedAt = DateTimeOffset.UtcNow;
+
+        _escrows.AddRange(new[]
         {
-            if (result.Error == "Forbidden.") return Forbid();
-            return BadRequest(result.Error);
+            new EscrowTransaction
+            {
+                OrderId = order.Id,
+                SellerId = order.SellerId,
+                Type = EscrowType.OUT,
+                Amount = order.Total,
+                CreatedAt = DateTimeOffset.UtcNow
+            }
+        });
+
+        var payout = await _payouts.GetByOrderIdAsync(order.Id, ct);
+        if (payout is null)
+        {
+            _payouts.Add(new Payout
+            {
+                OrderId = order.Id,
+                SellerId = order.SellerId,
+                Amount = order.Total,
+                Status = PayoutStatus.Pending,
+                CreatedAt = DateTimeOffset.UtcNow
+            });
         }
-        return Ok(result.Data);
+
+        await _uow.SaveChangesAsync(ct);
+        return Ok(new FulfillmentActionResponse(order.Id, order.Status.ToString()));
     }
 
     private static object Map(EzBias.Domain.Entities.Order o) => new
     {
-        o.Id, o.UserId, o.SellerId, o.Source, o.AuctionId, o.Total, o.ShippingFee, o.Status, o.AddressSnap, o.Carrier, o.TrackingNumber, o.CreatedAt,
+        o.Id, o.UserId, o.SellerId, o.Source, o.AuctionId, o.Total, o.Status, o.AddressSnap, o.Carrier, o.TrackingNumber, o.CreatedAt,
         Items = o.Items.Select(i => new { i.Id, i.ProductId, i.ProductName, i.ProductImage, i.Quantity, i.UnitPrice, i.Subtotal })
     };
 

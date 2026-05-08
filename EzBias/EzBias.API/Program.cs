@@ -1,8 +1,6 @@
 using EzBias.Application.Features.Auth;
 using EzBias.Application.Features.Auth.Services;
 using EzBias.Application.Features.Cart;
-using EzBias.Application.Features.Checkout;
-using EzBias.Application.Features.Orders;
 using EzBias.Application.Features.Payments;
 using EzBias.Application.Features.Payouts;
 using EzBias.Application.Features.Auctions;
@@ -11,6 +9,7 @@ using EzBias.Application.Features.Users;
 using EzBias.Application.Features.Ratings;
 using EzBias.Application.Features.Notifications;
 using EzBias.API.BackgroundServices;
+using EzBias.API.Integrations;
 using EzBias.Domain.Interfaces;
 using EzBias.Infrastructure.Auth;
 using EzBias.Infrastructure.Persistence;
@@ -28,6 +27,13 @@ builder.Services.Configure<JwtOptions>(builder.Configuration.GetSection(JwtOptio
 var jwt = builder.Configuration.GetSection(JwtOptions.SectionName).Get<JwtOptions>() ?? new JwtOptions();
 
 builder.Services.AddControllers();
+builder.Services.Configure<SePayOptions>(builder.Configuration.GetSection(SePayOptions.SectionName));
+builder.Services.AddHttpClient("SePay", client =>
+{
+    var baseUrl = builder.Configuration["SePay:BaseUrl"] ?? "https://my.sepay.vn";
+    client.BaseAddress = new Uri(baseUrl);
+    client.Timeout = TimeSpan.FromSeconds(20);
+});
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen(options =>
 {
@@ -78,9 +84,8 @@ builder.Services.AddScoped<IAuthApplicationService, AuthApplicationService>();
 builder.Services.AddScoped<IUserProfileApplicationService, UserProfileApplicationService>();
 builder.Services.AddScoped<IProductManagementApplicationService, ProductManagementApplicationService>();
 builder.Services.AddScoped<ICartApplicationService, CartApplicationService>();
-builder.Services.AddScoped<ICheckoutApplicationService, CheckoutApplicationService>();
 builder.Services.AddScoped<IPaymentApplicationService, PaymentApplicationService>();
-builder.Services.AddScoped<IOrderFulfillmentApplicationService, OrderFulfillmentApplicationService>();
+builder.Services.AddScoped<ISePayClient, SePayClient>();
 builder.Services.AddScoped<IPayoutApplicationService, PayoutApplicationService>();
 builder.Services.AddScoped<IRatingApplicationService, RatingApplicationService>();
 builder.Services.AddScoped<INotificationApplicationService, NotificationApplicationService>();
