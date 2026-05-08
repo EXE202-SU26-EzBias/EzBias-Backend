@@ -1,8 +1,7 @@
 using System.Security.Claims;
+using EzBias.Application.Features.Orders;
 using EzBias.Application.Features.Orders.Dtos;
-using EzBias.Domain.Enums;
 using EzBias.Domain.Interfaces;
-using EzBias.Domain.Entities;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
@@ -14,16 +13,21 @@ namespace EzBias.API.Controllers;
 public class OrdersController : ControllerBase
 {
     private readonly IOrderRepository _orders;
-    private readonly IEscrowRepository _escrows;
-    private readonly IPayoutRepository _payouts;
-    private readonly IUnitOfWork _uow;
+    private readonly IOrderApplicationService _orderService;
 
-    public OrdersController(IOrderRepository orders, IEscrowRepository escrows, IPayoutRepository payouts, IUnitOfWork uow)
+    public OrdersController(IOrderRepository orders, IOrderApplicationService orderService)
     {
         _orders = orders;
-        _escrows = escrows;
-        _payouts = payouts;
-        _uow = uow;
+        _orderService = orderService;
+    }
+
+    [HttpPost]
+    public async Task<IActionResult> Create([FromBody] CreateOrderRequest request, CancellationToken ct)
+    {
+        if (!TryGetUserId(out var userId)) return Unauthorized();
+        var result = await _orderService.CreateAsync(userId, request, ct);
+        if (!result.Success || result.Data is null) return BadRequest(result.Error);
+        return Ok(result.Data);
     }
 
     [HttpGet]
@@ -48,44 +52,15 @@ public class OrdersController : ControllerBase
     public async Task<IActionResult> Confirm([FromRoute] long id, CancellationToken ct)
     {
         if (!TryGetUserId(out var userId)) return Unauthorized();
-        var order = await _orders.GetByIdAsync(id, ct);
-        if (order is null) return NotFound("Order not found.");
-        if (order.UserId != userId) return Forbid();
-        if (order.Status != OrderStatus.Shipped && order.Status != OrderStatus.Delivered)
-            return BadRequest("Order cannot be confirmed in current status.");
-
-        order.DeliveredAt = DateTimeOffset.UtcNow;
-        order.CompletedAt = DateTimeOffset.UtcNow;
-        order.Status = OrderStatus.Completed;
-        order.UpdatedAt = DateTimeOffset.UtcNow;
-
-        _escrows.AddRange(new[]
+        var result = await _orderService.ConfirmReceivedAsync(userId, id, ct);
+        if (!result.Success || result.Data is null)
         {
-            new EscrowTransaction
-            {
-                OrderId = order.Id,
-                SellerId = order.SellerId,
-                Type = EscrowType.OUT,
-                Amount = order.Total,
-                CreatedAt = DateTimeOffset.UtcNow
-            }
-        });
-
-        var payout = await _payouts.GetByOrderIdAsync(order.Id, ct);
-        if (payout is null)
-        {
-            _payouts.Add(new Payout
-            {
-                OrderId = order.Id,
-                SellerId = order.SellerId,
-                Amount = order.Total,
-                Status = PayoutStatus.Pending,
-                CreatedAt = DateTimeOffset.UtcNow
-            });
+            if (result.Error == "Forbidden.") return Forbid();
+            if (result.Error == "Order not found.") return NotFound(result.Error);
+            return BadRequest(result.Error);
         }
 
-        await _uow.SaveChangesAsync(ct);
-        return Ok(new FulfillmentActionResponse(order.Id, order.Status.ToString()));
+        return Ok(result.Data);
     }
 
     private static object Map(EzBias.Domain.Entities.Order o) => new
