@@ -32,7 +32,6 @@ public class AuctionCloseScheduler : BackgroundService
                 var auctions = scope.ServiceProvider.GetRequiredService<IAuctionRepository>();
                 var bids = scope.ServiceProvider.GetRequiredService<IBidRepository>();
                 var orders = scope.ServiceProvider.GetRequiredService<IOrderRepository>();
-                var payments = scope.ServiceProvider.GetRequiredService<IPaymentRepository>();
                 var uow = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
 
                 var now = DateTimeOffset.UtcNow;
@@ -69,7 +68,6 @@ public class AuctionCloseScheduler : BackgroundService
                                 SellerId = auction.SellerId,
                                 Source = OrderSource.Auction,
                                 AuctionId = auction.Id,
-                                ShippingFee = 0m,
                                 Total = topBid.Amount,
                                 Status = OrderStatus.Pending,
                                 AddressSnap = "{}",
@@ -91,28 +89,6 @@ public class AuctionCloseScheduler : BackgroundService
                             orders.Add(order);
                         }
 
-                        var hasPayment = order.Id > 0 && await payments.ExistsByOrderIdAsync(order.Id, stoppingToken);
-                        if (!hasPayment)
-                        {
-                            var payment = new Payment
-                            {
-                                UserId = topBid.UserId,
-                                Type = PaymentType.Order,
-                                Amount = topBid.Amount,
-                                Currency = "VND",
-                                Status = PaymentStatus.Pending,
-                                Reference = $"AUC-{auction.Id}-{now:yyyyMMddHHmmss}",
-                                Payload = $"{{\"auctionId\":{auction.Id},\"orderSource\":\"auction\",\"deadline\":\"{auction.WinnerPaymentDeadline:O}\"}}",
-                                CreatedAt = now,
-                                PaymentOrders =
-                                {
-                                    new PaymentOrder { Order = order }
-                                }
-                            };
-
-                            payments.Add(payment);
-                        }
-
                         pendingPayment++;
                     }
 
@@ -126,13 +102,6 @@ public class AuctionCloseScheduler : BackgroundService
                 {
                     auction.Status = AuctionStatus.WinnerFailed;
                     auction.UpdatedAt = now;
-
-                    var pendingAuctionPayment = await payments.GetPendingByAuctionIdAsync(auction.Id, stoppingToken);
-                    if (pendingAuctionPayment is not null)
-                    {
-                        pendingAuctionPayment.Status = PaymentStatus.Failed;
-                        pendingAuctionPayment.UpdatedAt = now;
-                    }
 
                     var auctionOrder = await orders.GetByAuctionIdAsync(auction.Id, stoppingToken);
                     if (auctionOrder is not null && auctionOrder.Status == OrderStatus.Pending)

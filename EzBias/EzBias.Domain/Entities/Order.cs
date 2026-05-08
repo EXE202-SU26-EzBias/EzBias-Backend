@@ -10,7 +10,6 @@ public class Order
     public OrderSource Source { get; set; } = OrderSource.Cart;
     public long? AuctionId { get; set; }
 
-    public decimal ShippingFee { get; set; } = 0m;
     public decimal Total { get; set; }
     public OrderStatus Status { get; set; } = OrderStatus.Pending;
     public string AddressSnap { get; set; } = "{}"; // jsonb
