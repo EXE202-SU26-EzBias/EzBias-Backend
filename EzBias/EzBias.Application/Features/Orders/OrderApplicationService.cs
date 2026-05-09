@@ -54,9 +54,12 @@ public class OrderApplicationService : IOrderApplicationService
                 return (false, $"Product '{item.Product.Name}' does not have enough stock.", null);
         }
 
+        if (request.AddressSnap is null)
+            return (false, "address_snap is required.", null);
+
         var normalizedAddressSnap = NormalizeAddressSnap(request.AddressSnap);
         if (normalizedAddressSnap is null)
-            return (false, "address_snap must be valid JSON or plain text.", null);
+            return (false, "address_snap is invalid.", null);
 
         var sellerGroups = cartItems
             .GroupBy(x => x.Product.SellerId)
@@ -175,26 +178,15 @@ public class OrderApplicationService : IOrderApplicationService
             o.Seller is null ? null : new OrderSellerSummary(o.Seller.Id, o.Seller.Username, o.Seller.FullName, o.Seller.AvatarUrl, o.Seller.AvgSellerRating, o.Seller.TotalRatings),
             o.Items.Select(i => new OrderItemSummary(i.Id, i.ProductId, i.ProductName, i.ProductImage, i.Quantity, i.UnitPrice, i.Subtotal)).ToList());
 
-    private static string? NormalizeAddressSnap(string? input)
+    private static string? NormalizeAddressSnap(CheckoutAddressSnap input)
     {
-        if (string.IsNullOrWhiteSpace(input))
-            return "{}";
+        if (string.IsNullOrWhiteSpace(input.Address)
+            || string.IsNullOrWhiteSpace(input.Fullname)
+            || string.IsNullOrWhiteSpace(input.City)
+            || string.IsNullOrWhiteSpace(input.Phone)
+            || string.IsNullOrWhiteSpace(input.Zip))
+            return null;
 
-        var trimmed = input.Trim();
-
-        if (trimmed.StartsWith("{") || trimmed.StartsWith("["))
-        {
-            try
-            {
-                using var _ = JsonDocument.Parse(trimmed);
-                return trimmed;
-            }
-            catch
-            {
-                return null;
-            }
-        }
-
-        return JsonSerializer.Serialize(new { fullAddress = trimmed });
+        return JsonSerializer.Serialize(input);
     }
 }
