@@ -21,15 +21,38 @@ public class AuctionBiddingApplicationService : IAuctionBiddingApplicationServic
     public async Task<IReadOnlyList<AuctionListItem>> GetPublicAuctionsAsync(AuctionStatus? status, CancellationToken ct)
     {
         var items = await _auctions.GetPublicAsync(status, ct);
-        return items.Select(x => new AuctionListItem(x.Id, x.ProductId, x.SellerId, x.FloorPrice, x.CurrentBid, x.Status, x.EndsAt)).ToList();
+        return items.Select(x => new AuctionListItem(
+            x.Id,
+            x.ProductId,
+            x.SellerId,
+            x.FloorPrice,
+            x.CurrentBid,
+            x.Status,
+            x.EndsAt,
+            new AuctionSellerSummary(x.Seller.Id, x.Seller.Username, x.Seller.FullName, x.Seller.AvatarUrl, x.Seller.AvgSellerRating, x.Seller.TotalRatings),
+            new AuctionProductSummary(x.Product.Id, x.Product.Name, x.Product.Artist, x.Product.Type, x.Product.Price, x.Product.Stock, x.Product.PrimaryImageUrl, x.Product.Status, x.Product.FandomId)
+        )).ToList();
     }
 
     public async Task<(bool Success, string? Error, AuctionDetailItem? Data)> GetDetailAsync(long auctionId, CancellationToken ct)
     {
-        var item = await _auctions.GetByIdAsync(auctionId, ct);
+        var item = await _auctions.GetByIdWithRelationsAsync(auctionId, ct);
         if (item is null) return (false, "Auction not found.", null);
 
-        return (true, null, new AuctionDetailItem(item.Id, item.ProductId, item.SellerId, item.FloorPrice, item.ReservePrice, item.CurrentBid, item.Status, item.EndsAt, item.ExtensionSeconds, item.TriggerBeforeEnd));
+        return (true, null, new AuctionDetailItem(
+            item.Id,
+            item.ProductId,
+            item.SellerId,
+            item.FloorPrice,
+            item.ReservePrice,
+            item.CurrentBid,
+            item.Status,
+            item.EndsAt,
+            item.ExtensionSeconds,
+            item.TriggerBeforeEnd,
+            new AuctionSellerSummary(item.Seller.Id, item.Seller.Username, item.Seller.FullName, item.Seller.AvatarUrl, item.Seller.AvgSellerRating, item.Seller.TotalRatings),
+            new AuctionProductSummary(item.Product.Id, item.Product.Name, item.Product.Artist, item.Product.Type, item.Product.Price, item.Product.Stock, item.Product.PrimaryImageUrl, item.Product.Status, item.Product.FandomId)
+        ));
     }
 
     public async Task<(bool Success, string? Error, PlaceBidResponse? Data)> PlaceBidAsync(long bidderId, long auctionId, PlaceBidRequest request, CancellationToken ct)

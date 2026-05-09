@@ -130,6 +130,15 @@ public class SellerAuctionApplicationService : ISellerAuctionApplicationService
     public async Task<IReadOnlyList<SellerAuctionItem>> GetMyAuctionsAsync(long sellerId, AuctionStatus? status, CancellationToken ct)
     {
         var items = await _auctions.GetBySellerAsync(sellerId, status, ct);
-        return items.Select(x => new SellerAuctionItem(x.Id, x.ProductId, x.FloorPrice, x.CurrentBid, x.Status, x.EndsAt, x.CreatedAt)).ToList();
+        return items.Select(x => new SellerAuctionItem(
+            x.Id,
+            x.ProductId,
+            x.FloorPrice,
+            x.CurrentBid,
+            x.Status,
+            x.EndsAt,
+            x.CreatedAt,
+            new AuctionProductSummary(x.Product.Id, x.Product.Name, x.Product.Artist, x.Product.Type, x.Product.Price, x.Product.Stock, x.Product.PrimaryImageUrl, x.Product.Status, x.Product.FandomId)
+        )).ToList();
     }
 }
