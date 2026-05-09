@@ -83,6 +83,26 @@ public class OrderApplicationService : IOrderApplicationService
         return (true, null, new CreateOrderResponse(orderList.Select(x => x.Id).ToList()));
     }
 
+    public async Task<IReadOnlyList<OrderViewResponse>> GetByBuyerAsync(long userId, CancellationToken ct)
+    {
+        var items = await _orders.GetByBuyerAsync(userId, ct);
+        return items.Select(Map).ToList();
+    }
+
+    public async Task<(bool Success, string? Error, OrderViewResponse? Data)> GetDetailAsync(long userId, long orderId, CancellationToken ct)
+    {
+        var order = await _orders.GetByIdWithItemsAsync(orderId, ct);
+        if (order is null) return (false, "Order not found.", null);
+        if (order.UserId != userId && order.SellerId != userId) return (false, "Forbidden.", null);
+        return (true, null, Map(order));
+    }
+
+    public async Task<IReadOnlyList<OrderViewResponse>> GetBySellerAsync(long sellerId, CancellationToken ct)
+    {
+        var items = await _orders.GetBySellerAsync(sellerId, ct);
+        return items.Select(Map).ToList();
+    }
+
     public async Task<(bool Success, string? Error, FulfillmentActionResponse? Data)> ConfirmReceivedAsync(long userId, long orderId, CancellationToken ct)
     {
         var order = await _orders.GetByIdAsync(orderId, ct);
@@ -124,6 +144,23 @@ public class OrderApplicationService : IOrderApplicationService
         await _uow.SaveChangesAsync(ct);
         return (true, null, new FulfillmentActionResponse(order.Id, order.Status.ToString()));
     }
+
+    private static OrderViewResponse Map(Order o)
+        => new(
+            o.Id,
+            o.UserId,
+            o.SellerId,
+            o.Source,
+            o.AuctionId,
+            o.Total,
+            o.Status,
+            o.AddressSnap,
+            o.Carrier,
+            o.TrackingNumber,
+            o.CreatedAt,
+            o.User is null ? null : new OrderUserSummary(o.User.Id, o.User.Username, o.User.FullName, o.User.AvatarUrl),
+            o.Seller is null ? null : new OrderSellerSummary(o.Seller.Id, o.Seller.Username, o.Seller.FullName, o.Seller.AvatarUrl, o.Seller.AvgSellerRating, o.Seller.TotalRatings),
+            o.Items.Select(i => new OrderItemSummary(i.Id, i.ProductId, i.ProductName, i.ProductImage, i.Quantity, i.UnitPrice, i.Subtotal)).ToList());
 
     private static string? NormalizeAddressSnap(string? input)
     {

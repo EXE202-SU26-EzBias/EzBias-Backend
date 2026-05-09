@@ -74,7 +74,13 @@ public class PaymentApplicationService : IPaymentApplicationService
         var payment = await _payments.GetByIdAsync(paymentId, ct);
         if (payment is null) return (false, "Payment not found.", null);
         if (payment.UserId != userId) return (false, "Forbidden.", null);
-        return (true, null, new PaymentStatusResponse(payment.Id, payment.Reference, payment.Amount, payment.Status.ToString(), payment.CreatedAt, payment.PaidAt));
+
+        var orderIds = payment.PaymentOrders.Select(po => po.OrderId).ToList();
+        var orders = payment.PaymentOrders
+            .Select(po => new PaymentOrderSummary(po.OrderId, po.Order.Total, po.Order.Status, po.Order.UserId, po.Order.SellerId))
+            .ToList();
+
+        return (true, null, new PaymentStatusResponse(payment.Id, payment.Reference, payment.Amount, payment.Status.ToString(), payment.CreatedAt, payment.PaidAt, orderIds, orders));
     }
 
     public async Task<(bool Success, string? Error)> HandleWebhookAsync(PaymentWebhookRequest request, CancellationToken ct)

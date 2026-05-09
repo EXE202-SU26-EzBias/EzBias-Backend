@@ -1,4 +1,5 @@
 using System.Security.Claims;
+using EzBias.Application.Features.Orders;
 using EzBias.Application.Features.Orders.Dtos;
 using EzBias.Domain.Enums;
 using EzBias.Domain.Interfaces;
@@ -13,11 +14,13 @@ namespace EzBias.API.Controllers;
 public class SellerOrdersController : ControllerBase
 {
     private readonly IOrderRepository _orders;
+    private readonly IOrderApplicationService _orderService;
     private readonly IUnitOfWork _uow;
 
-    public SellerOrdersController(IOrderRepository orders, IUnitOfWork uow)
+    public SellerOrdersController(IOrderRepository orders, IOrderApplicationService orderService, IUnitOfWork uow)
     {
         _orders = orders;
+        _orderService = orderService;
         _uow = uow;
     }
 
@@ -25,8 +28,8 @@ public class SellerOrdersController : ControllerBase
     public async Task<IActionResult> GetMine(CancellationToken ct)
     {
         if (!TryGetUserId(out var userId)) return Unauthorized();
-        var items = await _orders.GetBySellerAsync(userId, ct);
-        return Ok(items.Select(x => new { x.Id, x.UserId, x.Total, x.Status, x.Carrier, x.TrackingNumber, x.CreatedAt }));
+        var items = await _orderService.GetBySellerAsync(userId, ct);
+        return Ok(items);
     }
 
     [HttpPut("{id:long}/ship")]

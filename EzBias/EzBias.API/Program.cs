@@ -84,6 +84,7 @@ builder.Services.AddScoped<IUnitOfWork, UnitOfWork>();
 builder.Services.AddScoped<IAuthApplicationService, AuthApplicationService>();
 builder.Services.AddScoped<IUserProfileApplicationService, UserProfileApplicationService>();
 builder.Services.AddScoped<IProductManagementApplicationService, ProductManagementApplicationService>();
+builder.Services.AddScoped<ICatalogQueryService, CatalogQueryService>();
 builder.Services.AddScoped<ICartApplicationService, CartApplicationService>();
 builder.Services.AddScoped<IPaymentApplicationService, PaymentApplicationService>();
 builder.Services.AddScoped<ISePayClient, SePayClient>();

@@ -31,7 +31,10 @@ public class PayoutRepository : IPayoutRepository
 
     public async Task<IReadOnlyList<Payout>> GetAllAsync(PayoutStatus? status, CancellationToken ct)
     {
-        var query = _db.Payouts.AsQueryable();
+        var query = _db.Payouts
+            .Include(x => x.Order)
+            .Include(x => x.Seller)
+            .AsQueryable();
         if (status.HasValue) query = query.Where(x => x.Status == status.Value);
         return await query.OrderByDescending(x => x.CreatedAt).ToListAsync(ct);
     }

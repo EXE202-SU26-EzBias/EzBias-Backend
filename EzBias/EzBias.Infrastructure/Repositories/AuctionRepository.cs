@@ -18,6 +18,12 @@ public class AuctionRepository : IAuctionRepository
     public Task<Auction?> GetByIdAsync(long auctionId, CancellationToken ct)
         => _db.Auctions.FirstOrDefaultAsync(x => x.Id == auctionId, ct);
 
+    public Task<Auction?> GetByIdWithRelationsAsync(long auctionId, CancellationToken ct)
+        => _db.Auctions
+            .Include(x => x.Product)
+            .Include(x => x.Seller)
+            .FirstOrDefaultAsync(x => x.Id == auctionId, ct);
+
     public Task<Auction?> GetByIdWithProductAsync(long auctionId, CancellationToken ct)
         => _db.Auctions.Include(x => x.Product).FirstOrDefaultAsync(x => x.Id == auctionId, ct);
 
@@ -35,7 +41,11 @@ public class AuctionRepository : IAuctionRepository
         var query = _db.Auctions.Where(x => x.SellerId == sellerId);
         if (status.HasValue) query = query.Where(x => x.Status == status.Value);
 
-        return await query.OrderByDescending(x => x.CreatedAt).ToListAsync(ct);
+        return await query
+            .Include(x => x.Product)
+            .Include(x => x.Seller)
+            .OrderByDescending(x => x.CreatedAt)
+            .ToListAsync(ct);
     }
 
     public async Task<IReadOnlyList<Auction>> GetPublicAsync(AuctionStatus? status, CancellationToken ct)
@@ -44,7 +54,11 @@ public class AuctionRepository : IAuctionRepository
         if (status.HasValue) query = query.Where(x => x.Status == status.Value);
         else query = query.Where(x => x.Status == AuctionStatus.Live || x.Status == AuctionStatus.Extended);
 
-        return await query.OrderBy(x => x.EndsAt).ToListAsync(ct);
+        return await query
+            .Include(x => x.Product)
+            .Include(x => x.Seller)
+            .OrderBy(x => x.EndsAt)
+            .ToListAsync(ct);
     }
 
     public async Task<IReadOnlyList<Auction>> GetClosableAsync(DateTimeOffset now, CancellationToken ct)

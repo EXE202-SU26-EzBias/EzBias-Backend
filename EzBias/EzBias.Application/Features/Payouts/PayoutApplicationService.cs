@@ -52,7 +52,18 @@ public class PayoutApplicationService : IPayoutApplicationService
     public async Task<IReadOnlyList<AdminPayoutItem>> GetAdminPayoutsAsync(PayoutStatus? status, CancellationToken ct)
     {
         var items = await _payouts.GetAllAsync(status, ct);
-        return items.Select(x => new AdminPayoutItem(x.Id, x.OrderId, x.SellerId, x.Amount, x.Status, x.CreatedAt, x.PaidAt, x.BankTransferRef)).ToList();
+        return items.Select(x => new AdminPayoutItem(
+            x.Id,
+            x.OrderId,
+            x.SellerId,
+            x.Amount,
+            x.Status,
+            x.CreatedAt,
+            x.PaidAt,
+            x.BankTransferRef,
+            x.Order is null ? null : new AdminPayoutOrderSummary(x.Order.Id, x.Order.UserId, x.Order.SellerId, x.Order.Total, x.Order.Status, x.Order.CreatedAt),
+            x.Seller is null ? null : new AdminPayoutSellerSummary(x.Seller.Id, x.Seller.Username, x.Seller.FullName, x.Seller.AvatarUrl, x.Seller.AvgSellerRating, x.Seller.TotalRatings)
+        )).ToList();
     }
 
     public async Task<(bool Success, string? Error, MarkPayoutPaidResponse? Data)> MarkPaidAsync(long payoutId, MarkPayoutPaidRequest request, CancellationToken ct)

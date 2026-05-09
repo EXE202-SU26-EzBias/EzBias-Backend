@@ -30,7 +30,10 @@ public class PaymentRepository : IPaymentRepository
         => _db.Payments.FirstOrDefaultAsync(x => x.Reference == reference, ct);
 
     public Task<Payment?> GetByIdAsync(long paymentId, CancellationToken ct)
-        => _db.Payments.FirstOrDefaultAsync(x => x.Id == paymentId, ct);
+        => _db.Payments
+            .Include(x => x.PaymentOrders)
+                .ThenInclude(po => po.Order)
+            .FirstOrDefaultAsync(x => x.Id == paymentId, ct);
 
     public Task<Payment?> GetByIdWithOrdersAsync(long paymentId, CancellationToken ct)
         => _db.Payments
