@@ -1,4 +1,4 @@
-using EzBias.Domain.Interfaces;
+using EzBias.Application.Features.Products;
 using Microsoft.AspNetCore.Mvc;
 
 namespace EzBias.API.Controllers;
@@ -7,42 +7,24 @@ namespace EzBias.API.Controllers;
 [Route("api/catalog")]
 public class CatalogController : ControllerBase
 {
-    private readonly IProductRepository _products;
-    private readonly IFandomRepository _fandoms;
+    private readonly ICatalogQueryService _catalog;
 
-    public CatalogController(IProductRepository products, IFandomRepository fandoms)
+    public CatalogController(ICatalogQueryService catalog)
     {
-        _products = products;
-        _fandoms = fandoms;
+        _catalog = catalog;
     }
 
     [HttpGet("products")]
     public async Task<IActionResult> GetProducts([FromQuery] string? fandomId, CancellationToken ct)
     {
-        var items = await _products.GetActiveAsync(fandomId, ct);
-        var data = items.Select(x => new
-        {
-            x.Id,
-            x.SellerId,
-            x.FandomId,
-            x.Artist,
-            x.Name,
-            x.Type,
-            x.Price,
-            x.Stock,
-            x.PrimaryImageUrl,
-            x.IsAuction,
-            x.Status,
-            x.CreatedAt
-        });
+        var data = await _catalog.GetProductsAsync(fandomId, ct);
         return Ok(data);
     }
 
     [HttpGet("fandoms")]
     public async Task<IActionResult> GetFandoms(CancellationToken ct)
     {
-        var items = await _fandoms.GetActiveAsync(ct);
-        var data = items.Select(x => new { x.Id, x.Name, x.IsActive });
+        var data = await _catalog.GetFandomsAsync(ct);
         return Ok(data);
     }
 }
