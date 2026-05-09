@@ -25,15 +25,28 @@ public class OrderApplicationService : IOrderApplicationService
 
     public async Task<(bool Success, string? Error, CreateOrderResponse? Data)> CreateAsync(long userId, CreateOrderRequest request, CancellationToken ct)
     {
-        if (request.CartItemIds is null || request.CartItemIds.Count == 0)
+        if (request.Items is null || request.Items.Count == 0)
             return (false, "Please select at least one cart item.", null);
 
-        var cartItems = await _carts.GetByUserIdAndIdsAsync(userId, request.CartItemIds.Distinct().ToList(), ct);
+        if (request.Items.Any(x => x.Quantity <= 0))
+            return (false, "Quantity must be greater than 0.", null);
+
+        var cartItemIds = request.Items.Select(x => x.CartItemId).Distinct().ToList();
+        var cartItems = await _carts.GetByUserIdAndIdsAsync(userId, cartItemIds, ct);
         if (cartItems.Count == 0)
             return (false, "No cart items found.", null);
 
+        var quantityMap = request.Items
+            .GroupBy(x => x.CartItemId)
+            .ToDictionary(g => g.Key, g => g.Sum(x => x.Quantity));
+
         foreach (var item in cartItems)
         {
+            if (!quantityMap.TryGetValue(item.Id, out var newQuantity))
+                continue;
+
+            item.Quantity = newQuantity;
+
             if (item.Product.DeletedAt is not null || item.Product.Status != ProductStatus.Active || item.Product.IsAuction)
                 return (false, $"Product '{item.Product.Name}' is not available for checkout.", null);
 
@@ -43,7 +56,7 @@ public class OrderApplicationService : IOrderApplicationService
 
         var normalizedAddressSnap = NormalizeAddressSnap(request.AddressSnap);
         if (normalizedAddressSnap is null)
-            return (false, "addressSnap must be valid JSON or plain text.", null);
+            return (false, "address_snap must be valid JSON or plain text.", null);
 
         var sellerGroups = cartItems
             .GroupBy(x => x.Product.SellerId)
