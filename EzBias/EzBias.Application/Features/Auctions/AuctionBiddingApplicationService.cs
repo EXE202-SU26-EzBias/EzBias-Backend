@@ -55,6 +55,19 @@ public class AuctionBiddingApplicationService : IAuctionBiddingApplicationServic
         ));
     }
 
+    public async Task<IReadOnlyList<BidHistoryItem>> GetBidHistoryAsync(long auctionId, CancellationToken ct)
+    {
+        var bids = await _bids.GetByAuctionIdAsync(auctionId, ct);
+        return bids.Select(x => new BidHistoryItem(
+            x.Id,
+            x.AuctionId,
+            x.Amount,
+            x.IsWinning,
+            x.PlacedAt,
+            new BidderSnapshot(x.UserId, x.User.Username, x.User.AvatarUrl, x.User.AvatarBg)
+        )).ToList();
+    }
+
     public async Task<(bool Success, string? Error, PlaceBidResponse? Data)> PlaceBidAsync(long bidderId, long auctionId, PlaceBidRequest request, CancellationToken ct)
     {
         var auction = await _auctions.GetByIdWithProductAsync(auctionId, ct);
