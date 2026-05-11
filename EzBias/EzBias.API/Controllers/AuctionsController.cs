@@ -33,6 +33,13 @@ public class AuctionsController : ControllerBase
         return Ok(result.Data);
     }
 
+    [HttpGet("{auctionId:long}/bids/history")]
+    public async Task<IActionResult> GetBidHistory([FromRoute] long auctionId, CancellationToken ct)
+    {
+        var data = await _service.GetBidHistoryAsync(auctionId, ct);
+        return Ok(data);
+    }
+
     [Authorize]
     [HttpPost("{auctionId:long}/bids")]
     public async Task<IActionResult> PlaceBid([FromRoute] long auctionId, [FromBody] PlaceBidRequest request, CancellationToken ct)

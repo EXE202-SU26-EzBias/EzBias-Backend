@@ -36,4 +36,11 @@ public class BidRepository : IBidRepository
             .OrderByDescending(x => x.Amount)
             .ThenBy(x => x.PlacedAt)
             .FirstOrDefaultAsync(ct);
+
+    public async Task<IReadOnlyList<Bid>> GetByAuctionIdAsync(long auctionId, CancellationToken ct)
+        => await _db.Bids
+            .Include(x => x.User)
+            .Where(x => x.AuctionId == auctionId)
+            .OrderByDescending(x => x.PlacedAt)
+            .ToListAsync(ct);
 }
