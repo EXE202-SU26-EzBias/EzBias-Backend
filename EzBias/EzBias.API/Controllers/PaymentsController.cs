@@ -86,21 +86,6 @@ public class PaymentsController : ControllerBase
         return Ok(new { ok = true });
     }
 
-    [HttpPost("{paymentId:long}/mark-paid")]
-    public async Task<IActionResult> MarkPaidManual([FromRoute] long paymentId, CancellationToken ct)
-    {
-        if (!TryGetUserId(out var userId)) return Unauthorized();
-        var result = await _paymentService.MarkPaidManualAsync(userId, paymentId, ct);
-        if (!result.Success)
-        {
-            if (result.Error == "Forbidden.") return Forbid();
-            if (result.Error == "Payment not found.") return NotFound(result.Error);
-            return BadRequest(result.Error);
-        }
-
-        return Ok(new { paymentId, status = "Paid" });
-    }
-
 
     private bool TryGetUserId(out long userId)
     {

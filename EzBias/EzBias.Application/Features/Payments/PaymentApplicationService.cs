@@ -170,9 +170,6 @@ public class PaymentApplicationService : IPaymentApplicationService
         return $"PAY-{ts}-{userId}";
     }
 
-    public async Task<(bool Success, string? Error)> MarkPaidManualAsync(long userId, long paymentId, CancellationToken ct)
-        => await ConfirmInternalAsync(userId, paymentId, ct);
-
     private async Task<(bool Success, string? Error)> ConfirmInternalAsync(long userId, long paymentId, CancellationToken ct)
     {
         var payment = await _payments.GetByIdWithOrdersAsync(paymentId, ct);
