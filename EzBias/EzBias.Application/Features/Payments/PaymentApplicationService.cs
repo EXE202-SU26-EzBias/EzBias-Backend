@@ -13,8 +13,9 @@ public class PaymentApplicationService : IPaymentApplicationService
     private readonly IEscrowRepository _escrows;
     private readonly ISePayClient _sepay;
     private readonly IUnitOfWork _uow;
+    private readonly ISePayWebhookVerifier _webhookVerifier;
 
-    public PaymentApplicationService(IPaymentRepository payments, IOrderRepository orders, IAuctionRepository auctions, IEscrowRepository escrows, ISePayClient sepay, IUnitOfWork uow)
+    public PaymentApplicationService(IPaymentRepository payments, IOrderRepository orders, IAuctionRepository auctions, IEscrowRepository escrows, ISePayClient sepay, IUnitOfWork uow, ISePayWebhookVerifier webhookVerifier)
     {
         _payments = payments;
         _orders = orders;
@@ -22,6 +23,7 @@ public class PaymentApplicationService : IPaymentApplicationService
         _escrows = escrows;
         _sepay = sepay;
         _uow = uow;
+        _webhookVerifier = webhookVerifier;
     }
 
     public async Task<(bool Success, string? Error, CreatePaymentResponse? Data)> CreateAsync(long userId, CreatePaymentRequest request, CancellationToken ct)
@@ -83,13 +85,15 @@ public class PaymentApplicationService : IPaymentApplicationService
         return (true, null, new PaymentStatusResponse(payment.Id, payment.Reference, payment.Amount, payment.Status.ToString(), payment.CreatedAt, payment.PaidAt, orderIds, orders));
     }
 
-    public async Task<(bool Success, string? Error)> HandleWebhookAsync(PaymentWebhookRequest request, CancellationToken ct)
+    public async Task<(bool Success, string? Error)> HandleWebhookAsync(PaymentWebhookRequest request, string rawBody, string? signature, CancellationToken ct)
     {
+        if (!_webhookVerifier.Verify(rawBody, signature))
+            return (false, "Invalid webhook signature.");
         var payment = await _payments.GetByReferenceAsync(request.Reference, ct);
         if (payment is null) return (false, "Payment not found.");
         if (payment.Status == PaymentStatus.Paid) return (true, null);
 
-        var pull = await _sepay.GetTransactionsAsync("050134288091", 200, ct);
+        var pull = await _sepay.GetTransactionsAsync(ct);
         if (!pull.Success)
         {
             var msg = pull.RetryAfterSeconds.HasValue ? $"{pull.Error} Retry after {pull.RetryAfterSeconds.Value}s." : pull.Error;

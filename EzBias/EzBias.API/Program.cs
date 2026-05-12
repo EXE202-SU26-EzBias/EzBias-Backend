@@ -88,6 +88,7 @@ builder.Services.AddScoped<ICatalogQueryService, CatalogQueryService>();
 builder.Services.AddScoped<ICartApplicationService, CartApplicationService>();
 builder.Services.AddScoped<IPaymentApplicationService, PaymentApplicationService>();
 builder.Services.AddScoped<ISePayClient, SePayClient>();
+builder.Services.AddScoped<ISePayWebhookVerifier, SePayWebhookVerifier>();
 builder.Services.AddScoped<IOrderApplicationService, OrderApplicationService>();
 builder.Services.AddScoped<IPayoutApplicationService, PayoutApplicationService>();
 builder.Services.AddScoped<IRatingApplicationService, RatingApplicationService>();

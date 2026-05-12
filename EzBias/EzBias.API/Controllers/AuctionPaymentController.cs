@@ -39,7 +39,7 @@ public class AuctionPaymentController : ControllerBase
             payment.Reference,
             payment.ProviderTxnId,
             payment.TransferContent,
-            payment.Payload), ct);
+            payment.Payload), "{}", null, ct);
         if (!hook.Success) return BadRequest(hook.Error);
 
         var status = await _paymentService.GetStatusAsync(userId, payment.Id, ct);

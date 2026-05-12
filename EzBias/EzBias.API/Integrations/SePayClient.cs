@@ -18,12 +18,14 @@ public class SePayClient : ISePayClient
         _options = options.Value;
     }
 
-    public async Task<(bool Success, string? Error, IReadOnlyList<SePayTransaction> Transactions, int? RetryAfterSeconds)> GetTransactionsAsync(string accountNumber, int limit, CancellationToken ct)
+    public async Task<(bool Success, string? Error, IReadOnlyList<SePayTransaction> Transactions, int? RetryAfterSeconds)> GetTransactionsAsync(CancellationToken ct)
     {
         if (string.IsNullOrWhiteSpace(_options.ApiToken)) return (false, "SePay token missing.", Array.Empty<SePayTransaction>(), null);
+        if (string.IsNullOrWhiteSpace(_options.AccountNumber)) return (false, "SePay account number missing.", Array.Empty<SePayTransaction>(), null);
 
         var client = _httpClientFactory.CreateClient("SePay");
-        var url = $"/userapi/transactions/list?account_number={Uri.EscapeDataString(accountNumber)}&limit={limit}";
+        var limit = _options.DefaultLimit > 0 ? _options.DefaultLimit : 200;
+        var url = $"/userapi/transactions/list?account_number={Uri.EscapeDataString(_options.AccountNumber)}&limit={limit}";
         using var req = new HttpRequestMessage(HttpMethod.Get, url);
         req.Headers.Authorization = new AuthenticationHeaderValue("Bearer", _options.ApiToken);
 

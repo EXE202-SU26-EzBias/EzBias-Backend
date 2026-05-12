@@ -1,4 +1,5 @@
 using System.Security.Claims;
+using System.Text;
 using EzBias.Application.Features.Payments;
 using EzBias.Application.Features.Payments.Dtos;
 using Microsoft.AspNetCore.Authorization;
@@ -49,8 +50,20 @@ public class PaymentsController : ControllerBase
     [HttpPost("webhook")]
     public async Task<IActionResult> Webhook([FromBody] PaymentWebhookRequest request, CancellationToken ct)
     {
-        var result = await _paymentService.HandleWebhookAsync(request, ct);
-        if (!result.Success) return NotFound(result.Error);
+        Request.EnableBuffering();
+        using var reader = new StreamReader(Request.Body, Encoding.UTF8, leaveOpen: true);
+        var rawBody = await reader.ReadToEndAsync(ct);
+        Request.Body.Position = 0;
+
+        var signature = Request.Headers["X-SePay-Signature"].FirstOrDefault();
+
+        var result = await _paymentService.HandleWebhookAsync(request, rawBody, signature, ct);
+        if (!result.Success)
+        {
+            if (result.Error == "Invalid webhook signature.") return Unauthorized(result.Error);
+            return NotFound(result.Error);
+        }
+
         return Ok(new { ok = true });
     }
 
