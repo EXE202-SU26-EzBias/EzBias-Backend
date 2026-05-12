@@ -68,7 +68,7 @@ public class PaymentApplicationService : IPaymentApplicationService
         _payments.Add(payment);
         await _uow.SaveChangesAsync(ct);
 
-        return (true, null, new CreatePaymentResponse(payment.Id, payment.Reference, payment.Amount, payment.Status.ToString(), payment.TransferContent ?? string.Empty));
+        return (true, null, new CreatePaymentResponse(payment.Id, payment.Reference, payment.Amount, payment.Status.ToString()));
     }
 
     public async Task<(bool Success, string? Error, PaymentStatusResponse? Data)> GetStatusAsync(long userId, long paymentId, CancellationToken ct)
