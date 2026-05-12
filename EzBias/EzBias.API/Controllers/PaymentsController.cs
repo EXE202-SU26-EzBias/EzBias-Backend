@@ -1,5 +1,6 @@
 using System.Security.Claims;
 using System.Text;
+using System.Text.Json;
 using EzBias.Application.Features.Payments;
 using EzBias.Application.Features.Payments.Dtos;
 using Microsoft.AspNetCore.Authorization;
@@ -48,12 +49,29 @@ public class PaymentsController : ControllerBase
 
     [AllowAnonymous]
     [HttpPost("webhook")]
-    public async Task<IActionResult> Webhook([FromBody] SePayWebhookPayload request, CancellationToken ct)
+    public async Task<IActionResult> Webhook(CancellationToken ct)
     {
-        Request.EnableBuffering();
-        using var reader = new StreamReader(Request.Body, Encoding.UTF8, leaveOpen: true);
+        using var reader = new StreamReader(Request.Body, Encoding.UTF8, leaveOpen: false);
         var rawBody = await reader.ReadToEndAsync(ct);
-        Request.Body.Position = 0;
+
+        if (string.IsNullOrWhiteSpace(rawBody))
+            return BadRequest("Empty webhook body.");
+
+        SePayWebhookPayload? request;
+        try
+        {
+            request = JsonSerializer.Deserialize<SePayWebhookPayload>(rawBody, new JsonSerializerOptions
+            {
+                PropertyNameCaseInsensitive = true
+            });
+        }
+        catch
+        {
+            return BadRequest("Invalid JSON payload.");
+        }
+
+        if (request is null)
+            return BadRequest("Invalid webhook payload.");
 
         var signature = Request.Headers["X-SePay-Signature"].FirstOrDefault();
         var timestamp = Request.Headers["X-SePay-Timestamp"].FirstOrDefault();
