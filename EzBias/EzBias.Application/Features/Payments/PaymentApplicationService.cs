@@ -85,9 +85,9 @@ public class PaymentApplicationService : IPaymentApplicationService
         return (true, null, new PaymentStatusResponse(payment.Id, payment.Reference, payment.Amount, payment.Status.ToString(), payment.CreatedAt, payment.PaidAt, orderIds, orders));
     }
 
-    public async Task<(bool Success, string? Error)> HandleWebhookAsync(PaymentWebhookRequest request, string rawBody, string? signature, CancellationToken ct)
+    public async Task<(bool Success, string? Error)> HandleWebhookAsync(PaymentWebhookRequest request, string rawBody, string? signature, string? timestamp, CancellationToken ct)
     {
-        if (!_webhookVerifier.Verify(rawBody, signature))
+        if (!_webhookVerifier.Verify(rawBody, signature, timestamp))
             return (false, "Invalid webhook signature.");
 
         var payment = await _payments.GetByReferenceAsync(request.Reference, ct);
@@ -97,9 +97,9 @@ public class PaymentApplicationService : IPaymentApplicationService
         return await ConfirmBySePayPullAsync(payment, ct);
     }
 
-    public async Task<(bool Success, string? Error)> HandleSePayWebhookAsync(SePayWebhookPayload payload, string rawBody, string? signature, CancellationToken ct)
+    public async Task<(bool Success, string? Error)> HandleSePayWebhookAsync(SePayWebhookPayload payload, string rawBody, string? signature, string? timestamp, CancellationToken ct)
     {
-        if (!_webhookVerifier.Verify(rawBody, signature))
+        if (!_webhookVerifier.Verify(rawBody, signature, timestamp))
             return (false, "Invalid webhook signature.");
 
         if (payload.TransferType is not null && !payload.TransferType.Equals("in", StringComparison.OrdinalIgnoreCase))
@@ -111,7 +111,7 @@ public class PaymentApplicationService : IPaymentApplicationService
             return (false, "Reference not found in SePay content.");
 
         var mapped = new PaymentWebhookRequest(reference, payload.Id?.ToString() ?? payload.ReferenceCode, content, rawBody);
-        return await HandleWebhookAsync(mapped, rawBody, signature, ct);
+        return await HandleWebhookAsync(mapped, rawBody, signature, timestamp, ct);
     }
 
     private async Task<(bool Success, string? Error)> ConfirmBySePayPullAsync(Payment payment, CancellationToken ct)

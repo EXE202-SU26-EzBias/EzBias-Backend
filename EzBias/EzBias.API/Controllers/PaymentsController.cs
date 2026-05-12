@@ -56,8 +56,9 @@ public class PaymentsController : ControllerBase
         Request.Body.Position = 0;
 
         var signature = Request.Headers["X-SePay-Signature"].FirstOrDefault();
+        var timestamp = Request.Headers["X-SePay-Timestamp"].FirstOrDefault();
 
-        var result = await _paymentService.HandleSePayWebhookAsync(request, rawBody, signature, ct);
+        var result = await _paymentService.HandleSePayWebhookAsync(request, rawBody, signature, timestamp, ct);
         if (!result.Success)
         {
             if (result.Error == "Invalid webhook signature.") return Unauthorized(result.Error);
