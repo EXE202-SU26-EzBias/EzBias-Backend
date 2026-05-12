@@ -1,5 +1,6 @@
 using System.Security.Claims;
 using System.Text;
+using System.Text.Json;
 using EzBias.Application.Features.Payments;
 using EzBias.Application.Features.Payments.Dtos;
 using Microsoft.AspNetCore.Authorization;
@@ -48,38 +49,41 @@ public class PaymentsController : ControllerBase
 
     [AllowAnonymous]
     [HttpPost("webhook")]
-    public async Task<IActionResult> Webhook([FromBody] PaymentWebhookRequest request, CancellationToken ct)
+    public async Task<IActionResult> Webhook(CancellationToken ct)
     {
-        Request.EnableBuffering();
-        using var reader = new StreamReader(Request.Body, Encoding.UTF8, leaveOpen: true);
+        using var reader = new StreamReader(Request.Body, Encoding.UTF8, leaveOpen: false);
         var rawBody = await reader.ReadToEndAsync(ct);
-        Request.Body.Position = 0;
+
+        if (string.IsNullOrWhiteSpace(rawBody))
+            return BadRequest("Empty webhook body.");
+
+        SePayWebhookPayload? request;
+        try
+        {
+            request = JsonSerializer.Deserialize<SePayWebhookPayload>(rawBody, new JsonSerializerOptions
+            {
+                PropertyNameCaseInsensitive = true
+            });
+        }
+        catch
+        {
+            return BadRequest("Invalid JSON payload.");
+        }
+
+        if (request is null)
+            return BadRequest("Invalid webhook payload.");
 
         var signature = Request.Headers["X-SePay-Signature"].FirstOrDefault();
+        var timestamp = Request.Headers["X-SePay-Timestamp"].FirstOrDefault();
 
-        var result = await _paymentService.HandleWebhookAsync(request, rawBody, signature, ct);
+        var result = await _paymentService.HandleSePayWebhookAsync(request, rawBody, signature, timestamp, ct);
         if (!result.Success)
         {
             if (result.Error == "Invalid webhook signature.") return Unauthorized(result.Error);
-            return NotFound(result.Error);
-        }
-
-        return Ok(new { ok = true });
-    }
-
-    [HttpPost("{paymentId:long}/mark-paid")]
-    public async Task<IActionResult> MarkPaidManual([FromRoute] long paymentId, CancellationToken ct)
-    {
-        if (!TryGetUserId(out var userId)) return Unauthorized();
-        var result = await _paymentService.MarkPaidManualAsync(userId, paymentId, ct);
-        if (!result.Success)
-        {
-            if (result.Error == "Forbidden.") return Forbid();
-            if (result.Error == "Payment not found.") return NotFound(result.Error);
             return BadRequest(result.Error);
         }
 
-        return Ok(new { paymentId, status = "Paid" });
+        return Ok(new { ok = true });
     }
 
 

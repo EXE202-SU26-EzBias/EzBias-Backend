@@ -14,17 +14,17 @@ public class SePayWebhookVerifier : ISePayWebhookVerifier
         _options = options.Value;
     }
 
-    public bool Verify(string rawBody, string? signature)
+    public bool Verify(string rawBody, string? signature, string? timestamp)
     {
         if (string.IsNullOrWhiteSpace(_options.WebhookSecret)) return true;
-        if (string.IsNullOrWhiteSpace(signature)) return false;
-
-        using var hmac = new HMACSHA256(Encoding.UTF8.GetBytes(_options.WebhookSecret));
-        var hash = hmac.ComputeHash(Encoding.UTF8.GetBytes(rawBody));
-        var computed = Convert.ToHexString(hash).ToLowerInvariant();
+        if (string.IsNullOrWhiteSpace(signature) || string.IsNullOrWhiteSpace(timestamp)) return false;
 
         var incoming = signature.Trim().ToLowerInvariant();
-        if (incoming.StartsWith("sha256=")) incoming = incoming[7..];
+
+        using var hmac = new HMACSHA256(Encoding.UTF8.GetBytes(_options.WebhookSecret));
+        var toSign = $"{timestamp}.{rawBody}";
+        var hash = hmac.ComputeHash(Encoding.UTF8.GetBytes(toSign));
+        var computed = "sha256=" + Convert.ToHexString(hash).ToLowerInvariant();
 
         var computedBytes = Encoding.UTF8.GetBytes(computed);
         var incomingBytes = Encoding.UTF8.GetBytes(incoming);
