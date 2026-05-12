@@ -110,7 +110,7 @@ public class PaymentApplicationService : IPaymentApplicationService
         if (string.IsNullOrWhiteSpace(reference))
             return (false, "Reference not found in SePay content.");
 
-        var mapped = new PaymentWebhookRequest(reference, payload.Id ?? payload.ReferenceCode, content, rawBody);
+        var mapped = new PaymentWebhookRequest(reference, payload.Id?.ToString() ?? payload.ReferenceCode, content, rawBody);
         return await HandleWebhookAsync(mapped, rawBody, signature, ct);
     }
 

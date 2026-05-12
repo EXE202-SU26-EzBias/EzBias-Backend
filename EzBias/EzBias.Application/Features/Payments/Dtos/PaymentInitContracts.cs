@@ -17,4 +17,4 @@ public record SePayWebhookPayload(
     decimal? TransferAmount,
     string? ReferenceCode,
     decimal? Accumulated,
-    string? Id);
+    long? Id);
