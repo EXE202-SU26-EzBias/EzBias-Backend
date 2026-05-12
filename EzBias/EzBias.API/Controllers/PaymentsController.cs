@@ -48,7 +48,7 @@ public class PaymentsController : ControllerBase
 
     [AllowAnonymous]
     [HttpPost("webhook")]
-    public async Task<IActionResult> Webhook([FromBody] PaymentWebhookRequest request, CancellationToken ct)
+    public async Task<IActionResult> Webhook([FromBody] SePayWebhookPayload request, CancellationToken ct)
     {
         Request.EnableBuffering();
         using var reader = new StreamReader(Request.Body, Encoding.UTF8, leaveOpen: true);
@@ -57,11 +57,11 @@ public class PaymentsController : ControllerBase
 
         var signature = Request.Headers["X-SePay-Signature"].FirstOrDefault();
 
-        var result = await _paymentService.HandleWebhookAsync(request, rawBody, signature, ct);
+        var result = await _paymentService.HandleSePayWebhookAsync(request, rawBody, signature, ct);
         if (!result.Success)
         {
             if (result.Error == "Invalid webhook signature.") return Unauthorized(result.Error);
-            return NotFound(result.Error);
+            return BadRequest(result.Error);
         }
 
         return Ok(new { ok = true });

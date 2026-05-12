@@ -89,10 +89,33 @@ public class PaymentApplicationService : IPaymentApplicationService
     {
         if (!_webhookVerifier.Verify(rawBody, signature))
             return (false, "Invalid webhook signature.");
+
         var payment = await _payments.GetByReferenceAsync(request.Reference, ct);
         if (payment is null) return (false, "Payment not found.");
         if (payment.Status == PaymentStatus.Paid) return (true, null);
 
+        return await ConfirmBySePayPullAsync(payment, ct);
+    }
+
+    public async Task<(bool Success, string? Error)> HandleSePayWebhookAsync(SePayWebhookPayload payload, string rawBody, string? signature, CancellationToken ct)
+    {
+        if (!_webhookVerifier.Verify(rawBody, signature))
+            return (false, "Invalid webhook signature.");
+
+        if (payload.TransferType is not null && !payload.TransferType.Equals("in", StringComparison.OrdinalIgnoreCase))
+            return (false, "Unsupported transfer type.");
+
+        var content = payload.Content ?? payload.Description ?? string.Empty;
+        var reference = ExtractReference(content);
+        if (string.IsNullOrWhiteSpace(reference))
+            return (false, "Reference not found in SePay content.");
+
+        var mapped = new PaymentWebhookRequest(reference, payload.Id ?? payload.ReferenceCode, content, rawBody);
+        return await HandleWebhookAsync(mapped, rawBody, signature, ct);
+    }
+
+    private async Task<(bool Success, string? Error)> ConfirmBySePayPullAsync(Payment payment, CancellationToken ct)
+    {
         var pull = await _sepay.GetTransactionsAsync(ct);
         if (!pull.Success)
         {
@@ -100,14 +123,10 @@ public class PaymentApplicationService : IPaymentApplicationService
             return (false, msg);
         }
 
-        var keys = new List<string>();
-        if (!string.IsNullOrWhiteSpace(payment.Reference)) keys.Add(payment.Reference);
-        if (!string.IsNullOrWhiteSpace(payment.TransferContent)) keys.Add(payment.TransferContent!);
-
         var matched = pull.Transactions.FirstOrDefault(x =>
             Math.Abs(x.AmountIn - payment.Amount) < 0.01m &&
-            !string.IsNullOrWhiteSpace(x.TransactionContent) &&
-            keys.Any(k => x.TransactionContent.Contains(k, StringComparison.OrdinalIgnoreCase)));
+            (ContainsNormalized(x.TransactionContent, payment.Reference) ||
+             ContainsNormalized(x.TransactionContent, payment.TransferContent)));
 
         if (matched is null) return (false, "No matching SePay transaction found.");
 
@@ -119,6 +138,36 @@ public class PaymentApplicationService : IPaymentApplicationService
         if (!confirm.Success) return (false, confirm.Error);
 
         return (true, null);
+    }
+
+    private static string Normalize(string? input)
+        => new string((input ?? string.Empty).Where(char.IsLetterOrDigit).ToArray()).ToUpperInvariant();
+
+    private static bool ContainsNormalized(string? haystack, string? needle)
+    {
+        var h = Normalize(haystack);
+        var n = Normalize(needle);
+        return !string.IsNullOrWhiteSpace(n) && h.Contains(n, StringComparison.Ordinal);
+    }
+
+    private static string? ExtractReference(string content)
+    {
+        if (string.IsNullOrWhiteSpace(content)) return null;
+        var normalized = Normalize(content);
+
+        var marker = "PAY";
+        var idx = normalized.IndexOf(marker, StringComparison.Ordinal);
+        if (idx < 0) return null;
+
+        var tail = normalized[(idx + marker.Length)..];
+        var digits = new string(tail.TakeWhile(char.IsDigit).ToArray());
+        if (digits.Length < 15) return null;
+
+        var ts = digits[..14];
+        var userId = digits[14..];
+        if (string.IsNullOrWhiteSpace(userId)) return null;
+
+        return $"PAY-{ts}-{userId}";
     }
 
     public async Task<(bool Success, string? Error)> MarkPaidManualAsync(long userId, long paymentId, CancellationToken ct)
