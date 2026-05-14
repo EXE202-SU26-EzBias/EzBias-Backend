@@ -10,4 +10,5 @@ public interface IPaymentRepository
     Task<Payment?> GetByReferenceAsync(string reference, CancellationToken ct);
     Task<Payment?> GetByIdAsync(long paymentId, CancellationToken ct);
     Task<Payment?> GetByIdWithOrdersAsync(long paymentId, CancellationToken ct);
+    Task<Payment?> GetByOrderIdAsync(long orderId, CancellationToken ct);
 }
