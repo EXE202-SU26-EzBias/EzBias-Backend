@@ -1,0 +1,35 @@
+using EzBias.Domain.Entities;
+using EzBias.Domain.Enums;
+using EzBias.Domain.Interfaces;
+using EzBias.Infrastructure.Persistence;
+using Microsoft.EntityFrameworkCore;
+
+namespace EzBias.Infrastructure.Repositories;
+
+public class DisputeRepository : IDisputeRepository
+{
+    private readonly EzBiasDbContext _db;
+
+    public DisputeRepository(EzBiasDbContext db)
+    {
+        _db = db;
+    }
+
+    public void Add(Dispute dispute) => _db.Disputes.Add(dispute);
+
+    public Task<Dispute?> GetByIdAsync(long id, CancellationToken ct)
+        => _db.Disputes.Include(x => x.Order).FirstOrDefaultAsync(x => x.Id == id, ct);
+
+    public Task<Dispute?> GetOpenByOrderIdAsync(long orderId, CancellationToken ct)
+        => _db.Disputes.FirstOrDefaultAsync(x => x.OrderId == orderId && (x.Status == DisputeStatus.Open || x.Status == DisputeStatus.UnderReview), ct);
+
+    public async Task<IReadOnlyList<Dispute>> GetByOrderIdAsync(long orderId, CancellationToken ct)
+        => await _db.Disputes.Where(x => x.OrderId == orderId).OrderByDescending(x => x.CreatedAt).ToListAsync(ct);
+
+    public async Task<IReadOnlyList<Dispute>> GetAllWithOrderAndBuyerAsync(CancellationToken ct)
+        => await _db.Disputes
+            .Include(x => x.Order)
+                .ThenInclude(o => o.User)
+            .OrderByDescending(x => x.CreatedAt)
+            .ToListAsync(ct);
+}

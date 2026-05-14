@@ -42,4 +42,10 @@ public class PaymentRepository : IPaymentRepository
                     .ThenInclude(o => o.Items)
                         .ThenInclude(oi => oi.Product)
             .FirstOrDefaultAsync(x => x.Id == paymentId, ct);
+
+    public Task<Payment?> GetByOrderIdAsync(long orderId, CancellationToken ct)
+        => _db.Payments
+            .Include(x => x.PaymentOrders)
+                .ThenInclude(po => po.Order)
+            .FirstOrDefaultAsync(x => x.PaymentOrders.Any(po => po.OrderId == orderId), ct);
 }
