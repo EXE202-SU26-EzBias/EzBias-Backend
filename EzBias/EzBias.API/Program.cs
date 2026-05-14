@@ -9,6 +9,7 @@ using EzBias.Application.Features.Products;
 using EzBias.Application.Features.Users;
 using EzBias.Application.Features.Ratings;
 using EzBias.Application.Features.Notifications;
+using EzBias.Application.Features.Disputes;
 using EzBias.API.BackgroundServices;
 using EzBias.API.Integrations;
 using EzBias.Domain.Interfaces;
@@ -103,6 +104,9 @@ builder.Services.AddScoped<INotificationApplicationService, NotificationApplicat
 builder.Services.AddScoped<ISellerAuctionApplicationService, SellerAuctionApplicationService>();
 builder.Services.AddScoped<IAuctionBiddingApplicationService, AuctionBiddingApplicationService>();
 builder.Services.AddScoped<IAuctionPostFlowQueryService, AuctionPostFlowQueryService>();
+builder.Services.AddScoped<IDisputeRepository, DisputeRepository>();
+builder.Services.AddScoped<IRefundRepository, RefundRepository>();
+builder.Services.AddScoped<IDisputeApplicationService, DisputeApplicationService>();
 builder.Services.AddHostedService<AuctionCloseScheduler>();
 builder.Services.AddHostedService<DeliveredOrderFinalizeScheduler>();
 
