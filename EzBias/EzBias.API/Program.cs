@@ -104,6 +104,7 @@ builder.Services.AddScoped<ISellerAuctionApplicationService, SellerAuctionApplic
 builder.Services.AddScoped<IAuctionBiddingApplicationService, AuctionBiddingApplicationService>();
 builder.Services.AddScoped<IAuctionPostFlowQueryService, AuctionPostFlowQueryService>();
 builder.Services.AddHostedService<AuctionCloseScheduler>();
+builder.Services.AddHostedService<DeliveredOrderFinalizeScheduler>();
 
 builder.Services
     .AddAuthentication(JwtBearerDefaults.AuthenticationScheme)

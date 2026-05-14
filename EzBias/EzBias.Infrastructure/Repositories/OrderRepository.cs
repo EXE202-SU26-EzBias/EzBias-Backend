@@ -1,4 +1,5 @@
 using EzBias.Domain.Entities;
+using EzBias.Domain.Enums;
 using EzBias.Domain.Interfaces;
 using EzBias.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
@@ -50,5 +51,14 @@ public class OrderRepository : IOrderRepository
             .Include(x => x.Items)
             .Where(x => x.SellerId == sellerId)
             .OrderByDescending(x => x.CreatedAt)
+            .ToListAsync(ct);
+
+    public async Task<IReadOnlyList<Order>> GetDeliveredOverdueWithoutOpenDisputeOrPendingRefundAsync(DateTimeOffset deliveredBefore, CancellationToken ct)
+        => await _db.Orders
+            .Where(x => x.Status == OrderStatus.Delivered
+                && x.DeliveredAt.HasValue
+                && x.DeliveredAt.Value <= deliveredBefore
+                && (x.Dispute == null || x.Dispute.Status == DisputeStatus.Closed || x.Dispute.Status == DisputeStatus.ResolvedBuyer || x.Dispute.Status == DisputeStatus.ResolvedSeller)
+                && !x.Refunds.Any(r => r.Status == RefundStatus.Pending))
             .ToListAsync(ct);
 }

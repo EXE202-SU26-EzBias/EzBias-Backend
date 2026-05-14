@@ -1,0 +1,97 @@
+using EzBias.Domain.Entities;
+using EzBias.Domain.Enums;
+using EzBias.Domain.Interfaces;
+
+namespace EzBias.API.BackgroundServices;
+
+public class DeliveredOrderFinalizeScheduler : BackgroundService
+{
+    private readonly IServiceScopeFactory _scopeFactory;
+    private readonly ILogger<DeliveredOrderFinalizeScheduler> _logger;
+    private readonly IConfiguration _config;
+
+    public DeliveredOrderFinalizeScheduler(IServiceScopeFactory scopeFactory, ILogger<DeliveredOrderFinalizeScheduler> logger, IConfiguration config)
+    {
+        _scopeFactory = scopeFactory;
+        _logger = logger;
+        _config = config;
+    }
+
+    protected override async Task ExecuteAsync(CancellationToken stoppingToken)
+    {
+        var intervalSeconds = _config.GetValue<int?>("Order:DeliveredFinalizeScheduler:IntervalSeconds") ?? 60;
+        if (intervalSeconds < 1) intervalSeconds = 1;
+
+        var graceDays = _config.GetValue<int?>("Order:DeliveredFinalizeScheduler:GraceDays") ?? 3;
+        if (graceDays < 0) graceDays = 0;
+
+        _logger.LogInformation("DeliveredOrderFinalizeScheduler started. Interval={IntervalSeconds}s, GraceDays={GraceDays}", intervalSeconds, graceDays);
+
+        while (!stoppingToken.IsCancellationRequested)
+        {
+            try
+            {
+                using var scope = _scopeFactory.CreateScope();
+                var orders = scope.ServiceProvider.GetRequiredService<IOrderRepository>();
+                var escrows = scope.ServiceProvider.GetRequiredService<IEscrowRepository>();
+                var payouts = scope.ServiceProvider.GetRequiredService<IPayoutRepository>();
+                var uow = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
+
+                var now = DateTimeOffset.UtcNow;
+                var deliveredBefore = now.AddDays(-graceDays);
+                var candidates = await orders.GetDeliveredOverdueWithoutOpenDisputeOrPendingRefundAsync(deliveredBefore, stoppingToken);
+
+                var finalizedCount = 0;
+                foreach (var order in candidates)
+                {
+                    order.CompletedAt = now;
+                    order.Status = OrderStatus.Completed;
+                    order.UpdatedAt = now;
+
+                    escrows.AddRange(new[]
+                    {
+                        new EscrowTransaction
+                        {
+                            OrderId = order.Id,
+                            SellerId = order.SellerId,
+                            Type = EscrowType.OUT,
+                            Amount = order.Total,
+                            CreatedAt = now
+                        }
+                    });
+
+                    var payout = await payouts.GetByOrderIdAsync(order.Id, stoppingToken);
+                    if (payout is null)
+                    {
+                        payouts.Add(new Payout
+                        {
+                            OrderId = order.Id,
+                            SellerId = order.SellerId,
+                            Amount = order.Total,
+                            Status = PayoutStatus.Pending,
+                            CreatedAt = now
+                        });
+                    }
+
+                    finalizedCount++;
+                }
+
+                if (finalizedCount > 0)
+                {
+                    await uow.SaveChangesAsync(stoppingToken);
+                    _logger.LogInformation("Delivered order finalizer completed {Count} orders.", finalizedCount);
+                }
+            }
+            catch (OperationCanceledException) when (stoppingToken.IsCancellationRequested)
+            {
+                break;
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "DeliveredOrderFinalizeScheduler tick failed.");
+            }
+
+            await Task.Delay(TimeSpan.FromSeconds(intervalSeconds), stoppingToken);
+        }
+    }
+}
