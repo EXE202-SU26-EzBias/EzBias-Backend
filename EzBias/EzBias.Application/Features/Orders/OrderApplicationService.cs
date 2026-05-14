@@ -128,34 +128,8 @@ public class OrderApplicationService : IOrderApplicationService
             return (false, "Order cannot be confirmed in current status.", null);
 
         order.DeliveredAt = DateTimeOffset.UtcNow;
-        order.CompletedAt = DateTimeOffset.UtcNow;
-        order.Status = OrderStatus.Completed;
+        order.Status = OrderStatus.Delivered;
         order.UpdatedAt = DateTimeOffset.UtcNow;
-
-        _escrows.AddRange(new[]
-        {
-            new EscrowTransaction
-            {
-                OrderId = order.Id,
-                SellerId = order.SellerId,
-                Type = EscrowType.OUT,
-                Amount = order.Total,
-                CreatedAt = DateTimeOffset.UtcNow
-            }
-        });
-
-        var payout = await _payouts.GetByOrderIdAsync(order.Id, ct);
-        if (payout is null)
-        {
-            _payouts.Add(new Payout
-            {
-                OrderId = order.Id,
-                SellerId = order.SellerId,
-                Amount = order.Total,
-                Status = PayoutStatus.Pending,
-                CreatedAt = DateTimeOffset.UtcNow
-            });
-        }
 
         await _uow.SaveChangesAsync(ct);
         return (true, null, new FulfillmentActionResponse(order.Id, order.Status.ToString()));
