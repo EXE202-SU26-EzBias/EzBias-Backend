@@ -13,4 +13,5 @@ public class OrderItem
 
     public Order Order { get; set; } = null!;
     public Product? Product { get; set; }
+    public ICollection<DisputeItem> DisputeItems { get; set; } = new List<DisputeItem>();
 }

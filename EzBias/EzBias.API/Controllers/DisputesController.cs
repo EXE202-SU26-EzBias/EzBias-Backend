@@ -50,6 +50,7 @@ public class DisputesController : ControllerBase
         if (!result.Success || result.Data is null)
         {
             if (result.Error == "Dispute not found." || result.Error == "Order not found." || result.Error == "Payment not found for order.") return NotFound(result.Error);
+            if (result.Error == "Payout already paid. Manual recovery required.") return Conflict(result.Error);
             return BadRequest(result.Error);
         }
 
@@ -69,6 +70,16 @@ public class DisputesController : ControllerBase
         }
 
         return Ok(result.Data);
+    }
+
+    [HttpGet("{id:long}/items")]
+    [Authorize(Roles = "Admin")]
+    public async Task<IActionResult> GetItems([FromRoute] long id, CancellationToken ct)
+    {
+        var disputes = await _service.GetListAsync(ct);
+        var items = disputes.FirstOrDefault(x => x.Id == id);
+        if (items is null) return NotFound("Dispute not found.");
+        return Ok(items.Items);
     }
 
     [HttpPut("{id:long}/reject")]

@@ -15,5 +15,6 @@ public class Dispute
 
     public Order Order { get; set; } = null!;
     public User Initiator { get; set; } = null!;
+    public ICollection<DisputeItem> Items { get; set; } = new List<DisputeItem>();
     public ICollection<Refund> Refunds { get; set; } = new List<Refund>();
 }

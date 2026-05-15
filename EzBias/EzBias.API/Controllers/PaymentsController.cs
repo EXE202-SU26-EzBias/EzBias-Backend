@@ -47,6 +47,23 @@ public class PaymentsController : ControllerBase
         return Ok(result.Data);
     }
 
+    [HttpPost("{paymentId:long}/manual-confirm")]
+    [Authorize(Roles = "Admin")]
+    public async Task<IActionResult> ManualConfirm([FromRoute] long paymentId, CancellationToken ct)
+    {
+        if (!TryGetUserId(out var adminId)) return Unauthorized();
+
+        var result = await _paymentService.ConfirmManualAsync(adminId, paymentId, ct);
+        if (!result.Success)
+        {
+            if (result.Error == "Payment not found.") return NotFound(result.Error);
+            if (result.Error == "Forbidden.") return Forbid();
+            return BadRequest(result.Error);
+        }
+
+        return Ok(new { ok = true, paymentId, message = "Payment confirmed manually." });
+    }
+
     [AllowAnonymous]
     [HttpPost("webhook")]
     public async Task<IActionResult> Webhook(CancellationToken ct)
