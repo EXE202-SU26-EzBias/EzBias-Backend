@@ -33,6 +33,7 @@ public class EzBiasDbContext : DbContext
     public DbSet<UserSubscription> UserSubscriptions => Set<UserSubscription>();
     public DbSet<ProductBoost> ProductBoosts => Set<ProductBoost>();
     public DbSet<Dispute> Disputes => Set<Dispute>();
+    public DbSet<DisputeItem> DisputeItems => Set<DisputeItem>();
     public DbSet<Refund> Refunds => Set<Refund>();
     public DbSet<OtpVerification> OtpVerifications => Set<OtpVerification>();
 

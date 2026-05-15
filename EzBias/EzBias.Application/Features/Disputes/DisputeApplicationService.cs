@@ -27,8 +27,9 @@ public class DisputeApplicationService : IDisputeApplicationService
     public async Task<(bool Success, string? Error, DisputeResponse? Data)> CreateAsync(long buyerId, CreateDisputeRequest request, CancellationToken ct)
     {
         if (string.IsNullOrWhiteSpace(request.Reason)) return (false, "Reason is required.", null);
+        if (request.Items is null || request.Items.Count == 0) return (false, "At least one disputed item is required.", null);
 
-        var order = await _orders.GetByIdAsync(request.OrderId, ct);
+        var order = await _orders.GetByIdWithItemsAsync(request.OrderId, ct);
         if (order is null) return (false, "Order not found.", null);
         if (order.UserId != buyerId) return (false, "Forbidden.", null);
         if (order.Status != OrderStatus.Delivered) return (false, "Refund request is only allowed within Delivered grace period.", null);
@@ -36,6 +37,10 @@ public class DisputeApplicationService : IDisputeApplicationService
 
         var existing = await _disputes.GetOpenByOrderIdAsync(order.Id, ct);
         if (existing is not null) return (false, "An open dispute already exists for this order.", null);
+
+        var orderItemMap = order.Items.ToDictionary(x => x.Id);
+        var duplicate = request.Items.GroupBy(x => x.OrderItemId).FirstOrDefault(g => g.Count() > 1);
+        if (duplicate is not null) return (false, "Duplicate order items are not allowed in dispute.", null);
 
         var dispute = new Dispute
         {
@@ -46,22 +51,43 @@ public class DisputeApplicationService : IDisputeApplicationService
             CreatedAt = DateTimeOffset.UtcNow
         };
 
+        var disputeItems = new List<DisputeItem>();
+        foreach (var item in request.Items)
+        {
+            if (!orderItemMap.TryGetValue(item.OrderItemId, out var orderItem)) return (false, "Disputed item does not belong to order.", null);
+            if (item.RequestedQty <= 0) return (false, "Requested quantity must be greater than zero.", null);
+            if (item.RequestedQty > orderItem.Quantity) return (false, "Requested quantity exceeds ordered quantity.", null);
+
+            disputeItems.Add(new DisputeItem
+            {
+                Dispute = dispute,
+                OrderItemId = orderItem.Id,
+                RequestedQty = item.RequestedQty,
+                Note = item.Reason?.Trim(),
+                CreatedAt = DateTimeOffset.UtcNow
+            });
+        }
+
         order.Status = OrderStatus.ReturnRequested;
         order.UpdatedAt = DateTimeOffset.UtcNow;
 
         _disputes.Add(dispute);
+        _disputes.AddItems(disputeItems);
         await _uow.SaveChangesAsync(ct);
 
+        dispute.Items = disputeItems;
         return (true, null, Map(dispute));
     }
 
     public async Task<(bool Success, string? Error, DisputeResponse? Data)> ApproveAsync(long adminId, long disputeId, ResolveDisputeRequest request, CancellationToken ct)
     {
+        if (request.ApprovedItems is null || request.ApprovedItems.Count == 0) return (false, "At least one approved item is required.", null);
+
         var dispute = await _disputes.GetByIdAsync(disputeId, ct);
         if (dispute is null) return (false, "Dispute not found.", null);
         if (dispute.Status != DisputeStatus.Open && dispute.Status != DisputeStatus.UnderReview) return (false, "Dispute already resolved.", null);
 
-        var order = await _orders.GetByIdAsync(dispute.OrderId, ct);
+        var order = await _orders.GetByIdWithItemsAsync(dispute.OrderId, ct);
         if (order is null) return (false, "Order not found.", null);
 
         var payout = await _payouts.GetByOrderIdAsync(order.Id, ct);
@@ -70,17 +96,38 @@ public class DisputeApplicationService : IDisputeApplicationService
         var payment = await _payments.GetByOrderIdAsync(order.Id, ct);
         if (payment is null) return (false, "Payment not found for order.", null);
 
+        var disputeItemMap = dispute.Items.ToDictionary(x => x.OrderItemId);
+        var orderItemMap = order.Items.ToDictionary(x => x.Id);
+        var duplicate = request.ApprovedItems.GroupBy(x => x.OrderItemId).FirstOrDefault(g => g.Count() > 1);
+        if (duplicate is not null) return (false, "Duplicate approved items are not allowed.", null);
+
+        decimal refundAmount = 0m;
+        foreach (var approved in request.ApprovedItems)
+        {
+            if (!disputeItemMap.TryGetValue(approved.OrderItemId, out var disputeItem)) return (false, "Cannot approve item that is not in dispute.", null);
+            if (!orderItemMap.TryGetValue(approved.OrderItemId, out var orderItem)) return (false, "Disputed order item not found.", null);
+            if (approved.ApprovedQty < 0) return (false, "Approved quantity cannot be negative.", null);
+            if (approved.ApprovedQty > disputeItem.RequestedQty) return (false, "Approved quantity exceeds requested quantity.", null);
+
+            disputeItem.ApprovedQty = approved.ApprovedQty;
+            disputeItem.Note = approved.Note?.Trim() ?? disputeItem.Note;
+            refundAmount += approved.ApprovedQty * orderItem.UnitPrice;
+        }
+
+        if (refundAmount <= 0m) return (false, "Total approved refund amount must be greater than zero.", null);
+        if (refundAmount > order.Total) return (false, "Approved refund exceeds order total.", null);
+
         var processedTotal = await _refunds.GetProcessedTotalByPaymentIdAsync(payment.Id, ct);
         var refundable = payment.Amount - processedTotal;
-        if (refundable < order.Total) return (false, "Insufficient refundable amount.", null);
+        if (refundable < refundAmount) return (false, "Insufficient refundable amount.", null);
 
         var refund = new Refund
         {
             PaymentId = payment.Id,
             OrderId = order.Id,
             DisputeId = dispute.Id,
-            Amount = order.Total,
-            Reason = $"Approved full refund by admin {adminId}.",
+            Amount = refundAmount,
+            Reason = $"Approved partial/full item refund by admin {adminId}.",
             Status = RefundStatus.Pending,
             CreatedAt = DateTimeOffset.UtcNow
         };
@@ -140,7 +187,7 @@ public class DisputeApplicationService : IDisputeApplicationService
         if (!string.IsNullOrWhiteSpace(request.Note))
             refund.Reason = $"{refund.Reason} | PaymentNote: {request.Note.Trim()}";
 
-        order.Status = OrderStatus.Refunded;
+        order.Status = refund.Amount >= order.Total ? OrderStatus.Refunded : OrderStatus.Completed;
         order.UpdatedAt = DateTimeOffset.UtcNow;
 
         var processedTotal = await _refunds.GetProcessedTotalByPaymentIdAsync(payment.Id, ct);
@@ -161,7 +208,30 @@ public class DisputeApplicationService : IDisputeApplicationService
         return disputes.Select(MapListItem).ToList();
     }
 
-    private static DisputeResponse Map(Dispute x) => new(x.Id, x.OrderId, x.InitiatorId, x.Status.ToString(), x.Reason, x.AdminNote, x.CreatedAt, x.ResolvedAt);
+    private static DisputeResponse Map(Dispute x) => new(
+        x.Id,
+        x.OrderId,
+        x.InitiatorId,
+        x.Status.ToString(),
+        x.Reason,
+        x.AdminNote,
+        x.CreatedAt,
+        x.ResolvedAt,
+        MapItems(x.Items));
+
+    private static IReadOnlyList<DisputeItemResponse> MapItems(IEnumerable<DisputeItem> items)
+        => items
+            .OrderBy(i => i.Id)
+            .Select(i => new DisputeItemResponse(
+                i.Id,
+                i.OrderItemId,
+                i.OrderItem?.ProductName ?? string.Empty,
+                i.OrderItem?.Quantity ?? 0,
+                i.OrderItem?.UnitPrice ?? 0m,
+                i.RequestedQty,
+                i.ApprovedQty,
+                i.Note))
+            .ToList();
 
     private static DisputeListItemResponse MapListItem(Dispute x)
     {
@@ -189,6 +259,7 @@ public class DisputeApplicationService : IDisputeApplicationService
             x.AdminNote,
             x.CreatedAt,
             x.ResolvedAt,
-            payoutInfo);
+            payoutInfo,
+            MapItems(x.Items));
     }
 }
