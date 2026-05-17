@@ -12,6 +12,7 @@ public record OrderViewResponse(
     long? AuctionId,
     decimal Total,
     EzBias.Domain.Enums.OrderStatus Status,
+    long? PaymentId,
     string AddressSnap,
     string? Carrier,
     string? TrackingNumber,

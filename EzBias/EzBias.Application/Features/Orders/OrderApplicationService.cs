@@ -158,6 +158,7 @@ public class OrderApplicationService : IOrderApplicationService
             o.AuctionId,
             o.Total,
             o.Status,
+            o.PaymentOrders.OrderByDescending(po => po.PaymentId).Select(po => (long?)po.PaymentId).FirstOrDefault(),
             o.AddressSnap,
             o.Carrier,
             o.TrackingNumber,
