@@ -61,4 +61,6 @@ public class OrderRepository : IOrderRepository
                 && (x.Dispute == null || x.Dispute.Status == DisputeStatus.Closed || x.Dispute.Status == DisputeStatus.ResolvedBuyer || x.Dispute.Status == DisputeStatus.ResolvedSeller)
                 && !x.Refunds.Any(r => r.Status == RefundStatus.Pending))
             .ToListAsync(ct);
+
+    public void Remove(Order order) => _db.Orders.Remove(order);
 }

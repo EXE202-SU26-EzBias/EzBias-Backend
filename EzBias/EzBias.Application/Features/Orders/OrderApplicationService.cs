@@ -135,6 +135,20 @@ public class OrderApplicationService : IOrderApplicationService
         return (true, null, new FulfillmentActionResponse(order.Id, order.Status.ToString()));
     }
 
+    public async Task<(bool Success, string? Error)> DeleteAsync(long userId, long orderId, CancellationToken ct)
+    {
+        var order = await _orders.GetByIdAsync(orderId, ct);
+        if (order is null) return (false, "Order not found.");
+        if (order.UserId != userId) return (false, "Forbidden.");
+
+        if (order.Status != OrderStatus.Pending && order.Status != OrderStatus.Canceled)
+            return (false, "Only pending or canceled orders can be deleted.");
+
+        _orders.Remove(order);
+        await _uow.SaveChangesAsync(ct);
+        return (true, null);
+    }
+
     private static OrderViewResponse Map(Order o)
         => new(
             o.Id,

@@ -13,4 +13,5 @@ public interface IOrderRepository
     Task<IReadOnlyList<Order>> GetByBuyerAsync(long buyerId, CancellationToken ct);
     Task<IReadOnlyList<Order>> GetBySellerAsync(long sellerId, CancellationToken ct);
     Task<IReadOnlyList<Order>> GetDeliveredOverdueWithoutOpenDisputeOrPendingRefundAsync(DateTimeOffset deliveredBefore, CancellationToken ct);
+    void Remove(Order order);
 }

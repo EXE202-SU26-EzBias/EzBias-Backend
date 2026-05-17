@@ -65,6 +65,21 @@ public class OrdersController : ControllerBase
         return Ok(result.Data);
     }
 
+    [HttpDelete("{id:long}")]
+    public async Task<IActionResult> Delete([FromRoute] long id, CancellationToken ct)
+    {
+        if (!TryGetUserId(out var userId)) return Unauthorized();
+        var result = await _orderService.DeleteAsync(userId, id, ct);
+        if (!result.Success)
+        {
+            if (result.Error == "Forbidden.") return Forbid();
+            if (result.Error == "Order not found.") return NotFound(result.Error);
+            return BadRequest(result.Error);
+        }
+
+        return NoContent();
+    }
+
     private bool TryGetUserId(out long userId)
     {
         var sub = User.FindFirstValue(ClaimTypes.NameIdentifier)
