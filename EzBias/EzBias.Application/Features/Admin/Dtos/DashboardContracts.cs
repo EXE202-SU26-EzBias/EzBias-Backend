@@ -66,3 +66,22 @@ public record AdminUserListQuery(
     int Page = 1,
     int PageSize = 20
 );
+
+public record AdminCreateUserRequest(
+    string FullName,
+    string Username,
+    string Email,
+    string Password,
+    string Role,
+    string? Phone,
+    string? City
+);
+
+public record AdminUpdateUserRequest(
+    string? FullName,
+    string? Username,
+    string? Email,
+    string? Role,
+    string? Phone,
+    string? City
+);

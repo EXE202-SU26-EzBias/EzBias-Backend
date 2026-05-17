@@ -101,4 +101,14 @@ public class AdminRepository : IAdminRepository
             .Include(x => x.DisputesOpened)
             .FirstOrDefaultAsync(x => x.Id == userId, ct);
     }
+
+    public Task<User?> GetUserByIdAsync(long userId, CancellationToken ct)
+        => _db.Users.FirstOrDefaultAsync(x => x.Id == userId, ct);
+
+    public Task<bool> ExistsByEmailOrUsernameAsync(string normalizedEmail, string normalizedUsername, long? excludeUserId, CancellationToken ct)
+        => _db.Users.AnyAsync(x =>
+            (excludeUserId == null || x.Id != excludeUserId.Value)
+            && (x.Email.ToLower() == normalizedEmail || x.Username.ToLower() == normalizedUsername), ct);
+
+    public void AddUser(User user) => _db.Users.Add(user);
 }
