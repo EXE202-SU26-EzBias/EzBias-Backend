@@ -8,6 +8,9 @@ public interface IAdminRepository
     Task<AdminDashboardOverviewData> GetDashboardOverviewAsync(CancellationToken ct);
     Task<(IReadOnlyList<User> Items, int TotalItems)> GetUsersAsync(string? keyword, UserRole? role, bool? isDeleted, int page, int pageSize, CancellationToken ct);
     Task<User?> GetUserDetailAsync(long userId, CancellationToken ct);
+    Task<User?> GetUserByIdAsync(long userId, CancellationToken ct);
+    Task<bool> ExistsByEmailOrUsernameAsync(string normalizedEmail, string normalizedUsername, long? excludeUserId, CancellationToken ct);
+    void AddUser(User user);
 }
 
 public record AdminDashboardOverviewData(
