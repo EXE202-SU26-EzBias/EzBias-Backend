@@ -1,6 +1,8 @@
 using System.Security.Claims;
+using EzBias.API.Integrations;
 using EzBias.Application.Features.Products;
 using EzBias.Application.Features.Products.Dtos;
+using EzBias.Domain.Enums;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
@@ -12,10 +14,12 @@ namespace EzBias.API.Controllers;
 public class ProductsController : ControllerBase
 {
     private readonly IProductManagementApplicationService _service;
+    private readonly IImageUploader _imageUploader;
 
-    public ProductsController(IProductManagementApplicationService service)
+    public ProductsController(IProductManagementApplicationService service, IImageUploader imageUploader)
     {
         _service = service;
+        _imageUploader = imageUploader;
     }
 
     [HttpGet]
@@ -36,12 +40,39 @@ public class ProductsController : ControllerBase
     }
 
     [HttpPost]
-    public async Task<IActionResult> Create([FromBody] CreateProductRequest request, CancellationToken ct)
+    public async Task<IActionResult> Create([FromForm] CreateProductFormRequest request, CancellationToken ct)
     {
         if (!TryGetUserId(out var userId)) return Unauthorized();
-        var result = await _service.CreateAsync(userId, request, ct);
-        if (!result.Success || result.Data is null) return BadRequest(result.Error);
-        return Ok(result.Data);
+        if (Request.Form.Files.Count > 1)
+            return BadRequest(new { message = "Only one product image is allowed." });
+        if (request.Image is null)
+            return BadRequest(new { message = "Product image is required." });
+
+        string uploadedUrl;
+        try
+        {
+            uploadedUrl = await _imageUploader.UploadProductImageAsync(request.Image, ct);
+        }
+        catch (InvalidOperationException ex)
+        {
+            return BadRequest(new { message = ex.Message });
+        }
+
+        var createRequest = new CreateProductRequest(
+            request.FandomId,
+            request.Artist,
+            request.Name,
+            request.Type,
+            request.Condition,
+            request.Price,
+            request.Stock,
+            request.Description,
+            uploadedUrl,
+            [uploadedUrl]);
+
+        var result = await _service.CreateAsync(userId, createRequest, ct);
+        if (!result.Success || result.Data is null) return BadRequest(new { message = result.Error });
+        return CreatedAtAction(nameof(GetById), new { id = result.Data.Id }, result.Data);
     }
 
     [HttpPut("{id:long}")]
@@ -76,4 +107,17 @@ public class ProductsController : ControllerBase
                   ?? User.FindFirstValue("sub");
         return long.TryParse(sub, out userId);
     }
+}
+
+public sealed class CreateProductFormRequest
+{
+    public string FandomId { get; set; } = string.Empty;
+    public string Artist { get; set; } = string.Empty;
+    public string Name { get; set; } = string.Empty;
+    public string Type { get; set; } = string.Empty;
+    public ProductCondition Condition { get; set; } = ProductCondition.Good;
+    public decimal Price { get; set; }
+    public int Stock { get; set; }
+    public string Description { get; set; } = string.Empty;
+    public IFormFile? Image { get; set; }
 }
