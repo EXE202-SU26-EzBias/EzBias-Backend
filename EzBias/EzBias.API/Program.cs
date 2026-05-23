@@ -38,6 +38,7 @@ var jwt = builder.Configuration.GetSection(JwtOptions.SectionName).Get<JwtOption
 
 builder.Services.AddControllers();
 builder.Services.Configure<SePayOptions>(builder.Configuration.GetSection(SePayOptions.SectionName));
+builder.Services.Configure<SmtpOptions>(builder.Configuration.GetSection(SmtpOptions.SectionName));
 builder.Services.AddHttpClient("SePay", client =>
 {
     var baseUrl = builder.Configuration["SePay:BaseUrl"] ?? "https://my.sepay.vn";
@@ -76,8 +77,10 @@ builder.Services.AddDbContext<EzBiasDbContext>(options =>
 
 builder.Services.AddScoped<IPasswordHasher, PasswordHasher>();
 builder.Services.AddScoped<ITokenService, TokenService>();
+builder.Services.AddScoped<IAuthEmailSender, SmtpAuthEmailSender>();
 builder.Services.AddScoped<IUserRepository, UserRepository>();
 builder.Services.AddScoped<IRefreshTokenRepository, RefreshTokenRepository>();
+builder.Services.AddScoped<IOtpVerificationRepository, OtpVerificationRepository>();
 builder.Services.AddScoped<ICartRepository, CartRepository>();
 builder.Services.AddScoped<IProductRepository, ProductRepository>();
 builder.Services.AddScoped<IFandomRepository, FandomRepository>();
