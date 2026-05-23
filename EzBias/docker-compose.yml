@@ -45,6 +45,10 @@ services:
       Smtp__FromEmail: ${SMTP_FROM_EMAIL}
       Smtp__FromName: ${SMTP_FROM_NAME}
       Commission__RatePercent: ${COMMISSION_RATE_PERCENT}
+      Cloudinary__CloudName: ${CLOUDINARY_CLOUD_NAME}
+      Cloudinary__ApiKey: ${CLOUDINARY_API_KEY}
+      Cloudinary__ApiSecret: ${CLOUDINARY_API_SECRET}
+      Cloudinary__Folder: ${CLOUDINARY_FOLDER}
     ports:
       - "${API_PORT}:8080"
 

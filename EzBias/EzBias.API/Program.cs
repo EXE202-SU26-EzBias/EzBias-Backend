@@ -40,12 +40,14 @@ builder.Services.AddControllers();
 builder.Services.Configure<SePayOptions>(builder.Configuration.GetSection(SePayOptions.SectionName));
 builder.Services.Configure<SmtpOptions>(builder.Configuration.GetSection(SmtpOptions.SectionName));
 builder.Services.Configure<CommissionOptions>(builder.Configuration.GetSection(CommissionOptions.SectionName));
+builder.Services.Configure<CloudinaryOptions>(builder.Configuration.GetSection(CloudinaryOptions.SectionName));
 builder.Services.AddHttpClient("SePay", client =>
 {
     var baseUrl = builder.Configuration["SePay:BaseUrl"] ?? "https://my.sepay.vn";
     client.BaseAddress = new Uri(baseUrl);
     client.Timeout = TimeSpan.FromSeconds(20);
 });
+builder.Services.AddScoped<IImageUploader, CloudinaryImageUploader>();
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen(options =>
 {

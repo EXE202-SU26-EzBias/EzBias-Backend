@@ -31,6 +31,8 @@ public class ProductManagementApplicationService : IProductManagementApplication
     {
         if (request.Price <= 0) return (false, "Price must be greater than zero.", null);
         if (request.Stock < 0) return (false, "Stock cannot be negative.", null);
+        var imageUrls = NormalizeImageUrls(request.ImageUrls, request.PrimaryImageUrl);
+        if (imageUrls.Count == 0) return (false, "At least one product image is required.", null);
 
         var p = new Product
         {
@@ -43,9 +45,15 @@ public class ProductManagementApplicationService : IProductManagementApplication
             Price = request.Price,
             Stock = request.Stock,
             Description = request.Description.Trim(),
-            PrimaryImageUrl = request.PrimaryImageUrl.Trim(),
+            PrimaryImageUrl = imageUrls[0],
             Status = ProductStatus.Active,
-            CreatedAt = DateTimeOffset.UtcNow
+            CreatedAt = DateTimeOffset.UtcNow,
+            Images = imageUrls.Select((url, index) => new ProductImage
+            {
+                Url = url,
+                SortOrder = (short)(index + 1),
+                CreatedAt = DateTimeOffset.UtcNow
+            }).ToList()
         };
 
         _products.Add(p);
@@ -86,5 +94,32 @@ public class ProductManagementApplicationService : IProductManagementApplication
     }
 
     private static ProductItemResponse Map(Product p)
-        => new(p.Id, p.SellerId, p.FandomId, p.Artist, p.Name, p.Type, p.Condition, p.Price, p.Stock, p.Description, p.PrimaryImageUrl, p.IsAuction, p.Status, p.CreatedAt);
+    {
+        var imageUrls = p.Images
+            .OrderBy(x => x.SortOrder)
+            .Select(x => x.Url)
+            .DefaultIfEmpty(p.PrimaryImageUrl)
+            .Where(x => !string.IsNullOrWhiteSpace(x))
+            .ToList();
+
+        return new ProductItemResponse(p.Id, p.SellerId, p.FandomId, p.Artist, p.Name, p.Type, p.Condition, p.Price, p.Stock, p.Description, p.PrimaryImageUrl, imageUrls, p.IsAuction, p.Status, p.CreatedAt);
+    }
+
+    private static List<string> NormalizeImageUrls(IReadOnlyList<string>? imageUrls, string? primaryImageUrl)
+    {
+        var urls = new List<string>();
+
+        if (imageUrls is not null)
+            urls.AddRange(imageUrls);
+
+        if (!string.IsNullOrWhiteSpace(primaryImageUrl))
+            urls.Insert(0, primaryImageUrl);
+
+        return urls
+            .Where(x => !string.IsNullOrWhiteSpace(x))
+            .Select(x => x.Trim())
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .Take(8)
+            .ToList();
+    }
 }
