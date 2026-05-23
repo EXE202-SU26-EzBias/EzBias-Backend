@@ -22,6 +22,7 @@ public class Payment
     public User User { get; set; } = null!;
     public ICollection<PaymentOrder> PaymentOrders { get; set; } = new List<PaymentOrder>();
     public ICollection<EscrowTransaction> EscrowTransactions { get; set; } = new List<EscrowTransaction>();
+    public ICollection<CommissionTransaction> CommissionTransactions { get; set; } = new List<CommissionTransaction>();
     public ICollection<UserSubscription> UserSubscriptions { get; set; } = new List<UserSubscription>();
     public ICollection<Refund> Refunds { get; set; } = new List<Refund>();
 }

@@ -39,6 +39,7 @@ var jwt = builder.Configuration.GetSection(JwtOptions.SectionName).Get<JwtOption
 builder.Services.AddControllers();
 builder.Services.Configure<SePayOptions>(builder.Configuration.GetSection(SePayOptions.SectionName));
 builder.Services.Configure<SmtpOptions>(builder.Configuration.GetSection(SmtpOptions.SectionName));
+builder.Services.Configure<CommissionOptions>(builder.Configuration.GetSection(CommissionOptions.SectionName));
 builder.Services.AddHttpClient("SePay", client =>
 {
     var baseUrl = builder.Configuration["SePay:BaseUrl"] ?? "https://my.sepay.vn";
@@ -90,6 +91,7 @@ builder.Services.AddScoped<IEscrowRepository, EscrowRepository>();
 builder.Services.AddScoped<IPayoutRepository, PayoutRepository>();
 builder.Services.AddScoped<IRatingRepository, RatingRepository>();
 builder.Services.AddScoped<INotificationRepository, NotificationRepository>();
+builder.Services.AddScoped<ICommissionRepository, CommissionRepository>();
 builder.Services.AddScoped<IAuctionRepository, AuctionRepository>();
 builder.Services.AddScoped<IBidRepository, BidRepository>();
 builder.Services.AddScoped<IUnitOfWork, UnitOfWork>();
@@ -101,6 +103,7 @@ builder.Services.AddScoped<IProductManagementApplicationService, ProductManageme
 builder.Services.AddScoped<ICatalogQueryService, CatalogQueryService>();
 builder.Services.AddScoped<ICartApplicationService, CartApplicationService>();
 builder.Services.AddScoped<IPaymentApplicationService, PaymentApplicationService>();
+builder.Services.AddScoped<ICommissionRateProvider, ConfiguredCommissionRateProvider>();
 builder.Services.AddScoped<ISePayClient, SePayClient>();
 builder.Services.AddScoped<ISePayWebhookVerifier, SePayWebhookVerifier>();
 builder.Services.AddScoped<IOrderApplicationService, OrderApplicationService>();

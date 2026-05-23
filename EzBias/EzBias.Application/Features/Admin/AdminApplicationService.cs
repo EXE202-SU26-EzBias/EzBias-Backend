@@ -22,7 +22,36 @@ public class AdminApplicationService : IAdminApplicationService
     public async Task<AdminDashboardOverviewResponse> GetDashboardOverviewAsync(CancellationToken ct)
     {
         var x = await _adminRepository.GetDashboardOverviewAsync(ct);
-        return new AdminDashboardOverviewResponse(x.TotalUsers, x.NewUsersToday, x.NewUsersLast7Days, x.NewUsersLast30Days, x.TotalOrders, x.PendingOrders, x.PaidOrders, x.ProcessingOrders, x.ShippedOrders, x.DeliveredOrders, x.ReturnRequestedOrders, x.CompletedOrders, x.CanceledOrders, x.RefundedOrders, x.GrossRevenue, x.RefundedAmount, x.NetRevenue, x.OpenDisputes, x.PendingRefunds, x.PendingPayouts);
+        var topSellers = x.TopSellersByNetRevenue
+            .Select(s => new AdminTopSellerCommissionResponse(s.SellerId, s.Username, s.FullName, s.OrderCount, s.GrossRevenue, s.CommissionRevenue, s.NetRevenue))
+            .ToList();
+
+        return new AdminDashboardOverviewResponse(
+            x.TotalUsers,
+            x.NewUsersToday,
+            x.NewUsersLast7Days,
+            x.NewUsersLast30Days,
+            x.TotalOrders,
+            x.PendingOrders,
+            x.PaidOrders,
+            x.ProcessingOrders,
+            x.ShippedOrders,
+            x.DeliveredOrders,
+            x.ReturnRequestedOrders,
+            x.CompletedOrders,
+            x.CanceledOrders,
+            x.RefundedOrders,
+            x.GrossRevenue,
+            x.RefundedAmount,
+            x.NetRevenue,
+            x.TotalCommissionRevenue,
+            x.CommissionRevenueToday,
+            x.CommissionRevenueLast7Days,
+            x.CommissionRevenueLast30Days,
+            x.OpenDisputes,
+            x.PendingRefunds,
+            x.PendingPayouts,
+            topSellers);
     }
 
     public async Task<AdminUserListResponse> GetUsersAsync(AdminUserListQuery query, CancellationToken ct)

@@ -36,6 +36,7 @@ public class EzBiasDbContext : DbContext
     public DbSet<DisputeItem> DisputeItems => Set<DisputeItem>();
     public DbSet<Refund> Refunds => Set<Refund>();
     public DbSet<OtpVerification> OtpVerifications => Set<OtpVerification>();
+    public DbSet<CommissionTransaction> CommissionTransactions => Set<CommissionTransaction>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {

@@ -11,19 +11,32 @@ public class PaymentApplicationService : IPaymentApplicationService
     private readonly IOrderRepository _orders;
     private readonly IAuctionRepository _auctions;
     private readonly IEscrowRepository _escrows;
+    private readonly ICommissionRepository _commissions;
     private readonly ISePayClient _sepay;
     private readonly IUnitOfWork _uow;
     private readonly ISePayWebhookVerifier _webhookVerifier;
+    private readonly ICommissionRateProvider _commissionRateProvider;
 
-    public PaymentApplicationService(IPaymentRepository payments, IOrderRepository orders, IAuctionRepository auctions, IEscrowRepository escrows, ISePayClient sepay, IUnitOfWork uow, ISePayWebhookVerifier webhookVerifier)
+    public PaymentApplicationService(
+        IPaymentRepository payments,
+        IOrderRepository orders,
+        IAuctionRepository auctions,
+        IEscrowRepository escrows,
+        ICommissionRepository commissions,
+        ISePayClient sepay,
+        IUnitOfWork uow,
+        ISePayWebhookVerifier webhookVerifier,
+        ICommissionRateProvider commissionRateProvider)
     {
         _payments = payments;
         _orders = orders;
         _auctions = auctions;
         _escrows = escrows;
+        _commissions = commissions;
         _sepay = sepay;
         _uow = uow;
         _webhookVerifier = webhookVerifier;
+        _commissionRateProvider = commissionRateProvider;
     }
 
     public async Task<(bool Success, string? Error, CreatePaymentResponse? Data)> CreateAsync(long userId, CreatePaymentRequest request, CancellationToken ct)
@@ -218,6 +231,9 @@ public class PaymentApplicationService : IPaymentApplicationService
 
             foreach (var item in po.Order.Items)
             {
+                if (item.Product is null)
+                    return (false, $"Product {item.ProductId} no longer exists.");
+
                 if (item.Product.Stock < item.Quantity)
                     return (false, $"Insufficient stock for product {item.ProductId}.");
 
@@ -227,7 +243,7 @@ public class PaymentApplicationService : IPaymentApplicationService
         }
 
         var hasHold = await _escrows.ExistsHoldByPaymentIdAsync(payment.Id, ct);
-        var holdCount = 0;
+        var hasCommission = await _commissions.ExistsByPaymentIdAsync(payment.Id, ct);
 
         if (!hasHold)
         {
@@ -242,7 +258,29 @@ public class PaymentApplicationService : IPaymentApplicationService
             }).ToList();
 
             _escrows.AddRange(holds);
-            holdCount = holds.Count;
+        }
+
+        if (!hasCommission)
+        {
+            var ratePercent = _commissionRateProvider.GetRatePercent();
+            var commissionTransactions = payment.PaymentOrders.Select(po =>
+            {
+                var commissionAmount = Math.Round(po.Order.Total * ratePercent / 100m, 2, MidpointRounding.AwayFromZero);
+                return new CommissionTransaction
+                {
+                    OrderId = po.OrderId,
+                    PaymentId = payment.Id,
+                    SellerId = po.Order.SellerId,
+                    GrossAmount = po.Order.Total,
+                    CommissionRatePercent = ratePercent,
+                    CommissionAmount = commissionAmount,
+                    SellerNetAmount = po.Order.Total - commissionAmount,
+                    Currency = payment.Currency,
+                    CreatedAt = DateTimeOffset.UtcNow
+                };
+            }).ToList();
+
+            _commissions.AddRange(commissionTransactions);
         }
 
         await _uow.SaveChangesAsync(ct);
