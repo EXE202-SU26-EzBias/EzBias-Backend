@@ -8,12 +8,14 @@ public class PayoutApplicationService : IPayoutApplicationService
 {
     private readonly IPayoutRepository _payouts;
     private readonly IOrderRepository _orders;
+    private readonly ICommissionRepository _commissions;
     private readonly IUnitOfWork _uow;
 
-    public PayoutApplicationService(IPayoutRepository payouts, IOrderRepository orders, IUnitOfWork uow)
+    public PayoutApplicationService(IPayoutRepository payouts, IOrderRepository orders, ICommissionRepository commissions, IUnitOfWork uow)
     {
         _payouts = payouts;
         _orders = orders;
+        _commissions = commissions;
         _uow = uow;
     }
 
@@ -34,11 +36,12 @@ public class PayoutApplicationService : IPayoutApplicationService
         if (existing is not null)
             return (true, null, new RequestPayoutResponse(existing.Id, existing.OrderId, existing.Amount, existing.Status, existing.CreatedAt));
 
+        var commission = await _commissions.GetByOrderIdAsync(order.Id, ct);
         var payout = new Domain.Entities.Payout
         {
             OrderId = order.Id,
             SellerId = order.SellerId,
-            Amount = order.Total,
+            Amount = commission?.SellerNetAmount ?? order.Total,
             Status = PayoutStatus.Pending,
             CreatedAt = DateTimeOffset.UtcNow
         };

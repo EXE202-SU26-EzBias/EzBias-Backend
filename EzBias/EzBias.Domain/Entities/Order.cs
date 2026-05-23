@@ -28,6 +28,7 @@ public class Order
     public ICollection<OrderItem> Items { get; set; } = new List<OrderItem>();
     public ICollection<PaymentOrder> PaymentOrders { get; set; } = new List<PaymentOrder>();
     public ICollection<EscrowTransaction> EscrowTransactions { get; set; } = new List<EscrowTransaction>();
+    public CommissionTransaction? CommissionTransaction { get; set; }
     public Payout? Payout { get; set; }
     public Rating? Rating { get; set; }
     public Dispute? Dispute { get; set; }

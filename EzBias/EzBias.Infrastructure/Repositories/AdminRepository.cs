@@ -38,6 +38,49 @@ public class AdminRepository : IAdminRepository
         var grossRevenue = await _db.Payments.Where(x => x.Status == PaymentStatus.Paid).SumAsync(x => (decimal?)x.Amount, ct) ?? 0m;
         var refundedAmount = await _db.Refunds.Where(x => x.Status == RefundStatus.Processed).SumAsync(x => (decimal?)x.Amount, ct) ?? 0m;
         var netRevenue = grossRevenue - refundedAmount;
+        var totalCommissionRevenue = await _db.CommissionTransactions.SumAsync(x => (decimal?)x.CommissionAmount, ct) ?? 0m;
+        var commissionRevenueToday = await _db.CommissionTransactions
+            .Where(x => x.CreatedAt >= todayStart)
+            .SumAsync(x => (decimal?)x.CommissionAmount, ct) ?? 0m;
+        var commissionRevenueLast7Days = await _db.CommissionTransactions
+            .Where(x => x.CreatedAt >= last7Days)
+            .SumAsync(x => (decimal?)x.CommissionAmount, ct) ?? 0m;
+        var commissionRevenueLast30Days = await _db.CommissionTransactions
+            .Where(x => x.CreatedAt >= last30Days)
+            .SumAsync(x => (decimal?)x.CommissionAmount, ct) ?? 0m;
+
+        var topSellerStats = await _db.CommissionTransactions
+            .GroupBy(x => x.SellerId)
+            .Select(g => new
+            {
+                SellerId = g.Key,
+                OrderCount = g.Count(),
+                GrossRevenue = g.Sum(x => x.GrossAmount),
+                CommissionRevenue = g.Sum(x => x.CommissionAmount),
+                NetRevenue = g.Sum(x => x.SellerNetAmount)
+            })
+            .OrderByDescending(x => x.NetRevenue)
+            .Take(5)
+            .ToListAsync(ct);
+
+        var topSellerIds = topSellerStats.Select(x => x.SellerId).ToList();
+        var topSellerProfiles = await _db.Users
+            .Where(x => topSellerIds.Contains(x.Id))
+            .Select(x => new { x.Id, x.Username, x.FullName })
+            .ToListAsync(ct);
+
+        var topSellers = topSellerStats.Select(x =>
+        {
+            var seller = topSellerProfiles.FirstOrDefault(s => s.Id == x.SellerId);
+            return new AdminTopSellerCommissionData(
+                x.SellerId,
+                seller?.Username ?? string.Empty,
+                seller?.FullName ?? string.Empty,
+                x.OrderCount,
+                x.GrossRevenue,
+                x.CommissionRevenue,
+                x.NetRevenue);
+        }).ToList();
 
         var openDisputes = await _db.Disputes.CountAsync(x => x.Status == DisputeStatus.Open || x.Status == DisputeStatus.UnderReview, ct);
         var pendingRefunds = await _db.Refunds.CountAsync(x => x.Status == RefundStatus.Pending, ct);
@@ -61,9 +104,14 @@ public class AdminRepository : IAdminRepository
             grossRevenue,
             refundedAmount,
             netRevenue,
+            totalCommissionRevenue,
+            commissionRevenueToday,
+            commissionRevenueLast7Days,
+            commissionRevenueLast30Days,
             openDisputes,
             pendingRefunds,
-            pendingPayouts);
+            pendingPayouts,
+            topSellers);
     }
 
     public async Task<(IReadOnlyList<User> Items, int TotalItems)> GetUsersAsync(string? keyword, UserRole? role, bool? isDeleted, int page, int pageSize, CancellationToken ct)

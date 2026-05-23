@@ -45,6 +45,7 @@ public class User
 
     public ICollection<Order> OrdersAsBuyer { get; set; } = new List<Order>();
     public ICollection<Order> OrdersAsSeller { get; set; } = new List<Order>();
+    public ICollection<CommissionTransaction> CommissionTransactionsAsSeller { get; set; } = new List<CommissionTransaction>();
 
     public ICollection<Payment> Payments { get; set; } = new List<Payment>();
     public ICollection<Payout> Payouts { get; set; } = new List<Payout>();

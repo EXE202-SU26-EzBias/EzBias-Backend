@@ -18,9 +18,24 @@ public record AdminDashboardOverviewResponse(
     decimal GrossRevenue,
     decimal RefundedAmount,
     decimal NetRevenue,
+    decimal TotalCommissionRevenue,
+    decimal CommissionRevenueToday,
+    decimal CommissionRevenueLast7Days,
+    decimal CommissionRevenueLast30Days,
     int OpenDisputes,
     int PendingRefunds,
-    int PendingPayouts
+    int PendingPayouts,
+    IReadOnlyList<AdminTopSellerCommissionResponse> TopSellersByNetRevenue
+);
+
+public record AdminTopSellerCommissionResponse(
+    long SellerId,
+    string Username,
+    string FullName,
+    int OrderCount,
+    decimal GrossRevenue,
+    decimal CommissionRevenue,
+    decimal NetRevenue
 );
 
 public record AdminUserListItemResponse(
