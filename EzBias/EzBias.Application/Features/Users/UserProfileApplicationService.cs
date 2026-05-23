@@ -40,6 +40,24 @@ public class UserProfileApplicationService : IUserProfileApplicationService
         return (true, null, Map(user));
     }
 
+    public async Task<(bool Success, string? Error)> DeleteUnverifiedByEmailAsync(string email, CancellationToken ct)
+    {
+        var normalizedEmail = (email ?? string.Empty).Trim().ToLowerInvariant();
+        if (string.IsNullOrWhiteSpace(normalizedEmail))
+            return (false, "Email is required.");
+
+        var user = await _users.GetByEmailAsync(normalizedEmail, ct);
+        if (user is null)
+            return (false, "User not found.");
+
+        if (user.EmailVerifiedAt is not null)
+            return (false, "Only unverified users can be deleted.");
+
+        _users.Remove(user);
+        await _uow.SaveChangesAsync(ct);
+        return (true, null);
+    }
+
     private static UserProfileResponse Map(Domain.Entities.User user)
         => new(user.Id, user.FullName, user.Username, user.Email, user.Phone, user.Address, user.City, user.Zip, user.AvatarUrl, user.AvatarBg, user.BankName, user.BankAccountNumber, user.BankAccountName);
 }

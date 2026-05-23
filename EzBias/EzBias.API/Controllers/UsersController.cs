@@ -36,6 +36,20 @@ public class UsersController : ControllerBase
         return Ok(result.Data);
     }
 
+    [HttpDelete("by-email")]
+    [AllowAnonymous]
+    public async Task<IActionResult> DeleteUnverifiedByEmail([FromQuery] string email, CancellationToken ct)
+    {
+        var result = await _service.DeleteUnverifiedByEmailAsync(email, ct);
+        if (!result.Success)
+        {
+            if (result.Error == "User not found.") return NotFound(result.Error);
+            return BadRequest(result.Error);
+        }
+
+        return NoContent();
+    }
+
     private bool TryGetUserId(out long userId)
     {
         var sub = User.FindFirstValue(ClaimTypes.NameIdentifier)

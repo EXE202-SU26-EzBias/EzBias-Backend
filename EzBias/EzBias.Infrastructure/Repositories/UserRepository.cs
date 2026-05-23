@@ -27,4 +27,6 @@ public class UserRepository : IUserRepository
         => _db.Users.FirstOrDefaultAsync(x => x.Id == userId, ct);
 
     public void Add(User user) => _db.Users.Add(user);
+
+    public void Remove(User user) => _db.Users.Remove(user);
 }

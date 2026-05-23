@@ -9,4 +9,5 @@ public interface IUserRepository
     Task<User?> GetByEmailAsync(string normalizedEmail, CancellationToken ct);
     Task<User?> GetByIdAsync(long userId, CancellationToken ct);
     void Add(User user);
+    void Remove(User user);
 }
