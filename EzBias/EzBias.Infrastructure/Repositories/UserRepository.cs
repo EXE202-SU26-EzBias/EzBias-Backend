@@ -20,6 +20,9 @@ public class UserRepository : IUserRepository
     public Task<User?> GetByLoginKeyAsync(string normalizedKey, CancellationToken ct)
         => _db.Users.FirstOrDefaultAsync(x => x.Email.ToLower() == normalizedKey || x.Username.ToLower() == normalizedKey, ct);
 
+    public Task<User?> GetByEmailAsync(string normalizedEmail, CancellationToken ct)
+        => _db.Users.FirstOrDefaultAsync(x => x.Email.ToLower() == normalizedEmail, ct);
+
     public Task<User?> GetByIdAsync(long userId, CancellationToken ct)
         => _db.Users.FirstOrDefaultAsync(x => x.Id == userId, ct);
 

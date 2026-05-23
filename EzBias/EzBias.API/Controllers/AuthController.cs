@@ -65,6 +65,42 @@ public class AuthController : ControllerBase
         return NoContent();
     }
 
+    [HttpPost("forgot-password")]
+    public async Task<IActionResult> ForgotPassword(ForgotPasswordRequest req, CancellationToken ct)
+    {
+        var result = await _authService.ForgotPasswordAsync(req, ct);
+        if (!result.Success) return BadRequest(result.Error);
+
+        return Ok(new SimpleMessageResponse("If the email exists, a password reset code has been sent."));
+    }
+
+    [HttpPost("reset-password")]
+    public async Task<IActionResult> ResetPassword(ResetPasswordRequest req, CancellationToken ct)
+    {
+        var result = await _authService.ResetPasswordAsync(req, ct);
+        if (!result.Success) return BadRequest(result.Error);
+
+        return Ok(new SimpleMessageResponse("Password has been reset."));
+    }
+
+    [HttpPost("email-verification/request")]
+    public async Task<IActionResult> RequestEmailVerification(RequestEmailVerificationRequest req, CancellationToken ct)
+    {
+        var result = await _authService.RequestEmailVerificationAsync(req, ct);
+        if (!result.Success) return BadRequest(result.Error);
+
+        return Ok(new SimpleMessageResponse("If the email exists and is not verified, a verification code has been sent."));
+    }
+
+    [HttpPost("email-verification/verify")]
+    public async Task<IActionResult> VerifyEmail(VerifyEmailRequest req, CancellationToken ct)
+    {
+        var result = await _authService.VerifyEmailAsync(req, ct);
+        if (!result.Success) return BadRequest(result.Error);
+
+        return Ok(new SimpleMessageResponse("Email has been verified."));
+    }
+
     [Authorize]
     [HttpGet("me")]
     public async Task<IActionResult> Me(CancellationToken ct)
