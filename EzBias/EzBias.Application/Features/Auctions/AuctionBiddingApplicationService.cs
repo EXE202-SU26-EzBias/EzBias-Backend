@@ -87,11 +87,21 @@ public class AuctionBiddingApplicationService : IAuctionBiddingApplicationServic
         if (auction.SellerId == bidderId) return (false, "Seller cannot bid own auction.", null);
 
         var highest = await _bids.GetHighestBidAmountAsync(auctionId, ct);
-        var baseBid = highest ?? auction.CurrentBid;
-        var minRequired = baseBid + 1000m;
+
+        decimal minRequired;
+        if (highest is null)
+        {
+            // No bids yet — first bid must be >= floor price
+            minRequired = auction.FloorPrice;
+        }
+        else
+        {
+            // Subsequent bids must exceed current highest by at least 1,000 VND
+            minRequired = highest.Value + 1_000m;
+        }
 
         if (request.Amount < minRequired)
-            return (false, $"Bid must be >= {minRequired}.", null);
+            return (false, $"Bid must be >= {minRequired:N0} VND.", null);
 
         var bid = new Bid
         {
