@@ -243,76 +243,102 @@ public static class AuctionSeedData
 
         foreach (var entry in Entries)
         {
+            Product product;
+
             if (existingAuctionImageUrls.Contains(entry.PrimaryImageUrl))
-                continue;
-
-            var seller = sellers[entry.SellerIndex % sellers.Count];
-
-            var product = new Product
             {
-                SellerId = seller.Id,
-                FandomId = entry.FandomId,
-                Artist = entry.Artist,
-                Name = entry.ProductName,
-                Type = entry.Type,
-                Condition = entry.Condition,
-                Price = entry.FloorPrice,
-                Stock = 1,
-                Description = entry.Description,
-                PrimaryImageUrl = entry.PrimaryImageUrl,
-                IsAuction = true,
-                Status = ProductStatus.Active,
-                CreatedAt = now,
-                Images = new List<ProductImage>
+                // Product/auction already exists — only seed missing bids
+                product = db.Products.FirstOrDefault(x => x.IsAuction && x.PrimaryImageUrl == entry.PrimaryImageUrl)!;
+                if (product is null) continue;
+            }
+            else
+            {
+                // Create new product + auction
+                product = new Product
                 {
-                    new() { Url = entry.PrimaryImageUrl, SortOrder = 1, CreatedAt = now }
-                }
-            };
-
-            db.Products.Add(product);
-            await db.SaveChangesAsync(ct);
-
-            // Determine current bid from history
-            var currentBid = entry.BidHistory.Length > 0
-                ? entry.BidHistory.Max(b => b.Amount)
-                : 0m;
-
-            var auction = new Auction
-            {
-                ProductId = product.Id,
-                SellerId = seller.Id,
-                FloorPrice = entry.FloorPrice,
-                ReservePrice = entry.ReservePrice,
-                CurrentBid = currentBid,
-                ExtensionSeconds = 300,
-                TriggerBeforeEnd = 60,
-                Status = AuctionStatus.Live,
-                EndsAt = now.AddHours(entry.DurationHours),
-                CreatedAt = now
-            };
-
-            db.Auctions.Add(auction);
-            await db.SaveChangesAsync(ct);
-
-            // Seed bid history
-            if (entry.BidHistory.Length > 0)
-            {
-                var sortedBids = entry.BidHistory.OrderBy(b => b.MinutesAgo).ToList();
-                for (var i = 0; i < sortedBids.Count; i++)
-                {
-                    var (bidderIndex, amount, minutesAgo) = sortedBids[i];
-                    var bidder = bidders[bidderIndex % bidders.Count];
-                    var isWinning = i == sortedBids.Count - 1; // only last bid is winning
-
-                    db.Bids.Add(new Bid
+                    SellerId = sellers[entry.SellerIndex % sellers.Count].Id,
+                    FandomId = entry.FandomId,
+                    Artist = entry.Artist,
+                    Name = entry.ProductName,
+                    Type = entry.Type,
+                    Condition = entry.Condition,
+                    Price = entry.FloorPrice,
+                    Stock = 1,
+                    Description = entry.Description,
+                    PrimaryImageUrl = entry.PrimaryImageUrl,
+                    IsAuction = true,
+                    Status = ProductStatus.Active,
+                    CreatedAt = now,
+                    Images = new List<ProductImage>
                     {
-                        AuctionId = auction.Id,
-                        UserId = bidder.Id,
-                        Amount = amount,
-                        IsWinning = isWinning,
-                        PlacedAt = now.AddMinutes(-minutesAgo)
-                    });
-                }
+                        new() { Url = entry.PrimaryImageUrl, SortOrder = 1, CreatedAt = now }
+                    }
+                };
+
+                db.Products.Add(product);
+                await db.SaveChangesAsync(ct);
+
+                var currentBid = entry.BidHistory.Length > 0
+                    ? entry.BidHistory.Max(b => b.Amount)
+                    : 0m;
+
+                var auction = new Auction
+                {
+                    ProductId = product.Id,
+                    SellerId = sellers[entry.SellerIndex % sellers.Count].Id,
+                    FloorPrice = entry.FloorPrice,
+                    ReservePrice = entry.ReservePrice,
+                    CurrentBid = currentBid,
+                    ExtensionSeconds = 300,
+                    TriggerBeforeEnd = 60,
+                    Status = AuctionStatus.Live,
+                    EndsAt = now.AddHours(entry.DurationHours),
+                    CreatedAt = now
+                };
+
+                db.Auctions.Add(auction);
+                await db.SaveChangesAsync(ct);
+            }
+
+            // Seed missing bids
+            if (entry.BidHistory.Length == 0) continue;
+
+            var existingAuction = db.Auctions.FirstOrDefault(x => x.ProductId == product.Id);
+            if (existingAuction is null) continue;
+
+            var existingBidAmounts = db.Bids
+                .Where(x => x.AuctionId == existingAuction.Id)
+                .Select(x => x.Amount)
+                .ToHashSet();
+
+            var sortedBids = entry.BidHistory.OrderBy(b => b.MinutesAgo).ToList();
+            var addedAny = false;
+
+            for (var i = 0; i < sortedBids.Count; i++)
+            {
+                var (bidderIndex, amount, minutesAgo) = sortedBids[i];
+                if (existingBidAmounts.Contains(amount)) continue;
+
+                var bidder = bidders[bidderIndex % bidders.Count];
+                var isWinning = i == sortedBids.Count - 1;
+
+                db.Bids.Add(new Bid
+                {
+                    AuctionId = existingAuction.Id,
+                    UserId = bidder.Id,
+                    Amount = amount,
+                    IsWinning = isWinning,
+                    PlacedAt = now.AddMinutes(-minutesAgo)
+                });
+                addedAny = true;
+            }
+
+            if (addedAny)
+            {
+                // Update CurrentBid to reflect highest bid
+                var maxBid = entry.BidHistory.Max(b => b.Amount);
+                if (existingAuction.CurrentBid < maxBid)
+                    existingAuction.CurrentBid = maxBid;
 
                 await db.SaveChangesAsync(ct);
             }
