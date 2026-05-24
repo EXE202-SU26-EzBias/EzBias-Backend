@@ -38,7 +38,7 @@ var jwt = builder.Configuration.GetSection(JwtOptions.SectionName).Get<JwtOption
 
 builder.Services.AddControllers();
 builder.Services.Configure<SePayOptions>(builder.Configuration.GetSection(SePayOptions.SectionName));
-builder.Services.Configure<SmtpOptions>(builder.Configuration.GetSection(SmtpOptions.SectionName));
+builder.Services.Configure<BrevoOptions>(builder.Configuration.GetSection(BrevoOptions.SectionName));
 builder.Services.Configure<CommissionOptions>(builder.Configuration.GetSection(CommissionOptions.SectionName));
 builder.Services.Configure<CloudinaryOptions>(builder.Configuration.GetSection(CloudinaryOptions.SectionName));
 builder.Services.AddHttpClient("SePay", client =>
@@ -46,6 +46,11 @@ builder.Services.AddHttpClient("SePay", client =>
     var baseUrl = builder.Configuration["SePay:BaseUrl"] ?? "https://my.sepay.vn";
     client.BaseAddress = new Uri(baseUrl);
     client.Timeout = TimeSpan.FromSeconds(20);
+});
+builder.Services.AddHttpClient("Brevo", client =>
+{
+    client.BaseAddress = new Uri("https://api.brevo.com/");
+    client.Timeout = TimeSpan.FromSeconds(30);
 });
 builder.Services.AddScoped<IImageUploader, CloudinaryImageUploader>();
 builder.Services.AddEndpointsApiExplorer();
@@ -80,7 +85,7 @@ builder.Services.AddDbContext<EzBiasDbContext>(options =>
 
 builder.Services.AddScoped<IPasswordHasher, PasswordHasher>();
 builder.Services.AddScoped<ITokenService, TokenService>();
-builder.Services.AddScoped<IAuthEmailSender, SmtpAuthEmailSender>();
+builder.Services.AddScoped<IAuthEmailSender, BrevoAuthEmailSender>();
 builder.Services.AddScoped<IUserRepository, UserRepository>();
 builder.Services.AddScoped<IRefreshTokenRepository, RefreshTokenRepository>();
 builder.Services.AddScoped<IOtpVerificationRepository, OtpVerificationRepository>();
