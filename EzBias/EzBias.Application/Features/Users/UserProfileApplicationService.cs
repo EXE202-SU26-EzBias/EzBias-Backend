@@ -1,4 +1,5 @@
 using EzBias.Application.Features.Users.Dtos;
+using EzBias.Domain.Enums;
 using EzBias.Domain.Interfaces;
 
 namespace EzBias.Application.Features.Users;
@@ -6,11 +7,25 @@ namespace EzBias.Application.Features.Users;
 public class UserProfileApplicationService : IUserProfileApplicationService
 {
     private readonly IUserRepository _users;
+    private readonly IOrderRepository _orders;
+    private readonly ICommissionRepository _commissions;
+    private readonly IPayoutRepository _payouts;
+    private readonly IAuctionRepository _auctions;
     private readonly IUnitOfWork _uow;
 
-    public UserProfileApplicationService(IUserRepository users, IUnitOfWork uow)
+    public UserProfileApplicationService(
+        IUserRepository users,
+        IOrderRepository orders,
+        ICommissionRepository commissions,
+        IPayoutRepository payouts,
+        IAuctionRepository auctions,
+        IUnitOfWork uow)
     {
         _users = users;
+        _orders = orders;
+        _commissions = commissions;
+        _payouts = payouts;
+        _auctions = auctions;
         _uow = uow;
     }
 
@@ -56,6 +71,53 @@ public class UserProfileApplicationService : IUserProfileApplicationService
         _users.Remove(user);
         await _uow.SaveChangesAsync(ct);
         return (true, null);
+    }
+
+    public async Task<SellerDashboardResponse> GetSellerDashboardAsync(long sellerId, CancellationToken ct)
+    {
+        var user = await _users.GetByIdAsync(sellerId, ct);
+
+        // Orders
+        var sellerOrders = await _orders.GetBySellerAsync(sellerId, ct);
+        int Count(OrderStatus s) => sellerOrders.Count(o => o.Status == s);
+
+        // Commission
+        var payouts = await _payouts.GetBySellerAsync(sellerId, null, ct);
+        var pendingPayouts = payouts.Where(p => p.Status == PayoutStatus.Pending || p.Status == PayoutStatus.Processing).ToList();
+        var paidPayouts = payouts.Where(p => p.Status == PayoutStatus.Paid).ToList();
+
+        // Revenue from completed orders via commission transactions
+        var completedOrders = sellerOrders.Where(o => o.Status == OrderStatus.Completed).ToList();
+        var grossRevenue = completedOrders.Sum(o => o.Total);
+
+        // Sum commission paid from payout amounts (net = payout amount, commission = gross - net)
+        var netRevenue = paidPayouts.Sum(p => p.Amount);
+        var commissionPaid = grossRevenue - netRevenue < 0 ? 0 : grossRevenue - netRevenue;
+
+        // Auctions
+        var allAuctions = await _auctions.GetBySellerAsync(sellerId, null, ct);
+
+        return new SellerDashboardResponse(
+            GrossRevenue: grossRevenue,
+            CommissionPaid: commissionPaid,
+            NetRevenue: netRevenue,
+            TotalOrders: sellerOrders.Count,
+            PendingOrders: Count(OrderStatus.Pending),
+            PaidOrders: Count(OrderStatus.Paid),
+            ShippedOrders: Count(OrderStatus.Shipped),
+            DeliveredOrders: Count(OrderStatus.Delivered),
+            CompletedOrders: Count(OrderStatus.Completed),
+            CanceledOrders: Count(OrderStatus.Canceled),
+            PendingPayouts: pendingPayouts.Count,
+            PaidPayouts: paidPayouts.Count,
+            PendingPayoutAmount: pendingPayouts.Sum(p => p.Amount),
+            PaidPayoutAmount: paidPayouts.Sum(p => p.Amount),
+            TotalAuctions: allAuctions.Count,
+            LiveAuctions: allAuctions.Count(a => a.Status == AuctionStatus.Live || a.Status == AuctionStatus.Extended),
+            SoldAuctions: allAuctions.Count(a => a.Status == AuctionStatus.Sold),
+            AvgRating: user?.AvgSellerRating ?? 0m,
+            TotalRatings: user?.TotalRatings ?? 0
+        );
     }
 
     private static UserProfileResponse Map(Domain.Entities.User user)
