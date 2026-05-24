@@ -1,0 +1,21 @@
+using EzBias.Domain.Entities;
+
+namespace EzBias.Application.Features.Notifications;
+
+/// <summary>
+/// Creates Notification entities for common domain events.
+/// Caller is responsible for persisting via INotificationRepository.
+/// </summary>
+public interface INotificationFactory
+{
+    Notification Outbid(long userId, long auctionId, string productName, decimal newBid);
+    Notification AuctionWon(long userId, long auctionId, string productName, decimal finalPrice);
+    Notification AuctionExpired(long userId, long auctionId, string productName);
+    Notification OrderPlaced(long sellerId, long orderId, string productNames);
+    Notification OrderShipped(long userId, long orderId, string? trackingNumber);
+    Notification OrderDelivered(long userId, long orderId);
+    Notification PayoutPaid(long sellerId, long payoutId, decimal amount);
+    Notification DisputeOpened(long sellerId, long disputeId, long orderId);
+    Notification DisputeResolved(long userId, long disputeId, bool resolvedForBuyer);
+    Notification UserVerified(long userId);
+}

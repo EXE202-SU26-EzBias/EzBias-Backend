@@ -1,3 +1,4 @@
+using EzBias.Application.Features.Notifications;
 using EzBias.Application.Features.Payouts.Dtos;
 using EzBias.Domain.Enums;
 using EzBias.Domain.Interfaces;
@@ -9,13 +10,23 @@ public class PayoutApplicationService : IPayoutApplicationService
     private readonly IPayoutRepository _payouts;
     private readonly IOrderRepository _orders;
     private readonly ICommissionRepository _commissions;
+    private readonly INotificationRepository _notifications;
+    private readonly INotificationFactory _notificationFactory;
     private readonly IUnitOfWork _uow;
 
-    public PayoutApplicationService(IPayoutRepository payouts, IOrderRepository orders, ICommissionRepository commissions, IUnitOfWork uow)
+    public PayoutApplicationService(
+        IPayoutRepository payouts,
+        IOrderRepository orders,
+        ICommissionRepository commissions,
+        INotificationRepository notifications,
+        INotificationFactory notificationFactory,
+        IUnitOfWork uow)
     {
         _payouts = payouts;
         _orders = orders;
         _commissions = commissions;
+        _notifications = notifications;
+        _notificationFactory = notificationFactory;
         _uow = uow;
     }
 
@@ -81,6 +92,8 @@ public class PayoutApplicationService : IPayoutApplicationService
         payout.PaidAt = DateTimeOffset.UtcNow;
         payout.BankTransferRef = string.IsNullOrWhiteSpace(request.BankTransferRef) ? payout.BankTransferRef : request.BankTransferRef.Trim();
         payout.UpdatedAt = DateTimeOffset.UtcNow;
+
+        _notifications.Add(_notificationFactory.PayoutPaid(payout.SellerId, payout.Id, payout.Amount));
 
         await _uow.SaveChangesAsync(ct);
 

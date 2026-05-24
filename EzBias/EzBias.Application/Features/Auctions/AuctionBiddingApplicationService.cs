@@ -1,4 +1,5 @@
 using EzBias.Application.Features.Auctions.Dtos;
+using EzBias.Application.Features.Notifications;
 using EzBias.Domain.Entities;
 using EzBias.Domain.Enums;
 using EzBias.Domain.Interfaces;
@@ -9,12 +10,21 @@ public class AuctionBiddingApplicationService : IAuctionBiddingApplicationServic
 {
     private readonly IAuctionRepository _auctions;
     private readonly IBidRepository _bids;
+    private readonly INotificationRepository _notifications;
+    private readonly INotificationFactory _notificationFactory;
     private readonly IUnitOfWork _uow;
 
-    public AuctionBiddingApplicationService(IAuctionRepository auctions, IBidRepository bids, IUnitOfWork uow)
+    public AuctionBiddingApplicationService(
+        IAuctionRepository auctions,
+        IBidRepository bids,
+        INotificationRepository notifications,
+        INotificationFactory notificationFactory,
+        IUnitOfWork uow)
     {
         _auctions = auctions;
         _bids = bids;
+        _notifications = notifications;
+        _notificationFactory = notificationFactory;
         _uow = uow;
     }
 
@@ -91,6 +101,17 @@ public class AuctionBiddingApplicationService : IAuctionBiddingApplicationServic
             IsWinning = true,
             PlacedAt = DateTimeOffset.UtcNow
         };
+
+        // Notify the previous winner that they've been outbid
+        var previousTopBid = await _bids.GetTopBidAsync(auctionId, ct);
+        if (previousTopBid is not null && previousTopBid.UserId != bidderId)
+        {
+            _notifications.Add(_notificationFactory.Outbid(
+                previousTopBid.UserId,
+                auctionId,
+                auction.Product.Name,
+                request.Amount));
+        }
 
         await _bids.ClearWinningFlagsAsync(auction.Id, ct);
         _bids.Add(bid);

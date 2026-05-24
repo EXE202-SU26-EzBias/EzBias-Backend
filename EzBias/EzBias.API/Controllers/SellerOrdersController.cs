@@ -1,4 +1,5 @@
 using System.Security.Claims;
+using EzBias.Application.Features.Notifications;
 using EzBias.Application.Features.Orders;
 using EzBias.Application.Features.Orders.Dtos;
 using EzBias.Domain.Enums;
@@ -15,12 +16,21 @@ public class SellerOrdersController : ControllerBase
 {
     private readonly IOrderRepository _orders;
     private readonly IOrderApplicationService _orderService;
+    private readonly INotificationRepository _notifications;
+    private readonly INotificationFactory _notificationFactory;
     private readonly IUnitOfWork _uow;
 
-    public SellerOrdersController(IOrderRepository orders, IOrderApplicationService orderService, IUnitOfWork uow)
+    public SellerOrdersController(
+        IOrderRepository orders,
+        IOrderApplicationService orderService,
+        INotificationRepository notifications,
+        INotificationFactory notificationFactory,
+        IUnitOfWork uow)
     {
         _orders = orders;
         _orderService = orderService;
+        _notifications = notifications;
+        _notificationFactory = notificationFactory;
         _uow = uow;
     }
 
@@ -47,6 +57,8 @@ public class SellerOrdersController : ControllerBase
         order.ShippedAt = DateTimeOffset.UtcNow;
         order.Status = OrderStatus.Shipped;
         order.UpdatedAt = DateTimeOffset.UtcNow;
+
+        _notifications.Add(_notificationFactory.OrderShipped(order.UserId, order.Id, order.TrackingNumber));
 
         await _uow.SaveChangesAsync(ct);
         return Ok(new FulfillmentActionResponse(order.Id, order.Status.ToString()));

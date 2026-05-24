@@ -1,3 +1,4 @@
+using EzBias.Application.Features.Notifications;
 using EzBias.Domain.Entities;
 using EzBias.Domain.Enums;
 using EzBias.Domain.Interfaces;
@@ -32,6 +33,8 @@ public class AuctionCloseScheduler : BackgroundService
                 var auctions = scope.ServiceProvider.GetRequiredService<IAuctionRepository>();
                 var bids = scope.ServiceProvider.GetRequiredService<IBidRepository>();
                 var orders = scope.ServiceProvider.GetRequiredService<IOrderRepository>();
+                var notifications = scope.ServiceProvider.GetRequiredService<INotificationRepository>();
+                var notificationFactory = scope.ServiceProvider.GetRequiredService<INotificationFactory>();
                 var uow = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
 
                 var now = DateTimeOffset.UtcNow;
@@ -46,6 +49,8 @@ public class AuctionCloseScheduler : BackgroundService
                     if (topBid is null || (auction.ReservePrice.HasValue && topBid.Amount < auction.ReservePrice.Value))
                     {
                         auction.Status = AuctionStatus.EndedNoWinner;
+                        notifications.Add(notificationFactory.AuctionExpired(
+                            auction.SellerId, auction.Id, auction.Product.Name));
                         noWinner++;
                     }
                     else
@@ -54,6 +59,9 @@ public class AuctionCloseScheduler : BackgroundService
                         auction.WinnerId = topBid.UserId;
                         auction.FinalPrice = topBid.Amount;
                         auction.WinnerPaymentDeadline = now.AddHours(24);
+
+                        notifications.Add(notificationFactory.AuctionWon(
+                            topBid.UserId, auction.Id, auction.Product.Name, topBid.Amount));
 
                         var order = await orders.GetByAuctionIdAsync(auction.Id, stoppingToken);
                         if (order is null)
