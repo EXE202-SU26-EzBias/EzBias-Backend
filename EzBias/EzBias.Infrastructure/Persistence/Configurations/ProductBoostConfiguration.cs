@@ -15,7 +15,6 @@ public sealed class ProductBoostConfiguration : IEntityTypeConfiguration<Product
 
         builder.Property(x => x.ProductId).HasColumnName("product_id").IsRequired();
         builder.Property(x => x.UserId).HasColumnName("user_id").IsRequired();
-        builder.Property(x => x.SubscriptionId).HasColumnName("subscription_id").IsRequired();
         builder.Property(x => x.Status).HasColumnName("status").HasConversion<string>().HasColumnType("text").HasDefaultValue(Domain.Enums.BoostStatus.Active).IsRequired();
         builder.Property(x => x.StartsAt).HasColumnName("starts_at").HasColumnType("timestamptz").IsRequired();
         builder.Property(x => x.EndsAt).HasColumnName("ends_at").HasColumnType("timestamptz").IsRequired();
@@ -32,14 +31,8 @@ public sealed class ProductBoostConfiguration : IEntityTypeConfiguration<Product
             .HasForeignKey(x => x.UserId)
             .OnDelete(DeleteBehavior.Cascade);
 
-        builder.HasOne(x => x.Subscription)
-            .WithMany(x => x.ProductBoosts)
-            .HasForeignKey(x => x.SubscriptionId)
-            .OnDelete(DeleteBehavior.Cascade);
-
         builder.HasIndex(x => new { x.ProductId, x.EndsAt }).HasDatabaseName("idx_boosts_active_product");
         builder.HasIndex(x => x.EndsAt).HasDatabaseName("idx_boosts_expiry_scan");
         builder.HasIndex(x => x.UserId);
-        builder.HasIndex(x => x.SubscriptionId);
     }
 }
