@@ -124,6 +124,8 @@ public class AuctionBiddingApplicationService : IAuctionBiddingApplicationServic
             auction.EndsAt = auction.EndsAt.AddSeconds(auction.ExtensionSeconds);
             auction.ExtensionCount += 1;
             auction.Status = AuctionStatus.Extended;
+            // Reset reminder flag so the 5-min reminder fires again after extension
+            auction.ReminderSent5Min = false;
         }
         else
         {

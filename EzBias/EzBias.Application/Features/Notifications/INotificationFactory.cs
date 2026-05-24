@@ -11,6 +11,7 @@ public interface INotificationFactory
     Notification Outbid(long userId, long auctionId, string productName, decimal newBid);
     Notification AuctionWon(long userId, long auctionId, string productName, decimal finalPrice);
     Notification AuctionExpired(long userId, long auctionId, string productName);
+    Notification AuctionEndingSoon(long userId, long auctionId, string productName, int minutesLeft);
     Notification OrderPlaced(long sellerId, long orderId, string productNames);
     Notification OrderShipped(long userId, long orderId, string? trackingNumber);
     Notification OrderDelivered(long userId, long orderId);

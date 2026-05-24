@@ -24,6 +24,7 @@ public class Auction
     public DateTimeOffset EndsAt { get; set; }
     public DateTimeOffset? EndedAt { get; set; }
     public DateTimeOffset? WinnerPaymentDeadline { get; set; }
+    public bool ReminderSent5Min { get; set; } = false;
     public DateTimeOffset CreatedAt { get; set; } = DateTimeOffset.UtcNow;
     public DateTimeOffset? UpdatedAt { get; set; }
 

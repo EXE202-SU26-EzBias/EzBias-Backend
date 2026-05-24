@@ -32,6 +32,7 @@ public sealed class AuctionConfiguration : IEntityTypeConfiguration<Auction>
         builder.Property(x => x.EndsAt).HasColumnName("ends_at").HasColumnType("timestamptz").IsRequired();
         builder.Property(x => x.EndedAt).HasColumnName("ended_at").HasColumnType("timestamptz");
         builder.Property(x => x.WinnerPaymentDeadline).HasColumnName("winner_payment_deadline").HasColumnType("timestamptz");
+        builder.Property(x => x.ReminderSent5Min).HasColumnName("reminder_sent_5min").HasDefaultValue(false).IsRequired();
         builder.Property(x => x.CreatedAt).HasColumnName("created_at").HasColumnType("timestamptz").HasDefaultValueSql("now()").IsRequired();
         builder.Property(x => x.UpdatedAt).HasColumnName("updated_at").HasColumnType("timestamptz");
 

@@ -67,6 +67,17 @@ public class AuctionRepository : IAuctionRepository
             .Where(x => (x.Status == AuctionStatus.Live || x.Status == AuctionStatus.Extended) && x.EndsAt <= now)
             .ToListAsync(ct);
 
+    public async Task<IReadOnlyList<Auction>> GetNearEndAsync(DateTimeOffset from, DateTimeOffset to, CancellationToken ct)
+        => await _db.Auctions
+            .Include(x => x.Product)
+            .Include(x => x.Bids)
+            .Where(x =>
+                (x.Status == AuctionStatus.Live || x.Status == AuctionStatus.Extended) &&
+                x.EndsAt > from &&
+                x.EndsAt <= to &&
+                !x.ReminderSent5Min)
+            .ToListAsync(ct);
+
     public async Task<IReadOnlyList<Auction>> GetPendingPaymentExpiredAsync(DateTimeOffset now, CancellationToken ct)
         => await _db.Auctions
             .Where(x => x.Status == AuctionStatus.EndedPendingPayment
