@@ -55,7 +55,6 @@ public class User
     public ICollection<Rating> RatingsAsSeller { get; set; } = new List<Rating>();
     public ICollection<Notification> Notifications { get; set; } = new List<Notification>();
     public ICollection<RefreshToken> RefreshTokens { get; set; } = new List<RefreshToken>();
-    public ICollection<UserSubscription> UserSubscriptions { get; set; } = new List<UserSubscription>();
     public ICollection<ProductBoost> ProductBoosts { get; set; } = new List<ProductBoost>();
     public ICollection<Dispute> DisputesOpened { get; set; } = new List<Dispute>();
     public ICollection<OtpVerification> OtpVerifications { get; set; } = new List<OtpVerification>();

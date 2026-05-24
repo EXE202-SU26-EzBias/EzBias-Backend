@@ -9,9 +9,7 @@ public enum NotificationType
     OrderShipped = 5,
     OrderDelivered = 6,
     PayoutPaid = 7,
-    BoostExpiring = 8,
-    SubscriptionExpiring = 9,
-    DisputeOpened = 10,
-    DisputeResolved = 11,
-    UserVerified = 12
+    DisputeOpened = 8,
+    DisputeResolved = 9,
+    UserVerified = 10
 }

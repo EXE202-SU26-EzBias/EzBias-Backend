@@ -11,7 +11,6 @@ public class EzBiasDbContext : DbContext
 
     public DbSet<User> Users => Set<User>();
     public DbSet<Fandom> Fandoms => Set<Fandom>();
-    public DbSet<SubscriptionPlan> SubscriptionPlans => Set<SubscriptionPlan>();
     public DbSet<Product> Products => Set<Product>();
     public DbSet<ProductImage> ProductImages => Set<ProductImage>();
     public DbSet<PhotocardDetail> PhotocardDetails => Set<PhotocardDetail>();
@@ -30,7 +29,6 @@ public class EzBiasDbContext : DbContext
     public DbSet<Notification> Notifications => Set<Notification>();
     public DbSet<RefreshToken> RefreshTokens => Set<RefreshToken>();
     public DbSet<ContactMessage> ContactMessages => Set<ContactMessage>();
-    public DbSet<UserSubscription> UserSubscriptions => Set<UserSubscription>();
     public DbSet<ProductBoost> ProductBoosts => Set<ProductBoost>();
     public DbSet<Dispute> Disputes => Set<Dispute>();
     public DbSet<DisputeItem> DisputeItems => Set<DisputeItem>();

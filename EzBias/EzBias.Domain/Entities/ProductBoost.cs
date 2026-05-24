@@ -7,7 +7,6 @@ public class ProductBoost
     public long Id { get; set; }
     public long ProductId { get; set; }
     public long UserId { get; set; }
-    public long SubscriptionId { get; set; }
     public BoostStatus Status { get; set; } = BoostStatus.Active;
     public DateTimeOffset StartsAt { get; set; }
     public DateTimeOffset EndsAt { get; set; }
@@ -16,5 +15,4 @@ public class ProductBoost
 
     public Product Product { get; set; } = null!;
     public User User { get; set; } = null!;
-    public UserSubscription Subscription { get; set; } = null!;
 }
