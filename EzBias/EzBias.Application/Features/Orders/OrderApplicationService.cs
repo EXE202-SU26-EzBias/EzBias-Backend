@@ -1,4 +1,5 @@
 using System.Text.Json;
+using EzBias.Application.Features.Notifications;
 using EzBias.Application.Features.Orders.Dtos;
 using EzBias.Domain.Entities;
 using EzBias.Domain.Enums;
@@ -12,14 +13,25 @@ public class OrderApplicationService : IOrderApplicationService
     private readonly ICartRepository _carts;
     private readonly IEscrowRepository _escrows;
     private readonly IPayoutRepository _payouts;
+    private readonly INotificationRepository _notifications;
+    private readonly INotificationFactory _notificationFactory;
     private readonly IUnitOfWork _uow;
 
-    public OrderApplicationService(IOrderRepository orders, ICartRepository carts, IEscrowRepository escrows, IPayoutRepository payouts, IUnitOfWork uow)
+    public OrderApplicationService(
+        IOrderRepository orders,
+        ICartRepository carts,
+        IEscrowRepository escrows,
+        IPayoutRepository payouts,
+        INotificationRepository notifications,
+        INotificationFactory notificationFactory,
+        IUnitOfWork uow)
     {
         _orders = orders;
         _carts = carts;
         _escrows = escrows;
         _payouts = payouts;
+        _notifications = notifications;
+        _notificationFactory = notificationFactory;
         _uow = uow;
     }
 
@@ -130,6 +142,8 @@ public class OrderApplicationService : IOrderApplicationService
         order.DeliveredAt = DateTimeOffset.UtcNow;
         order.Status = OrderStatus.Delivered;
         order.UpdatedAt = DateTimeOffset.UtcNow;
+
+        _notifications.Add(_notificationFactory.OrderDelivered(order.UserId, order.Id));
 
         await _uow.SaveChangesAsync(ct);
         return (true, null, new FulfillmentActionResponse(order.Id, order.Status.ToString()));

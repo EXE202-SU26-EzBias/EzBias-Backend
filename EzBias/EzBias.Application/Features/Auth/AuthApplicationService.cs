@@ -1,5 +1,6 @@
 using EzBias.Application.Features.Auth.Dtos;
 using EzBias.Application.Features.Auth.Services;
+using EzBias.Application.Features.Notifications;
 using EzBias.Domain.Entities;
 using EzBias.Domain.Enums;
 using EzBias.Domain.Interfaces;
@@ -13,6 +14,8 @@ public class AuthApplicationService : IAuthApplicationService
     private readonly IUserRepository _users;
     private readonly IRefreshTokenRepository _refreshTokens;
     private readonly IOtpVerificationRepository _otpVerifications;
+    private readonly INotificationRepository _notifications;
+    private readonly INotificationFactory _notificationFactory;
     private readonly IUnitOfWork _uow;
     private readonly IPasswordHasher _passwordHasher;
     private readonly ITokenService _tokenService;
@@ -22,6 +25,8 @@ public class AuthApplicationService : IAuthApplicationService
         IUserRepository users,
         IRefreshTokenRepository refreshTokens,
         IOtpVerificationRepository otpVerifications,
+        INotificationRepository notifications,
+        INotificationFactory notificationFactory,
         IUnitOfWork uow,
         IPasswordHasher passwordHasher,
         ITokenService tokenService,
@@ -30,6 +35,8 @@ public class AuthApplicationService : IAuthApplicationService
         _users = users;
         _refreshTokens = refreshTokens;
         _otpVerifications = otpVerifications;
+        _notifications = notifications;
+        _notificationFactory = notificationFactory;
         _uow = uow;
         _passwordHasher = passwordHasher;
         _tokenService = tokenService;
@@ -206,6 +213,8 @@ public class AuthApplicationService : IAuthApplicationService
         otp.IsUsed = true;
         user.EmailVerifiedAt ??= now;
         user.UpdatedAt = now;
+
+        _notifications.Add(_notificationFactory.UserVerified(user.Id));
 
         await _uow.SaveChangesAsync(ct);
         return (true, null);

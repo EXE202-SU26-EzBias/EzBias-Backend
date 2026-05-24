@@ -117,6 +117,7 @@ builder.Services.AddScoped<IOrderApplicationService, OrderApplicationService>();
 builder.Services.AddScoped<IPayoutApplicationService, PayoutApplicationService>();
 builder.Services.AddScoped<IRatingApplicationService, RatingApplicationService>();
 builder.Services.AddScoped<INotificationApplicationService, NotificationApplicationService>();
+builder.Services.AddSingleton<INotificationFactory, NotificationFactory>();
 builder.Services.AddScoped<ISellerAuctionApplicationService, SellerAuctionApplicationService>();
 builder.Services.AddScoped<IAuctionBiddingApplicationService, AuctionBiddingApplicationService>();
 builder.Services.AddScoped<IAuctionPostFlowQueryService, AuctionPostFlowQueryService>();

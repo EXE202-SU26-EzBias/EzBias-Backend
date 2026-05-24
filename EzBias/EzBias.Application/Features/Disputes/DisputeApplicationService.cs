@@ -1,4 +1,5 @@
 using EzBias.Application.Features.Disputes.Dtos;
+using EzBias.Application.Features.Notifications;
 using EzBias.Domain.Entities;
 using EzBias.Domain.Enums;
 using EzBias.Domain.Interfaces;
@@ -12,15 +13,27 @@ public class DisputeApplicationService : IDisputeApplicationService
     private readonly IPaymentRepository _payments;
     private readonly IRefundRepository _refunds;
     private readonly IPayoutRepository _payouts;
+    private readonly INotificationRepository _notifications;
+    private readonly INotificationFactory _notificationFactory;
     private readonly IUnitOfWork _uow;
 
-    public DisputeApplicationService(IDisputeRepository disputes, IOrderRepository orders, IPaymentRepository payments, IRefundRepository refunds, IPayoutRepository payouts, IUnitOfWork uow)
+    public DisputeApplicationService(
+        IDisputeRepository disputes,
+        IOrderRepository orders,
+        IPaymentRepository payments,
+        IRefundRepository refunds,
+        IPayoutRepository payouts,
+        INotificationRepository notifications,
+        INotificationFactory notificationFactory,
+        IUnitOfWork uow)
     {
         _disputes = disputes;
         _orders = orders;
         _payments = payments;
         _refunds = refunds;
         _payouts = payouts;
+        _notifications = notifications;
+        _notificationFactory = notificationFactory;
         _uow = uow;
     }
 
@@ -73,6 +86,10 @@ public class DisputeApplicationService : IDisputeApplicationService
 
         _disputes.Add(dispute);
         _disputes.AddItems(disputeItems);
+
+        // Notify seller that a dispute was opened
+        _notifications.Add(_notificationFactory.DisputeOpened(order.SellerId, dispute.Id, order.Id));
+
         await _uow.SaveChangesAsync(ct);
 
         dispute.Items = disputeItems;
@@ -138,6 +155,10 @@ public class DisputeApplicationService : IDisputeApplicationService
         dispute.AdminNote = request.AdminNote?.Trim();
         dispute.ResolvedAt = DateTimeOffset.UtcNow;
 
+        // Notify both buyer (won) and seller (lost)
+        _notifications.Add(_notificationFactory.DisputeResolved(dispute.InitiatorId, dispute.Id, resolvedForBuyer: true));
+        _notifications.Add(_notificationFactory.DisputeResolved(order.SellerId, dispute.Id, resolvedForBuyer: false));
+
         await _uow.SaveChangesAsync(ct);
         return (true, null, Map(dispute));
     }
@@ -159,6 +180,10 @@ public class DisputeApplicationService : IDisputeApplicationService
 
         order.Status = OrderStatus.Delivered;
         order.UpdatedAt = DateTimeOffset.UtcNow;
+
+        // Notify buyer (lost) and seller (won)
+        _notifications.Add(_notificationFactory.DisputeResolved(dispute.InitiatorId, dispute.Id, resolvedForBuyer: false));
+        _notifications.Add(_notificationFactory.DisputeResolved(order.SellerId, dispute.Id, resolvedForBuyer: true));
 
         await _uow.SaveChangesAsync(ct);
         return (true, null, Map(dispute));

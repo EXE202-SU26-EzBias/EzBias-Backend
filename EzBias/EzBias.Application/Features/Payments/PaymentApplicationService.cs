@@ -1,3 +1,4 @@
+using EzBias.Application.Features.Notifications;
 using EzBias.Application.Features.Payments.Dtos;
 using EzBias.Domain.Entities;
 using EzBias.Domain.Enums;
@@ -12,6 +13,8 @@ public class PaymentApplicationService : IPaymentApplicationService
     private readonly IAuctionRepository _auctions;
     private readonly IEscrowRepository _escrows;
     private readonly ICommissionRepository _commissions;
+    private readonly INotificationRepository _notifications;
+    private readonly INotificationFactory _notificationFactory;
     private readonly ISePayClient _sepay;
     private readonly IUnitOfWork _uow;
     private readonly ISePayWebhookVerifier _webhookVerifier;
@@ -23,6 +26,8 @@ public class PaymentApplicationService : IPaymentApplicationService
         IAuctionRepository auctions,
         IEscrowRepository escrows,
         ICommissionRepository commissions,
+        INotificationRepository notifications,
+        INotificationFactory notificationFactory,
         ISePayClient sepay,
         IUnitOfWork uow,
         ISePayWebhookVerifier webhookVerifier,
@@ -33,6 +38,8 @@ public class PaymentApplicationService : IPaymentApplicationService
         _auctions = auctions;
         _escrows = escrows;
         _commissions = commissions;
+        _notifications = notifications;
+        _notificationFactory = notificationFactory;
         _sepay = sepay;
         _uow = uow;
         _webhookVerifier = webhookVerifier;
@@ -217,6 +224,13 @@ public class PaymentApplicationService : IPaymentApplicationService
         {
             po.Order.Status = OrderStatus.Paid;
             po.Order.UpdatedAt = DateTimeOffset.UtcNow;
+
+            // Notify seller of new order (skip auction orders — seller already knows via AuctionWon)
+            if (po.Order.Source != OrderSource.Auction)
+            {
+                var productNames = string.Join(", ", po.Order.Items.Select(i => i.ProductName));
+                _notifications.Add(_notificationFactory.OrderPlaced(po.Order.SellerId, po.OrderId, productNames));
+            }
 
             if (po.Order.Source == OrderSource.Auction && po.Order.AuctionId.HasValue)
             {

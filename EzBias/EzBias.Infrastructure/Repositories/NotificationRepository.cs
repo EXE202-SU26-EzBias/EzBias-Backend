@@ -22,4 +22,8 @@ public class NotificationRepository : INotificationRepository
 
     public Task<Notification?> GetByIdAsync(long id, CancellationToken ct)
         => _db.Notifications.FirstOrDefaultAsync(x => x.Id == id, ct);
+
+    public void Add(Notification notification) => _db.Notifications.Add(notification);
+
+    public void AddRange(IEnumerable<Notification> notifications) => _db.Notifications.AddRange(notifications);
 }
