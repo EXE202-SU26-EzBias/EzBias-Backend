@@ -1,4 +1,5 @@
 using EzBias.API.BackgroundServices;
+using EzBias.API.Hubs;
 using EzBias.API.Integrations;
 using EzBias.Application.Features.Auctions;
 using EzBias.Application.Features.Auth;
@@ -37,6 +38,7 @@ builder.Services.Configure<JwtOptions>(builder.Configuration.GetSection(JwtOptio
 var jwt = builder.Configuration.GetSection(JwtOptions.SectionName).Get<JwtOptions>() ?? new JwtOptions();
 
 builder.Services.AddControllers();
+builder.Services.AddSignalR();
 builder.Services.Configure<SePayOptions>(builder.Configuration.GetSection(SePayOptions.SectionName));
 builder.Services.Configure<BrevoOptions>(builder.Configuration.GetSection(BrevoOptions.SectionName));
 builder.Services.Configure<CommissionOptions>(builder.Configuration.GetSection(CommissionOptions.SectionName));
@@ -101,7 +103,8 @@ builder.Services.AddScoped<INotificationRepository, NotificationRepository>();
 builder.Services.AddScoped<ICommissionRepository, CommissionRepository>();
 builder.Services.AddScoped<IAuctionRepository, AuctionRepository>();
 builder.Services.AddScoped<IBidRepository, BidRepository>();
-builder.Services.AddScoped<IUnitOfWork, UnitOfWork>();
+builder.Services.AddScoped<IUnitOfWork, NotificationDispatchingUnitOfWork>();
+builder.Services.AddScoped<IRealtimeNotifier, SignalRRealtimeNotifier>();
 builder.Services.AddScoped<IAuthApplicationService, AuthApplicationService>();
 builder.Services.AddScoped<IAdminRepository, AdminRepository>();
 builder.Services.AddScoped<IAdminApplicationService, AdminApplicationService>();
@@ -144,6 +147,19 @@ builder.Services
             IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwt.SecretKey)),
             NameClaimType = "sub",
             RoleClaimType = "role"
+        };
+
+        // Allow SignalR to receive JWT via query string (?access_token=...)
+        options.Events = new JwtBearerEvents
+        {
+            OnMessageReceived = context =>
+            {
+                var accessToken = context.Request.Query["access_token"];
+                var path = context.HttpContext.Request.Path;
+                if (!string.IsNullOrEmpty(accessToken) && path.StartsWithSegments("/hubs"))
+                    context.Token = accessToken;
+                return Task.CompletedTask;
+            }
         };
     });
 
@@ -189,5 +205,6 @@ app.UseAuthentication();
 app.UseAuthorization();
 
 app.MapControllers();
+app.MapHub<NotificationHub>("/hubs/notifications");
 
 app.Run();
