@@ -17,8 +17,7 @@ using EzBias.Application.Features.Users;
 using EzBias.Domain.Interfaces;
 using EzBias.Infrastructure.Auth;
 using EzBias.Infrastructure.Persistence;
-using EzBias.Infrastructure.Persistence.SeedData;
-using EzBias.Infrastructure.Repositories;
+using EzBias.Infrastructure.Persistence.SeedData;using EzBias.Infrastructure.Repositories;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
@@ -186,6 +185,9 @@ using (var scope = app.Services.CreateScope())
     var db = scope.ServiceProvider.GetRequiredService<EzBiasDbContext>();
     db.Database.Migrate();
     await ProductSeedData.SeedAsync(db);
+
+    var sellers = ProductSeedData.GetSeedSellers(db);
+    await AuctionSeedData.SeedAsync(db, sellers);
 }
 
 var enableSwagger = app.Environment.IsDevelopment() ||
