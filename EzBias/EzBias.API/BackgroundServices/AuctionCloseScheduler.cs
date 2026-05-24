@@ -40,6 +40,26 @@ public class AuctionCloseScheduler : BackgroundService
                 var now = DateTimeOffset.UtcNow;
                 var closable = await auctions.GetClosableAsync(now, stoppingToken);
 
+                // --- Near-end reminder (5 minutes before end) ---
+                var remind5 = await auctions.GetNearEndAsync(
+                    now.AddMinutes(4), now.AddMinutes(5), stoppingToken);
+
+                foreach (var auction in remind5)
+                {
+                    var bidderIds = auction.Bids.Select(b => b.UserId).Distinct();
+                    foreach (var bidderId in bidderIds)
+                        notifications.Add(notificationFactory.AuctionEndingSoon(bidderId, auction.Id, auction.Product.Name, 5));
+                    notifications.Add(notificationFactory.AuctionEndingSoon(auction.SellerId, auction.Id, auction.Product.Name, 5));
+                    auction.ReminderSent5Min = true;
+                    auction.UpdatedAt = now;
+                }
+
+                if (remind5.Count > 0)
+                {
+                    await uow.SaveChangesAsync(stoppingToken);
+                    _logger.LogInformation("Auction scheduler sent {Count} near-end reminders", remind5.Count);
+                }
+
                 var noWinner = 0;
                 var pendingPayment = 0;
 

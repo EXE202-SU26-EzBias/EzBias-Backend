@@ -24,6 +24,12 @@ public sealed class NotificationFactory : INotificationFactory
             $"The auction for \"{productName}\" ended without a winner.",
             new { auctionId });
 
+    public Notification AuctionEndingSoon(long userId, long auctionId, string productName, int minutesLeft)
+        => Build(userId, NotificationType.AuctionEndingSoon,
+            $"Auction ending in {minutesLeft} minute{(minutesLeft == 1 ? "" : "s")}",
+            $"The auction for \"{productName}\" is ending in {minutesLeft} minute{(minutesLeft == 1 ? "" : "s")}. Place your bid now!",
+            new { auctionId, minutesLeft });
+
     public Notification OrderPlaced(long sellerId, long orderId, string productNames)
         => Build(sellerId, NotificationType.OrderPlaced,
             "New order received",

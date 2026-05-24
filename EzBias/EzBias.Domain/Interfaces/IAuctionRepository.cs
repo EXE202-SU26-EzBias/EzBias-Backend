@@ -15,6 +15,7 @@ public interface IAuctionRepository
     Task<IReadOnlyList<Auction>> GetPublicAsync(AuctionStatus? status, CancellationToken ct);
     Task<IReadOnlyList<Auction>> GetClosableAsync(DateTimeOffset now, CancellationToken ct);
     Task<IReadOnlyList<Auction>> GetPendingPaymentExpiredAsync(DateTimeOffset now, CancellationToken ct);
+    Task<IReadOnlyList<Auction>> GetNearEndAsync(DateTimeOffset from, DateTimeOffset to, CancellationToken ct);
     Task<Auction?> GetByOrderIdAsync(long orderId, CancellationToken ct);
     Task<IReadOnlyList<Auction>> GetWonByBuyerAsync(long buyerId, bool onlyPendingPayment, CancellationToken ct);
     Task<IReadOnlyList<Auction>> GetEndedBySellerAsync(long sellerId, CancellationToken ct);
