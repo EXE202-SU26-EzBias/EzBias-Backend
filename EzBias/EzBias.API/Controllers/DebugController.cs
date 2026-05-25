@@ -45,6 +45,18 @@ public class DebugController : ControllerBase
         return Ok(data);
     }
 
+    [HttpGet("check-config")]
+    public IActionResult CheckConfig()
+    {
+        var secret = _config["Debug:ResetSecret"];
+        return Ok(new
+        {
+            hasSecret = !string.IsNullOrWhiteSpace(secret),
+            secretLength = secret?.Length ?? 0,
+            secretPreview = string.IsNullOrWhiteSpace(secret) ? "(empty)" : secret[..Math.Min(3, secret.Length)] + "***"
+        });
+    }
+
     /// <summary>
     /// Truncates all data (except EF migration history) and re-seeds.
     /// Requires header: X-Debug-Secret matching Debug:ResetSecret in config.
