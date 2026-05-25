@@ -71,25 +71,32 @@ public class DebugController : ControllerBase
         if (string.IsNullOrWhiteSpace(secret) || secret != configSecret)
             return Unauthorized(new { message = "Invalid secret." });
 
-        // Truncate all tables in dependency order, keep __EFMigrationsHistory
-        await _db.Database.ExecuteSqlRawAsync(@"
-            SET session_replication_role = 'replica';
-            TRUNCATE TABLE
-                otp_verifications, refresh_tokens, notifications, ratings,
-                dispute_items, disputes, refunds, commission_transactions,
-                escrow_transactions, payouts, payment_orders, payments,
-                order_items, orders, bids, auctions, cart_items, wishlists,
-                seller_follows, product_images, product_boosts, products,
-                contact_messages, fandoms, users
-            RESTART IDENTITY CASCADE;
-            SET session_replication_role = 'DEFAULT';
-        ", ct);
+        try
+        {
+            // Truncate all tables in dependency order, keep __EFMigrationsHistory
+            await _db.Database.ExecuteSqlRawAsync(@"
+                SET session_replication_role = 'replica';
+                TRUNCATE TABLE
+                    otp_verifications, refresh_tokens, notifications, ratings,
+                    dispute_items, disputes, refunds, commission_transactions,
+                    escrow_transactions, payouts, payment_orders, payments,
+                    order_items, orders, bids, auctions, cart_items, wishlists,
+                    seller_follows, product_images, product_boosts, products,
+                    contact_messages, fandoms, users
+                RESTART IDENTITY CASCADE;
+                SET session_replication_role = 'DEFAULT';
+            ", ct);
 
-        // Re-seed
-        await ProductSeedData.SeedAsync(_db, ct);
-        var sellers = ProductSeedData.GetSeedSellers(_db);
-        await AuctionSeedData.SeedAsync(_db, sellers, ct);
+            // Re-seed
+            await ProductSeedData.SeedAsync(_db, ct);
+            var sellers = ProductSeedData.GetSeedSellers(_db);
+            await AuctionSeedData.SeedAsync(_db, sellers, ct);
 
-        return Ok(new { message = "Database reset and re-seeded successfully." });
+            return Ok(new { message = "Database reset and re-seeded successfully." });
+        }
+        catch (Exception ex)
+        {
+            return StatusCode(500, new { message = ex.Message, detail = ex.InnerException?.Message });
+        }
     }
 }
