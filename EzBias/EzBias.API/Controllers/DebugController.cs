@@ -73,9 +73,8 @@ public class DebugController : ControllerBase
 
         try
         {
-            // Truncate all tables in dependency order, keep __EFMigrationsHistory
+            // Truncate all tables using CASCADE (handles FK automatically)
             await _db.Database.ExecuteSqlRawAsync(@"
-                SET session_replication_role = 'replica';
                 TRUNCATE TABLE
                     otp_verifications, refresh_tokens, notifications, ratings,
                     dispute_items, disputes, refunds, commission_transactions,
@@ -84,7 +83,6 @@ public class DebugController : ControllerBase
                     seller_follows, product_images, product_boosts, products,
                     contact_messages, fandoms, users
                 RESTART IDENTITY CASCADE;
-                SET session_replication_role = 'DEFAULT';
             ", ct);
 
             // Re-seed
