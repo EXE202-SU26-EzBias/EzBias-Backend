@@ -62,14 +62,13 @@ public class DebugController : ControllerBase
     /// Requires header: X-Debug-Secret matching Debug:ResetSecret in config.
     /// </summary>
     [HttpPost("reset-and-reseed")]
-    public async Task<IActionResult> ResetAndReseed(CancellationToken ct)
+    public async Task<IActionResult> ResetAndReseed([FromQuery] string? secret, CancellationToken ct)
     {
-        var secret = _config["Debug:ResetSecret"];
-        if (string.IsNullOrWhiteSpace(secret))
+        var configSecret = _config["Debug:ResetSecret"];
+        if (string.IsNullOrWhiteSpace(configSecret))
             return NotFound();
 
-        if (!Request.Headers.TryGetValue("X-Debug-Secret", out var provided) ||
-            provided.ToString() != secret)
+        if (string.IsNullOrWhiteSpace(secret) || secret != configSecret)
             return Unauthorized(new { message = "Invalid secret." });
 
         // Truncate all tables in dependency order, keep __EFMigrationsHistory
