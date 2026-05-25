@@ -312,7 +312,15 @@ public static class AuctionSeedData
                 .ToHashSet();
 
             var sortedBids = entry.BidHistory.OrderBy(b => b.MinutesAgo).ToList();
+            var maxAmount = entry.BidHistory.Max(b => b.Amount);
             var addedAny = false;
+
+            // Clear winning flags on existing bids before re-evaluating
+            var existingWinningBids = db.Bids
+                .Where(x => x.AuctionId == existingAuction.Id && x.IsWinning)
+                .ToList();
+            foreach (var wb in existingWinningBids)
+                wb.IsWinning = false;
 
             for (var i = 0; i < sortedBids.Count; i++)
             {
@@ -320,18 +328,25 @@ public static class AuctionSeedData
                 if (existingBidAmounts.Contains(amount)) continue;
 
                 var bidder = bidders[bidderIndex % bidders.Count];
-                var isWinning = i == sortedBids.Count - 1;
 
                 db.Bids.Add(new Bid
                 {
                     AuctionId = existingAuction.Id,
                     UserId = bidder.Id,
                     Amount = amount,
-                    IsWinning = isWinning,
+                    IsWinning = amount == maxAmount,
                     PlacedAt = now.AddMinutes(-minutesAgo)
                 });
                 addedAny = true;
             }
+
+            // Mark the highest existing bid as winning
+            var allBidsForAuction = db.Bids
+                .Where(x => x.AuctionId == existingAuction.Id)
+                .ToList();
+            var topBid = allBidsForAuction.MaxBy(x => x.Amount);
+            if (topBid is not null)
+                topBid.IsWinning = true;
 
             if (addedAny)
             {
