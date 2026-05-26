@@ -43,15 +43,16 @@ public class ProductsController : ControllerBase
     public async Task<IActionResult> Create([FromForm] CreateProductFormRequest request, CancellationToken ct)
     {
         if (!TryGetUserId(out var userId)) return Unauthorized();
-        if (Request.Form.Files.Count > 1)
-            return BadRequest(new { message = "Only one product image is allowed." });
-        if (request.Image is null)
-            return BadRequest(new { message = "Product image is required." });
+        if (request.Images.Count == 0)
+            return BadRequest(new { message = "At least one product image is required." });
+        if (request.Images.Count > 8)
+            return BadRequest(new { message = "A maximum of 8 images are allowed." });
 
-        string uploadedUrl;
+        List<string> uploadedUrls;
         try
         {
-            uploadedUrl = await _imageUploader.UploadProductImageAsync(request.Image, ct);
+            var uploads = request.Images.Select(img => _imageUploader.UploadProductImageAsync(img, ct));
+            uploadedUrls = [.. await Task.WhenAll(uploads)];
         }
         catch (InvalidOperationException ex)
         {
@@ -67,8 +68,8 @@ public class ProductsController : ControllerBase
             request.Price,
             request.Stock,
             request.Description,
-            uploadedUrl,
-            [uploadedUrl]);
+            uploadedUrls[0],
+            uploadedUrls);
 
         var result = await _service.CreateAsync(userId, createRequest, ct);
         if (!result.Success || result.Data is null) return BadRequest(new { message = result.Error });
@@ -79,13 +80,16 @@ public class ProductsController : ControllerBase
     public async Task<IActionResult> Update([FromRoute] long id, [FromForm] UpdateProductFormRequest request, CancellationToken ct)
     {
         if (!TryGetUserId(out var userId)) return Unauthorized();
+        if (request.Images.Count > 8)
+            return BadRequest(new { message = "A maximum of 8 images are allowed." });
 
-        string? newImageUrl = null;
-        if (request.Image is not null)
+        List<string> newImageUrls = [];
+        if (request.Images.Count > 0)
         {
             try
             {
-                newImageUrl = await _imageUploader.UploadProductImageAsync(request.Image, ct);
+                var uploads = request.Images.Select(img => _imageUploader.UploadProductImageAsync(img, ct));
+                newImageUrls = [.. await Task.WhenAll(uploads)];
             }
             catch (InvalidOperationException ex)
             {
@@ -98,7 +102,8 @@ public class ProductsController : ControllerBase
             request.Stock,
             request.Description,
             request.Status,
-            newImageUrl);
+            newImageUrls.Count > 0 ? newImageUrls : null,
+            request.ReplaceImages ? (request.KeepImageUrls ?? []) : null);
 
         var result = await _service.UpdateAsync(userId, id, updateRequest, ct);
         if (!result.Success || result.Data is null)
@@ -140,7 +145,7 @@ public sealed class CreateProductFormRequest
     public decimal Price { get; set; }
     public int Stock { get; set; }
     public string Description { get; set; } = string.Empty;
-    public IFormFile? Image { get; set; }
+    public List<IFormFile> Images { get; set; } = [];
 }
 
 public sealed class UpdateProductFormRequest
@@ -149,5 +154,14 @@ public sealed class UpdateProductFormRequest
     public int Stock { get; set; }
     public string Description { get; set; } = string.Empty;
     public ProductStatus Status { get; set; }
-    public IFormFile? Image { get; set; }
+    public List<IFormFile> Images { get; set; } = [];
+    /// <summary>
+    /// When true, existing images are replaced by KeepImageUrls + new uploads.
+    /// When false/absent, all existing images are kept and new uploads are appended.
+    /// </summary>
+    public bool ReplaceImages { get; set; }
+    /// <summary>
+    /// URLs of existing images to keep. Only used when ReplaceImages = true.
+    /// </summary>
+    public List<string>? KeepImageUrls { get; set; }
 }

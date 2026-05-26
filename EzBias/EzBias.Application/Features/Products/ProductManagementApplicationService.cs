@@ -73,8 +73,42 @@ public class ProductManagementApplicationService : IProductManagementApplication
         p.Stock = request.Stock;
         p.Description = request.Description.Trim();
         p.Status = request.Status;
-        if (!string.IsNullOrWhiteSpace(request.PrimaryImageUrl))
-            p.PrimaryImageUrl = request.PrimaryImageUrl;
+
+        // Remove images not in the keep list (when caller explicitly provides the list)
+        if (request.KeepImageUrls is not null)
+        {
+            var keepSet = new HashSet<string>(request.KeepImageUrls, StringComparer.OrdinalIgnoreCase);
+            var toRemove = p.Images.Where(img => !keepSet.Contains(img.Url)).ToList();
+            foreach (var img in toRemove)
+                p.Images.Remove(img);
+        }
+
+        if (request.NewImageUrls is { Count: > 0 })
+        {
+            var nextOrder = p.Images.Count > 0
+                ? (short)(p.Images.Max(x => x.SortOrder) + 1)
+                : (short)1;
+
+            foreach (var url in request.NewImageUrls)
+            {
+                p.Images.Add(new ProductImage
+                {
+                    Url = url,
+                    SortOrder = nextOrder++,
+                    CreatedAt = DateTimeOffset.UtcNow
+                });
+            }
+        }
+
+        // Must have at least one image after all changes
+        if (p.Images.Count == 0)
+            return (false, "At least one product image is required.", null);
+
+        // Recalculate primary: first remaining image wins
+        var firstImage = p.Images.OrderBy(x => x.SortOrder).FirstOrDefault();
+        if (firstImage is not null)
+            p.PrimaryImageUrl = firstImage.Url;
+
         p.UpdatedAt = DateTimeOffset.UtcNow;
 
         await _uow.SaveChangesAsync(ct);
