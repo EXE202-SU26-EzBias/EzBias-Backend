@@ -21,7 +21,7 @@ public class ContactController : ControllerBase
     public async Task<IActionResult> Send([FromBody] ContactRequest request, CancellationToken ct)
     {
         if (string.IsNullOrWhiteSpace(request.Name) || string.IsNullOrWhiteSpace(request.Email) || string.IsNullOrWhiteSpace(request.Subject) || string.IsNullOrWhiteSpace(request.Message))
-            return BadRequest("All fields are required.");
+            return BadRequest(new { message = "All fields are required." });
 
         var msg = new ContactMessage
         {

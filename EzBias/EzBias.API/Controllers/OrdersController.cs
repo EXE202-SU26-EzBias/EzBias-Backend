@@ -23,7 +23,7 @@ public class OrdersController : ControllerBase
     {
         if (!TryGetUserId(out var userId)) return Unauthorized();
         var result = await _orderService.CreateAsync(userId, request, ct);
-        if (!result.Success || result.Data is null) return BadRequest(result.Error);
+        if (!result.Success || result.Data is null) return BadRequest(new { message = result.Error });
         return Ok(result.Data);
     }
 
@@ -43,8 +43,8 @@ public class OrdersController : ControllerBase
         if (!result.Success || result.Data is null)
         {
             if (result.Error == "Forbidden.") return Forbid();
-            if (result.Error == "Order not found.") return NotFound(result.Error);
-            return BadRequest(result.Error);
+            if (result.Error == "Order not found.") return NotFound(new { message = result.Error });
+            return BadRequest(new { message = result.Error });
         }
 
         return Ok(result.Data);
@@ -58,8 +58,8 @@ public class OrdersController : ControllerBase
         if (!result.Success || result.Data is null)
         {
             if (result.Error == "Forbidden.") return Forbid();
-            if (result.Error == "Order not found.") return NotFound(result.Error);
-            return BadRequest(result.Error);
+            if (result.Error == "Order not found.") return NotFound(new { message = result.Error });
+            return BadRequest(new { message = result.Error });
         }
 
         return Ok(result.Data);
@@ -73,8 +73,8 @@ public class OrdersController : ControllerBase
         if (!result.Success)
         {
             if (result.Error == "Forbidden.") return Forbid();
-            if (result.Error == "Order not found.") return NotFound(result.Error);
-            return BadRequest(result.Error);
+            if (result.Error == "Order not found.") return NotFound(new { message = result.Error });
+            return BadRequest(new { message = result.Error });
         }
 
         return NoContent();

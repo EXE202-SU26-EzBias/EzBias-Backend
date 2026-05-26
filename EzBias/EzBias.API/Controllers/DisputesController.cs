@@ -26,8 +26,8 @@ public class DisputesController : ControllerBase
         if (!result.Success || result.Data is null)
         {
             if (result.Error == "Forbidden.") return Forbid();
-            if (result.Error == "Order not found.") return NotFound(result.Error);
-            return BadRequest(result.Error);
+            if (result.Error == "Order not found.") return NotFound(new { message = result.Error });
+            return BadRequest(new { message = result.Error });
         }
 
         return Ok(result.Data);
@@ -49,9 +49,9 @@ public class DisputesController : ControllerBase
         var result = await _service.ApproveAsync(adminId, id, request, ct);
         if (!result.Success || result.Data is null)
         {
-            if (result.Error == "Dispute not found." || result.Error == "Order not found." || result.Error == "Payment not found for order.") return NotFound(result.Error);
-            if (result.Error == "Payout already paid. Manual recovery required.") return Conflict(result.Error);
-            return BadRequest(result.Error);
+            if (result.Error == "Dispute not found." || result.Error == "Order not found." || result.Error == "Payment not found for order.") return NotFound(new { message = result.Error });
+            if (result.Error == "Payout already paid. Manual recovery required.") return Conflict(new { message = result.Error });
+            return BadRequest(new { message = result.Error });
         }
 
         return Ok(result.Data);
@@ -65,8 +65,8 @@ public class DisputesController : ControllerBase
         var result = await _service.CompleteRefundPaymentAsync(adminId, id, request, ct);
         if (!result.Success || result.Data is null)
         {
-            if (result.Error == "Dispute not found." || result.Error == "Refund not found for dispute." || result.Error == "Order not found." || result.Error == "Payment not found.") return NotFound(result.Error);
-            return BadRequest(result.Error);
+            if (result.Error == "Dispute not found." || result.Error == "Refund not found for dispute." || result.Error == "Order not found." || result.Error == "Payment not found.") return NotFound(new { message = result.Error });
+            return BadRequest(new { message = result.Error });
         }
 
         return Ok(result.Data);
@@ -78,7 +78,7 @@ public class DisputesController : ControllerBase
     {
         var disputes = await _service.GetListAsync(ct);
         var items = disputes.FirstOrDefault(x => x.Id == id);
-        if (items is null) return NotFound("Dispute not found.");
+        if (items is null) return NotFound(new { message = "Dispute not found." });
         return Ok(items.Items);
     }
 
@@ -90,8 +90,8 @@ public class DisputesController : ControllerBase
         var result = await _service.RejectAsync(adminId, id, request, ct);
         if (!result.Success || result.Data is null)
         {
-            if (result.Error == "Dispute not found." || result.Error == "Order not found.") return NotFound(result.Error);
-            return BadRequest(result.Error);
+            if (result.Error == "Dispute not found." || result.Error == "Order not found.") return NotFound(new { message = result.Error });
+            return BadRequest(new { message = result.Error });
         }
 
         return Ok(result.Data);

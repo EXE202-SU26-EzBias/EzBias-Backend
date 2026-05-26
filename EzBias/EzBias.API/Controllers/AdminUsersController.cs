@@ -29,7 +29,7 @@ public class AdminUsersController : ControllerBase
     public async Task<IActionResult> GetById([FromRoute] long id, CancellationToken ct)
     {
         var result = await _adminService.GetUserDetailAsync(id, ct);
-        if (!result.Success || result.Data is null) return NotFound(result.Error);
+        if (!result.Success || result.Data is null) return NotFound(new { message = result.Error });
         return Ok(result.Data);
     }
 
@@ -37,7 +37,7 @@ public class AdminUsersController : ControllerBase
     public async Task<IActionResult> Create([FromBody] AdminCreateUserRequest request, CancellationToken ct)
     {
         var result = await _adminService.CreateUserAsync(request, ct);
-        if (!result.Success || result.Data is null) return BadRequest(result.Error);
+        if (!result.Success || result.Data is null) return BadRequest(new { message = result.Error });
         return Ok(result.Data);
     }
 
@@ -47,8 +47,8 @@ public class AdminUsersController : ControllerBase
         var result = await _adminService.UpdateUserAsync(id, request, ct);
         if (!result.Success || result.Data is null)
         {
-            if (result.Error == "User not found.") return NotFound(result.Error);
-            return BadRequest(result.Error);
+            if (result.Error == "User not found.") return NotFound(new { message = result.Error });
+            return BadRequest(new { message = result.Error });
         }
 
         return Ok(result.Data);
@@ -62,8 +62,8 @@ public class AdminUsersController : ControllerBase
         var result = await _adminService.SoftDeleteUserAsync(id, adminId, ct);
         if (!result.Success)
         {
-            if (result.Error == "User not found.") return NotFound(result.Error);
-            return BadRequest(result.Error);
+            if (result.Error == "User not found.") return NotFound(new { message = result.Error });
+            return BadRequest(new { message = result.Error });
         }
 
         return NoContent();
@@ -75,8 +75,8 @@ public class AdminUsersController : ControllerBase
         var result = await _adminService.RestoreUserAsync(id, ct);
         if (!result.Success || result.Data is null)
         {
-            if (result.Error == "User not found.") return NotFound(result.Error);
-            return BadRequest(result.Error);
+            if (result.Error == "User not found.") return NotFound(new { message = result.Error });
+            return BadRequest(new { message = result.Error });
         }
 
         return Ok(result.Data);

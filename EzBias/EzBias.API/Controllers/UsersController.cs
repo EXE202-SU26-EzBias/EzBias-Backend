@@ -23,7 +23,7 @@ public class UsersController : ControllerBase
     {
         if (!TryGetUserId(out var userId)) return Unauthorized();
         var result = await _service.GetMeAsync(userId, ct);
-        if (!result.Success || result.Data is null) return NotFound(result.Error);
+        if (!result.Success || result.Data is null) return NotFound(new { message = result.Error });
         return Ok(result.Data);
     }
 
@@ -32,7 +32,7 @@ public class UsersController : ControllerBase
     {
         if (!TryGetUserId(out var userId)) return Unauthorized();
         var result = await _service.UpdateMeAsync(userId, request, ct);
-        if (!result.Success || result.Data is null) return NotFound(result.Error);
+        if (!result.Success || result.Data is null) return NotFound(new { message = result.Error });
         return Ok(result.Data);
     }
 
@@ -43,8 +43,8 @@ public class UsersController : ControllerBase
         var result = await _service.DeleteUnverifiedByEmailAsync(email, ct);
         if (!result.Success)
         {
-            if (result.Error == "User not found.") return NotFound(result.Error);
-            return BadRequest(result.Error);
+            if (result.Error == "User not found.") return NotFound(new { message = result.Error });
+            return BadRequest(new { message = result.Error });
         }
 
         return NoContent();
