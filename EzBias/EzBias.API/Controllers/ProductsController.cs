@@ -76,10 +76,31 @@ public class ProductsController : ControllerBase
     }
 
     [HttpPut("{id:long}")]
-    public async Task<IActionResult> Update([FromRoute] long id, [FromBody] UpdateProductRequest request, CancellationToken ct)
+    public async Task<IActionResult> Update([FromRoute] long id, [FromForm] UpdateProductFormRequest request, CancellationToken ct)
     {
         if (!TryGetUserId(out var userId)) return Unauthorized();
-        var result = await _service.UpdateAsync(userId, id, request, ct);
+
+        string? newImageUrl = null;
+        if (request.Image is not null)
+        {
+            try
+            {
+                newImageUrl = await _imageUploader.UploadProductImageAsync(request.Image, ct);
+            }
+            catch (InvalidOperationException ex)
+            {
+                return BadRequest(new { message = ex.Message });
+            }
+        }
+
+        var updateRequest = new UpdateProductRequest(
+            request.Price,
+            request.Stock,
+            request.Description,
+            request.Status,
+            newImageUrl);
+
+        var result = await _service.UpdateAsync(userId, id, updateRequest, ct);
         if (!result.Success || result.Data is null)
         {
             if (result.Error == "Forbidden.") return Forbid();
@@ -119,5 +140,14 @@ public sealed class CreateProductFormRequest
     public decimal Price { get; set; }
     public int Stock { get; set; }
     public string Description { get; set; } = string.Empty;
+    public IFormFile? Image { get; set; }
+}
+
+public sealed class UpdateProductFormRequest
+{
+    public decimal Price { get; set; }
+    public int Stock { get; set; }
+    public string Description { get; set; } = string.Empty;
+    public ProductStatus Status { get; set; }
     public IFormFile? Image { get; set; }
 }
