@@ -28,7 +28,7 @@ public class PayoutsController : ControllerBase
     public async Task<IActionResult> Approve([FromRoute] long payoutId, [FromBody] MarkPayoutPaidRequest request, CancellationToken ct)
     {
         var result = await _service.MarkPaidAsync(payoutId, request, ct);
-        if (!result.Success || result.Data is null) return BadRequest(result.Error);
+        if (!result.Success || result.Data is null) return BadRequest(new { message = result.Error });
         return Ok(result.Data);
     }
 
@@ -36,7 +36,7 @@ public class PayoutsController : ControllerBase
     public async Task<IActionResult> Reject([FromRoute] long payoutId, [FromBody] RejectPayoutRequest request, CancellationToken ct)
     {
         var result = await _service.RejectAsync(payoutId, request, ct);
-        if (!result.Success || result.Data is null) return BadRequest(result.Error);
+        if (!result.Success || result.Data is null) return BadRequest(new { message = result.Error });
         return Ok(result.Data);
     }
 }

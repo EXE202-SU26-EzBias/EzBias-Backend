@@ -30,7 +30,7 @@ public class NotificationsController : ControllerBase
         if (!TryGetUserId(out var userId)) return Unauthorized();
         var result = await _notifications.MarkReadAsync(userId, id, ct);
         if (!result.Success)
-            return result.Error == "Forbidden." ? Forbid() : NotFound(result.Error);
+            return result.Error == "Forbidden." ? Forbid() : NotFound(new { message = result.Error });
         return NoContent();
     }
 

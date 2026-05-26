@@ -66,8 +66,8 @@ public class SellerAuctionsController : ControllerBase
     private IActionResult ToError(string? error)
     {
         if (error == "Forbidden.") return Forbid();
-        if (error is "Product not found." or "Auction not found.") return NotFound(error);
-        return BadRequest(error);
+        if (error is "Product not found." or "Auction not found.") return NotFound(new { message = error });
+        return BadRequest(new { message = error });
     }
 
     private bool TryGetUserId(out long userId)

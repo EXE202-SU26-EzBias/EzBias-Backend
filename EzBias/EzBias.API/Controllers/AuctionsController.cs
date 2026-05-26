@@ -29,7 +29,7 @@ public class AuctionsController : ControllerBase
     public async Task<IActionResult> GetById([FromRoute] long auctionId, CancellationToken ct)
     {
         var result = await _service.GetDetailAsync(auctionId, ct);
-        if (!result.Success || result.Data is null) return NotFound(result.Error);
+        if (!result.Success || result.Data is null) return NotFound(new { message = result.Error });
         return Ok(result.Data);
     }
 
@@ -49,8 +49,8 @@ public class AuctionsController : ControllerBase
         var result = await _service.PlaceBidAsync(userId, auctionId, request, ct);
         if (!result.Success || result.Data is null)
         {
-            if (result.Error == "Auction not found.") return NotFound(result.Error);
-            return BadRequest(result.Error);
+            if (result.Error == "Auction not found.") return NotFound(new { message = result.Error });
+            return BadRequest(new { message = result.Error });
         }
 
         return Ok(result.Data);

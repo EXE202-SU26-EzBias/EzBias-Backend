@@ -35,7 +35,7 @@ public class ProductsController : ControllerBase
         if (!TryGetUserId(out var userId)) return Unauthorized();
         var result = await _service.GetMineByIdAsync(userId, id, ct);
         if (!result.Success || result.Data is null)
-            return result.Error == "Forbidden." ? Forbid() : NotFound(result.Error);
+            return result.Error == "Forbidden." ? Forbid() : NotFound(new { message = result.Error });
         return Ok(result.Data);
     }
 
@@ -109,8 +109,8 @@ public class ProductsController : ControllerBase
         if (!result.Success || result.Data is null)
         {
             if (result.Error == "Forbidden.") return Forbid();
-            if (result.Error == "Product not found.") return NotFound(result.Error);
-            return BadRequest(result.Error);
+            if (result.Error == "Product not found.") return NotFound(new { message = result.Error });
+            return BadRequest(new { message = result.Error });
         }
         return Ok(result.Data);
     }
@@ -121,7 +121,7 @@ public class ProductsController : ControllerBase
         if (!TryGetUserId(out var userId)) return Unauthorized();
         var result = await _service.DeleteAsync(userId, id, ct);
         if (!result.Success)
-            return result.Error == "Forbidden." ? Forbid() : NotFound(result.Error);
+            return result.Error == "Forbidden." ? Forbid() : NotFound(new { message = result.Error });
         return NoContent();
     }
 

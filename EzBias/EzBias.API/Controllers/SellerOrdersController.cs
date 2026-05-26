@@ -47,10 +47,10 @@ public class SellerOrdersController : ControllerBase
     {
         if (!TryGetUserId(out var userId)) return Unauthorized();
         var order = await _orders.GetByIdAsync(id, ct);
-        if (order is null) return NotFound("Order not found.");
+        if (order is null) return NotFound(new { message = "Order not found." });
         if (order.SellerId != userId) return Forbid();
         if (order.Status != OrderStatus.Paid && order.Status != OrderStatus.Processing)
-            return BadRequest("Order cannot be marked shipped in current status.");
+            return BadRequest(new { message = "Order cannot be marked shipped in current status." });
 
         order.Carrier = request.Carrier?.Trim();
         order.TrackingNumber = $"TRK-{DateTimeOffset.UtcNow:yyyyMMddHHmmss}-{order.Id}";

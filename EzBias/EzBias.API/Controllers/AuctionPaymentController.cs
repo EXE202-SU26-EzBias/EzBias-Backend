@@ -29,21 +29,21 @@ public class AuctionPaymentController : ControllerBase
         if (!TryGetUserId(out var userId)) return Unauthorized();
 
         var order = await _orders.GetByAuctionIdAsync(auctionId, ct);
-        if (order is null) return NotFound("Auction order not found.");
+        if (order is null) return NotFound(new { message = "Auction order not found." });
         if (order.UserId != userId) return Forbid();
 
         var payment = await _payments.GetPendingByAuctionIdAsync(auctionId, ct);
-        if (payment is null) return NotFound("Pending payment not found.");
+        if (payment is null) return NotFound(new { message = "Pending payment not found." });
 
         var hook = await _paymentService.HandleWebhookAsync(new PaymentWebhookRequest(
             payment.Reference,
             payment.ProviderTxnId,
             payment.TransferContent,
             payment.Payload), "{}", null, null, ct);
-        if (!hook.Success) return BadRequest(hook.Error);
+        if (!hook.Success) return BadRequest(new { message = hook.Error });
 
         var status = await _paymentService.GetStatusAsync(userId, payment.Id, ct);
-        if (!status.Success || status.Data is null) return BadRequest(status.Error);
+        if (!status.Success || status.Data is null) return BadRequest(new { message = status.Error });
         return Ok(status.Data);
     }
 

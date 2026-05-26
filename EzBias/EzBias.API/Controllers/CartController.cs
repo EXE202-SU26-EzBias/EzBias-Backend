@@ -32,7 +32,7 @@ public class CartController : ControllerBase
         if (!TryGetUserId(out var userId)) return Unauthorized();
 
         var result = await _cartService.UpsertItemAsync(userId, request, ct);
-        if (!result.Success) return BadRequest(result.Error);
+        if (!result.Success) return BadRequest(new { message = result.Error });
 
         return Ok(new { message = "Cart updated." });
     }
@@ -43,7 +43,7 @@ public class CartController : ControllerBase
         if (!TryGetUserId(out var userId)) return Unauthorized();
 
         var result = await _cartService.RemoveItemAsync(userId, cartItemId, ct);
-        if (!result.Success) return NotFound(result.Error);
+        if (!result.Success) return NotFound(new { message = result.Error });
 
         return NoContent();
     }

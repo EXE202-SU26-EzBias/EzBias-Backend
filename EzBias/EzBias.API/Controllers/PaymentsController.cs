@@ -28,7 +28,7 @@ public class PaymentsController : ControllerBase
         if (!result.Success || result.Data is null)
         {
             if (result.Error == "Forbidden.") return Forbid();
-            return BadRequest(result.Error);
+            return BadRequest(new { message = result.Error });
         }
         return Ok(result.Data);
     }
@@ -41,8 +41,8 @@ public class PaymentsController : ControllerBase
         if (!result.Success || result.Data is null)
         {
             if (result.Error == "Forbidden.") return Forbid();
-            if (result.Error == "Payment not found.") return NotFound(result.Error);
-            return BadRequest(result.Error);
+            if (result.Error == "Payment not found.") return NotFound(new { message = result.Error });
+            return BadRequest(new { message = result.Error });
         }
         return Ok(result.Data);
     }
@@ -56,9 +56,9 @@ public class PaymentsController : ControllerBase
         var result = await _paymentService.ConfirmManualAsync(adminId, paymentId, ct);
         if (!result.Success)
         {
-            if (result.Error == "Payment not found.") return NotFound(result.Error);
+            if (result.Error == "Payment not found.") return NotFound(new { message = result.Error });
             if (result.Error == "Forbidden.") return Forbid();
-            return BadRequest(result.Error);
+            return BadRequest(new { message = result.Error });
         }
 
         return Ok(new { ok = true, paymentId, message = "Payment confirmed manually." });
@@ -72,7 +72,7 @@ public class PaymentsController : ControllerBase
         var rawBody = await reader.ReadToEndAsync(ct);
 
         if (string.IsNullOrWhiteSpace(rawBody))
-            return BadRequest("Empty webhook body.");
+            return BadRequest(new { message = "Empty webhook body." });
 
         SePayWebhookPayload? request;
         try
@@ -84,11 +84,11 @@ public class PaymentsController : ControllerBase
         }
         catch
         {
-            return BadRequest("Invalid JSON payload.");
+            return BadRequest(new { message = "Invalid JSON payload." });
         }
 
         if (request is null)
-            return BadRequest("Invalid webhook payload.");
+            return BadRequest(new { message = "Invalid webhook payload." });
 
         var signature = Request.Headers["X-SePay-Signature"].FirstOrDefault();
         var timestamp = Request.Headers["X-SePay-Timestamp"].FirstOrDefault();
@@ -96,8 +96,8 @@ public class PaymentsController : ControllerBase
         var result = await _paymentService.HandleSePayWebhookAsync(request, rawBody, signature, timestamp, ct);
         if (!result.Success)
         {
-            if (result.Error == "Invalid webhook signature.") return Unauthorized(result.Error);
-            return BadRequest(result.Error);
+            if (result.Error == "Invalid webhook signature.") return Unauthorized(new { message = result.Error });
+            return BadRequest(new { message = result.Error });
         }
 
         return Ok(new { ok = true });

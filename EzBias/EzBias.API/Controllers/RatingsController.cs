@@ -26,8 +26,8 @@ public class RatingsController : ControllerBase
         if (!result.Success || result.Data is null)
         {
             if (result.Error == "Forbidden.") return Forbid();
-            if (result.Error == "Order not found.") return NotFound(result.Error);
-            return BadRequest(result.Error);
+            if (result.Error == "Order not found.") return NotFound(new { message = result.Error });
+            return BadRequest(new { message = result.Error });
         }
         return Ok(result.Data);
     }
