@@ -21,6 +21,14 @@ public class CatalogController : ControllerBase
         return Ok(data);
     }
 
+    [HttpGet("products/{id:long}")]
+    public async Task<IActionResult> GetProductById([FromRoute] long id, CancellationToken ct)
+    {
+        var data = await _catalog.GetProductByIdAsync(id, ct);
+        if (data is null) return NotFound(new { message = "Product not found." });
+        return Ok(data);
+    }
+
     [HttpGet("fandoms")]
     public async Task<IActionResult> GetFandoms(CancellationToken ct)
     {
