@@ -73,6 +73,8 @@ public class ProductManagementApplicationService : IProductManagementApplication
         p.Stock = request.Stock;
         p.Description = request.Description.Trim();
         p.Status = request.Status;
+        if (!string.IsNullOrWhiteSpace(request.PrimaryImageUrl))
+            p.PrimaryImageUrl = request.PrimaryImageUrl;
         p.UpdatedAt = DateTimeOffset.UtcNow;
 
         await _uow.SaveChangesAsync(ct);
