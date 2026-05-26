@@ -5,5 +5,6 @@ namespace EzBias.Application.Features.Products;
 public interface ICatalogQueryService
 {
     Task<IReadOnlyList<CatalogProductItem>> GetProductsAsync(string? fandomId, CancellationToken ct);
+    Task<CatalogProductDetail?> GetProductByIdAsync(long productId, CancellationToken ct);
     Task<IReadOnlyList<CatalogFandomItem>> GetFandomsAsync(CancellationToken ct);
 }
