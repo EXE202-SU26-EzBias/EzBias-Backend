@@ -38,6 +38,11 @@ var jwt = builder.Configuration.GetSection(JwtOptions.SectionName).Get<JwtOption
 
 builder.Services.AddControllers();
 builder.Services.AddSignalR();
+builder.Services.AddResponseCompression(opts =>
+{
+    opts.MimeTypes = Microsoft.AspNetCore.ResponseCompression.ResponseCompressionDefaults.MimeTypes.Concat(
+        ["application/octet-stream"]);
+});
 builder.Services.Configure<SePayOptions>(builder.Configuration.GetSection(SePayOptions.SectionName));
 builder.Services.Configure<BrevoOptions>(builder.Configuration.GetSection(BrevoOptions.SectionName));
 builder.Services.Configure<CommissionOptions>(builder.Configuration.GetSection(CommissionOptions.SectionName));
@@ -200,6 +205,8 @@ if (enableSwagger)
 }
 
 app.UseHttpsRedirection();
+
+app.UseResponseCompression();
 
 app.UseCors(FrontendCorsPolicy);
 
