@@ -215,5 +215,6 @@ app.UseAuthorization();
 
 app.MapControllers();
 app.MapHub<NotificationHub>("/hubs/notifications");
+app.MapHub<AuctionHub>("/hubs/auction");
 
 app.Run();

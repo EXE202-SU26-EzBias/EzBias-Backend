@@ -1,9 +1,11 @@
 using System.Security.Claims;
+using EzBias.API.Hubs;
 using EzBias.Application.Features.Auctions;
 using EzBias.Application.Features.Auctions.Dtos;
 using EzBias.Domain.Enums;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.SignalR;
 
 namespace EzBias.API.Controllers;
 
@@ -12,10 +14,12 @@ namespace EzBias.API.Controllers;
 public class AuctionsController : ControllerBase
 {
     private readonly IAuctionBiddingApplicationService _service;
+    private readonly IHubContext<AuctionHub> _auctionHub;
 
-    public AuctionsController(IAuctionBiddingApplicationService service)
+    public AuctionsController(IAuctionBiddingApplicationService service, IHubContext<AuctionHub> auctionHub)
     {
         _service = service;
+        _auctionHub = auctionHub;
     }
 
     [HttpGet]
@@ -52,6 +56,19 @@ public class AuctionsController : ControllerBase
             if (result.Error == "Auction not found.") return NotFound(new { message = result.Error });
             return BadRequest(new { message = result.Error });
         }
+
+        // Push realtime event to all viewers of this auction
+        await _auctionHub.Clients
+            .Group(AuctionHub.AuctionGroup(auctionId))
+            .SendAsync("BidPlaced", new
+            {
+                auctionId,
+                bidId      = result.Data.BidId,
+                amount     = result.Data.Amount,
+                currentBid = result.Data.CurrentBid,
+                status     = result.Data.Status.ToString(),
+                placedAt   = DateTimeOffset.UtcNow
+            }, ct);
 
         return Ok(result.Data);
     }
