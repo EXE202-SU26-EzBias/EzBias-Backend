@@ -55,10 +55,10 @@ public class SellerAuctionsController : ControllerBase
     }
 
     [HttpPost("{auctionId:long}/relist")]
-    public async Task<IActionResult> Relist([FromRoute] long auctionId, CancellationToken ct)
+    public async Task<IActionResult> Relist([FromRoute] long auctionId, [FromBody] RelistAuctionRequest request, CancellationToken ct)
     {
         if (!TryGetUserId(out var userId)) return Unauthorized();
-        var result = await _service.RelistAsync(userId, auctionId, ct);
+        var result = await _service.RelistAsync(userId, auctionId, request, ct);
         if (!result.Success || result.Data is null) return ToError(result.Error);
         return Ok(result.Data);
     }
