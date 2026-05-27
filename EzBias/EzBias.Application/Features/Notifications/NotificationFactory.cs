@@ -76,6 +76,12 @@ public sealed class NotificationFactory : INotificationFactory
             "Your email has been successfully verified. Welcome to EzBias!",
             new { });
 
+    public Notification OrderConfirmed(long sellerId, long orderId)
+        => Build(sellerId, NotificationType.OrderConfirmed,
+            "Buyer confirmed receipt",
+            "The buyer has confirmed receiving their order. Funds will be released to your balance.",
+            new { orderId });
+
     private static Notification Build(long userId, NotificationType type, string title, string body, object meta)
         => new()
         {

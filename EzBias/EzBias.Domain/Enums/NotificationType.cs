@@ -12,5 +12,6 @@ public enum NotificationType
     PayoutPaid = 8,
     DisputeOpened = 9,
     DisputeResolved = 10,
-    UserVerified = 11
+    UserVerified = 11,
+    OrderConfirmed = 12
 }

@@ -144,6 +144,7 @@ public class OrderApplicationService : IOrderApplicationService
         order.UpdatedAt = DateTimeOffset.UtcNow;
 
         _notifications.Add(_notificationFactory.OrderDelivered(order.UserId, order.Id));
+        _notifications.Add(_notificationFactory.OrderConfirmed(order.SellerId, order.Id));
 
         await _uow.SaveChangesAsync(ct);
         return (true, null, new FulfillmentActionResponse(order.Id, order.Status.ToString()));
