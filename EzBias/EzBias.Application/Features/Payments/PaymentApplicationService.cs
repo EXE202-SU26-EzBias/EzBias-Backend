@@ -225,12 +225,9 @@ public class PaymentApplicationService : IPaymentApplicationService
             po.Order.Status = OrderStatus.Paid;
             po.Order.UpdatedAt = DateTimeOffset.UtcNow;
 
-            // Notify seller of new order (skip auction orders — seller already knows via AuctionWon)
-            if (po.Order.Source != OrderSource.Auction)
-            {
-                var productNames = string.Join(", ", po.Order.Items.Select(i => i.ProductName));
-                _notifications.Add(_notificationFactory.OrderPlaced(po.Order.SellerId, po.OrderId, productNames));
-            }
+            // Notify seller of new order
+            var productNames = string.Join(", ", po.Order.Items.Select(i => i.ProductName));
+            _notifications.Add(_notificationFactory.OrderPlaced(po.Order.SellerId, po.OrderId, productNames));
 
             if (po.Order.Source == OrderSource.Auction && po.Order.AuctionId.HasValue)
             {
