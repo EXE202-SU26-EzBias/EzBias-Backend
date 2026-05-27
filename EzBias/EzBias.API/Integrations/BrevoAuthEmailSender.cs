@@ -63,6 +63,10 @@ public sealed class BrevoAuthEmailSender : IAuthEmailSender
             return;
         }
 
+        _logger.LogInformation(
+            "Brevo sending {Purpose} OTP to {Email} from {FromEmail}",
+            purpose, email, _options.FromEmail);
+
         var payload = new
         {
             sender = new { name = _options.FromName, email = _options.FromEmail },
@@ -87,6 +91,12 @@ public sealed class BrevoAuthEmailSender : IAuthEmailSender
             _logger.LogWarning(
                 "Brevo email failed ({StatusCode}). {Purpose} OTP for {Email}: {Code}. ExpiresAt: {ExpiresAt}. Response: {ResponseBody}",
                 (int)response.StatusCode, purpose, email, code, expiresAt, responseBody);
+        }
+        else
+        {
+            _logger.LogInformation(
+                "Brevo email sent ({StatusCode}). {Purpose} OTP for {Email}. ExpiresAt: {ExpiresAt}",
+                (int)response.StatusCode, purpose, email, expiresAt);
         }
     }
 }
