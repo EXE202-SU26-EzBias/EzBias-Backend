@@ -61,7 +61,8 @@ public class AuctionBiddingApplicationService : IAuctionBiddingApplicationServic
             item.ExtensionSeconds,
             item.TriggerBeforeEnd,
             new AuctionSellerSummary(item.Seller.Id, item.Seller.Username, item.Seller.FullName, item.Seller.AvatarUrl, item.Seller.AvgSellerRating, item.Seller.TotalRatings),
-            new AuctionProductSummary(item.Product.Id, item.Product.Name, item.Product.Artist, item.Product.Type, item.Product.Price, item.Product.Stock, item.Product.PrimaryImageUrl, item.Product.Status, item.Product.FandomId)
+            new AuctionProductSummary(item.Product.Id, item.Product.Name, item.Product.Artist, item.Product.Type, item.Product.Price, item.Product.Stock, item.Product.PrimaryImageUrl, item.Product.Status, item.Product.FandomId),
+            item.WinnerId
         ));
     }
 
