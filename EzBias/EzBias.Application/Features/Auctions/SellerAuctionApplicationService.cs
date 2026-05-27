@@ -93,7 +93,7 @@ public class SellerAuctionApplicationService : ISellerAuctionApplicationService
         return (true, null, new AuctionActionResponse(auction.Id, auction.Status.ToString()));
     }
 
-    public async Task<(bool Success, string? Error, AuctionActionResponse? Data)> RelistAsync(long sellerId, long auctionId, CancellationToken ct)
+    public async Task<(bool Success, string? Error, AuctionActionResponse? Data)> RelistAsync(long sellerId, long auctionId, RelistAuctionRequest request, CancellationToken ct)
     {
         var source = await _auctions.GetByIdAsync(auctionId, ct);
         if (source is null) return (false, "Auction not found.", null);
@@ -102,6 +102,10 @@ public class SellerAuctionApplicationService : ISellerAuctionApplicationService
         if (source.Status is not (AuctionStatus.Canceled or AuctionStatus.EndedNoWinner or AuctionStatus.WinnerFailed))
             return (false, "Auction cannot be relisted in current status.", null);
 
+        if (request.FloorPrice <= 0) return (false, "Floor price must be greater than zero.", null);
+        if (request.ReservePrice.HasValue && request.ReservePrice.Value < request.FloorPrice) return (false, "Reserve price must be >= floor price.", null);
+        if (request.EndsAt <= DateTimeOffset.UtcNow.AddMinutes(1)) return (false, "EndsAt must be in the future.", null);
+
         var hasDraftOrLive = await _auctions.ExistsDraftOrLiveByProductIdAsync(source.ProductId, ct);
         if (hasDraftOrLive) return (false, "An active/draft auction already exists for this product.", null);
 
@@ -109,15 +113,15 @@ public class SellerAuctionApplicationService : ISellerAuctionApplicationService
         {
             ProductId = source.ProductId,
             SellerId = source.SellerId,
-            FloorPrice = source.FloorPrice,
-            ReservePrice = source.ReservePrice,
-            CurrentBid = source.FloorPrice,
-            IsUrgent = source.IsUrgent,
-            HasProofImage = source.HasProofImage,
-            ExtensionSeconds = source.ExtensionSeconds,
-            TriggerBeforeEnd = source.TriggerBeforeEnd,
+            FloorPrice = request.FloorPrice,
+            ReservePrice = request.ReservePrice,
+            CurrentBid = request.FloorPrice,
+            IsUrgent = request.IsUrgent,
+            HasProofImage = request.HasProofImage,
+            ExtensionSeconds = request.ExtensionSeconds,
+            TriggerBeforeEnd = request.TriggerBeforeEnd,
             Status = AuctionStatus.Draft,
-            EndsAt = DateTimeOffset.UtcNow.AddDays(3),
+            EndsAt = request.EndsAt,
             CreatedAt = DateTimeOffset.UtcNow
         };
 
