@@ -86,8 +86,10 @@ public class AuctionCloseScheduler : BackgroundService
                         var order = await orders.GetByAuctionIdAsync(auction.Id, stoppingToken);
                         if (order is null)
                         {
-                            var productImage = auction.Product.Images.FirstOrDefault(x => x.SortOrder == 1)?.Url
-                                ?? auction.Product.Images.FirstOrDefault()?.Url
+                            var productImage = auction.Product.Images
+                                .OrderBy(x => x.SortOrder)
+                                .FirstOrDefault()?.Url
+                                ?? auction.Product.PrimaryImageUrl
                                 ?? string.Empty;
 
                             order = new Order

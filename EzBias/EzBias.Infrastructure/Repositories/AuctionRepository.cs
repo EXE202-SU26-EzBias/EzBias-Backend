@@ -25,7 +25,9 @@ public class AuctionRepository : IAuctionRepository
             .FirstOrDefaultAsync(x => x.Id == auctionId, ct);
 
     public Task<Auction?> GetByIdWithProductAsync(long auctionId, CancellationToken ct)
-        => _db.Auctions.Include(x => x.Product).FirstOrDefaultAsync(x => x.Id == auctionId, ct);
+        => _db.Auctions
+            .Include(x => x.Product).ThenInclude(p => p.Images)
+            .FirstOrDefaultAsync(x => x.Id == auctionId, ct);
 
     public Task<bool> ExistsLiveByProductIdAsync(long productId, CancellationToken ct)
         => _db.Auctions.AnyAsync(x => x.ProductId == productId && (x.Status == AuctionStatus.Live || x.Status == AuctionStatus.Extended), ct);
