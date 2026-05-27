@@ -28,7 +28,8 @@ public record AuctionDetailItem(
     int ExtensionSeconds,
     int TriggerBeforeEnd,
     AuctionSellerSummary Seller,
-    AuctionProductSummary Product);
+    AuctionProductSummary Product,
+    long? WinnerId = null);
 
 public record PlaceBidRequest(decimal Amount);
 public record PlaceBidResponse(long AuctionId, long BidId, decimal Amount, decimal CurrentBid, AuctionStatus Status);
