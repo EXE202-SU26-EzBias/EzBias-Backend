@@ -5,6 +5,7 @@ using EzBias.Application.Features.Auctions;
 using EzBias.Application.Features.Auth;
 using EzBias.Application.Features.Auth.Services;
 using EzBias.Application.Features.Cart;
+using EzBias.Application.Features.Chat;
 using EzBias.Application.Features.Disputes;
 using EzBias.Application.Features.Admin;
 using EzBias.Application.Features.Notifications;
@@ -131,6 +132,10 @@ builder.Services.AddScoped<IAuctionPostFlowQueryService, AuctionPostFlowQuerySer
 builder.Services.AddScoped<IDisputeRepository, DisputeRepository>();
 builder.Services.AddScoped<IRefundRepository, RefundRepository>();
 builder.Services.AddScoped<IDisputeApplicationService, DisputeApplicationService>();
+builder.Services.AddScoped<IConversationRepository, ConversationRepository>();
+builder.Services.AddScoped<IMessageRepository, MessageRepository>();
+builder.Services.AddScoped<IChatRealtime, SignalRChatRealtime>();
+builder.Services.AddScoped<IChatApplicationService, ChatApplicationService>();
 builder.Services.AddHostedService<AuctionCloseScheduler>();
 builder.Services.AddHostedService<DeliveredOrderFinalizeScheduler>();
 
@@ -216,5 +221,6 @@ app.UseAuthorization();
 app.MapControllers();
 app.MapHub<NotificationHub>("/hubs/notifications");
 app.MapHub<AuctionHub>("/hubs/auction");
+app.MapHub<ChatHub>("/hubs/chat");
 
 app.Run();
