@@ -20,4 +20,5 @@ public interface INotificationFactory
     Notification DisputeResolved(long userId, long disputeId, bool resolvedForBuyer);
     Notification UserVerified(long userId);
     Notification OrderConfirmed(long sellerId, long orderId);
+    Notification NewMessage(long recipientId, long conversationId, string senderName, string preview);
 }

@@ -13,5 +13,6 @@ public enum NotificationType
     DisputeOpened = 9,
     DisputeResolved = 10,
     UserVerified = 11,
-    OrderConfirmed = 12
+    OrderConfirmed = 12,
+    NewMessage = 13
 }
