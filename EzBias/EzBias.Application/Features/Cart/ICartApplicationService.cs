@@ -6,5 +6,6 @@ public interface ICartApplicationService
 {
     Task<(bool Success, string? Error)> UpsertItemAsync(long userId, UpsertCartItemRequest request, CancellationToken ct);
     Task<CartResponse> GetMyCartAsync(long userId, CancellationToken ct);
+    Task<(bool Success, string? Error)> UpdateItemQuantityAsync(long userId, long cartItemId, UpdateCartItemQuantityRequest request, CancellationToken ct);
     Task<(bool Success, string? Error)> RemoveItemAsync(long userId, long cartItemId, CancellationToken ct);
 }

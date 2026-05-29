@@ -37,6 +37,24 @@ public class CartController : ControllerBase
         return Ok(new { message = "Cart updated." });
     }
 
+    [HttpPut("items/{cartItemId:long}/quantity")]
+    public async Task<IActionResult> UpdateItemQuantity(
+        [FromRoute] long cartItemId,
+        [FromBody] UpdateCartItemQuantityRequest request,
+        CancellationToken ct)
+    {
+        if (!TryGetUserId(out var userId)) return Unauthorized();
+
+        var result = await _cartService.UpdateItemQuantityAsync(userId, cartItemId, request, ct);
+        if (!result.Success)
+        {
+            if (result.Error == "Cart item not found.") return NotFound(new { message = result.Error });
+            return BadRequest(new { message = result.Error });
+        }
+
+        return Ok(new { message = "Cart item quantity updated." });
+    }
+
     [HttpDelete("items/{cartItemId:long}")]
     public async Task<IActionResult> RemoveItem([FromRoute] long cartItemId, CancellationToken ct)
     {

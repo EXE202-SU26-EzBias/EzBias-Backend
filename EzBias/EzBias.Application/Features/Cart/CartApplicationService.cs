@@ -76,6 +76,36 @@ public class CartApplicationService : ICartApplicationService
         return new CartResponse(mapped, mapped.Sum(x => x.Subtotal));
     }
 
+    public async Task<(bool Success, string? Error)> UpdateItemQuantityAsync(
+        long userId,
+        long cartItemId,
+        UpdateCartItemQuantityRequest request,
+        CancellationToken ct)
+    {
+        if (request.Quantity <= 0)
+            return (false, "Quantity must be greater than 0.");
+
+        var item = await _cartRepository.GetByIdAsync(cartItemId, ct);
+        if (item is null || item.UserId != userId)
+            return (false, "Cart item not found.");
+
+        var product = await _productRepository.GetByIdAsync(item.ProductId, ct);
+        if (product is null || product.DeletedAt is not null)
+            return (false, "Product not found.");
+
+        if (product.Status != ProductStatus.Active)
+            return (false, "Product is not available.");
+
+        if (product.Stock < request.Quantity)
+            return (false, "Not enough stock.");
+
+        item.Quantity = request.Quantity;
+        item.UpdatedAt = DateTimeOffset.UtcNow;
+
+        await _unitOfWork.SaveChangesAsync(ct);
+        return (true, null);
+    }
+
     public async Task<(bool Success, string? Error)> RemoveItemAsync(long userId, long cartItemId, CancellationToken ct)
     {
         var item = await _cartRepository.GetByIdAsync(cartItemId, ct);
