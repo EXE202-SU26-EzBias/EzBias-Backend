@@ -15,6 +15,7 @@ using EzBias.Application.Features.Payouts;
 using EzBias.Application.Features.Products;
 using EzBias.Application.Features.Ratings;
 using EzBias.Application.Features.Users;
+using EzBias.Application.Features.VideoCalls;
 using EzBias.Domain.Interfaces;
 using EzBias.Infrastructure.Auth;
 using EzBias.Infrastructure.Persistence;
@@ -136,6 +137,9 @@ builder.Services.AddScoped<IConversationRepository, ConversationRepository>();
 builder.Services.AddScoped<IMessageRepository, MessageRepository>();
 builder.Services.AddScoped<IChatRealtime, SignalRChatRealtime>();
 builder.Services.AddScoped<IChatApplicationService, ChatApplicationService>();
+builder.Services.AddScoped<ICallSessionRepository, CallSessionRepository>();
+builder.Services.AddScoped<IVideoCallRealtime, SignalRVideoCallRealtime>();
+builder.Services.AddScoped<IVideoCallApplicationService, VideoCallApplicationService>();
 builder.Services.AddHostedService<AuctionCloseScheduler>();
 builder.Services.AddHostedService<DeliveredOrderFinalizeScheduler>();
 
@@ -222,5 +226,6 @@ app.MapControllers();
 app.MapHub<NotificationHub>("/hubs/notifications");
 app.MapHub<AuctionHub>("/hubs/auction");
 app.MapHub<ChatHub>("/hubs/chat");
+app.MapHub<CallHub>("/hubs/calls");
 
 app.Run();

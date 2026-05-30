@@ -37,6 +37,7 @@ public class EzBiasDbContext : DbContext
     public DbSet<CommissionTransaction> CommissionTransactions => Set<CommissionTransaction>();
     public DbSet<Conversation> Conversations => Set<Conversation>();
     public DbSet<Message> Messages => Set<Message>();
+    public DbSet<CallSession> CallSessions => Set<CallSession>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
