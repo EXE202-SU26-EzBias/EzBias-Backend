@@ -19,6 +19,7 @@ public sealed class AuctionConfiguration : IEntityTypeConfiguration<Auction>
         builder.Property(x => x.FloorPrice).HasColumnName("floor_price").HasColumnType("numeric(18,2)").IsRequired();
         builder.Property(x => x.ReservePrice).HasColumnName("reserve_price").HasColumnType("numeric(18,2)");
         builder.Property(x => x.CurrentBid).HasColumnName("current_bid").HasColumnType("numeric(18,2)").HasDefaultValue(0m).IsRequired();
+        builder.Property(x => x.RequiredDepositAmount).HasColumnName("required_deposit_amount").HasColumnType("numeric(18,2)").HasDefaultValue(0m).IsRequired();
         builder.Property(x => x.IsUrgent).HasColumnName("is_urgent").HasDefaultValue(false).IsRequired();
         builder.Property(x => x.HasProofImage).HasColumnName("has_proof_image").HasDefaultValue(false).IsRequired();
 

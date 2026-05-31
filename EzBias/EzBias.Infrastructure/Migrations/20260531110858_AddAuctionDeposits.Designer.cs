@@ -3,6 +3,7 @@ using System;
 using EzBias.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 
@@ -11,9 +12,11 @@ using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 namespace EzBias.Infrastructure.Migrations
 {
     [DbContext(typeof(EzBiasDbContext))]
-    partial class EzBiasDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260531110858_AddAuctionDeposits")]
+    partial class AddAuctionDeposits
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -313,59 +316,6 @@ namespace EzBias.Infrastructure.Migrations
                         .HasDatabaseName("idx_bids_auction_amount");
 
                     b.ToTable("bids", (string)null);
-                });
-
-            modelBuilder.Entity("EzBias.Domain.Entities.CallSession", b =>
-                {
-                    b.Property<long>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("bigint")
-                        .HasColumnName("id");
-
-                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<long>("Id"));
-
-                    b.Property<DateTimeOffset?>("AnsweredAt")
-                        .HasColumnType("timestamptz")
-                        .HasColumnName("answered_at");
-
-                    b.Property<long>("CalleeId")
-                        .HasColumnType("bigint")
-                        .HasColumnName("callee_id");
-
-                    b.Property<long>("CallerId")
-                        .HasColumnType("bigint")
-                        .HasColumnName("caller_id");
-
-                    b.Property<long>("ConversationId")
-                        .HasColumnType("bigint")
-                        .HasColumnName("conversation_id");
-
-                    b.Property<DateTimeOffset>("CreatedAt")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("timestamptz")
-                        .HasColumnName("created_at")
-                        .HasDefaultValueSql("now()");
-
-                    b.Property<DateTimeOffset?>("EndedAt")
-                        .HasColumnType("timestamptz")
-                        .HasColumnName("ended_at");
-
-                    b.Property<string>("Status")
-                        .IsRequired()
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("text")
-                        .HasDefaultValue("Ringing")
-                        .HasColumnName("status");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("CalleeId", "Status");
-
-                    b.HasIndex("CallerId", "Status");
-
-                    b.HasIndex("ConversationId", "CreatedAt");
-
-                    b.ToTable("call_sessions", (string)null);
                 });
 
             modelBuilder.Entity("EzBias.Domain.Entities.CartItem", b =>
@@ -1951,33 +1901,6 @@ namespace EzBias.Infrastructure.Migrations
                     b.Navigation("Auction");
 
                     b.Navigation("User");
-                });
-
-            modelBuilder.Entity("EzBias.Domain.Entities.CallSession", b =>
-                {
-                    b.HasOne("EzBias.Domain.Entities.User", "Callee")
-                        .WithMany()
-                        .HasForeignKey("CalleeId")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired();
-
-                    b.HasOne("EzBias.Domain.Entities.User", "Caller")
-                        .WithMany()
-                        .HasForeignKey("CallerId")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired();
-
-                    b.HasOne("EzBias.Domain.Entities.Conversation", "Conversation")
-                        .WithMany()
-                        .HasForeignKey("ConversationId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.Navigation("Callee");
-
-                    b.Navigation("Caller");
-
-                    b.Navigation("Conversation");
                 });
 
             modelBuilder.Entity("EzBias.Domain.Entities.CartItem", b =>

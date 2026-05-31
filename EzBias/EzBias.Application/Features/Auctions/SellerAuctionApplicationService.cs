@@ -1,4 +1,5 @@
 using EzBias.Application.Features.Auctions.Dtos;
+using EzBias.Application.Features.Deposits;
 using EzBias.Domain.Entities;
 using EzBias.Domain.Enums;
 using EzBias.Domain.Interfaces;
@@ -10,12 +11,16 @@ public class SellerAuctionApplicationService : ISellerAuctionApplicationService
     private readonly IAuctionRepository _auctions;
     private readonly IProductRepository _products;
     private readonly IUnitOfWork _uow;
+    private readonly IDepositPolicy _depositPolicy;
+    private readonly IDepositApplicationService _deposits;
 
-    public SellerAuctionApplicationService(IAuctionRepository auctions, IProductRepository products, IUnitOfWork uow)
+    public SellerAuctionApplicationService(IAuctionRepository auctions, IProductRepository products, IUnitOfWork uow, IDepositPolicy depositPolicy, IDepositApplicationService deposits)
     {
         _auctions = auctions;
         _products = products;
         _uow = uow;
+        _depositPolicy = depositPolicy;
+        _deposits = deposits;
     }
 
     public async Task<(bool Success, string? Error, AuctionActionResponse? Data)> CreateAsync(long sellerId, CreateAuctionRequest request, CancellationToken ct)
@@ -30,6 +35,9 @@ public class SellerAuctionApplicationService : ISellerAuctionApplicationService
 
         var hasLive = await _auctions.ExistsLiveByProductIdAsync(product.Id, ct);
         if (hasLive) return (false, "A live auction already exists for this product.", null);
+
+        // Required bid deposit is derived from the floor price (e.g. 10%), not seller-supplied.
+        var resolvedDeposit = _depositPolicy.ComputeRequiredDeposit(request.FloorPrice);
 
         product.IsAuction = true;
         product.UpdatedAt = DateTimeOffset.UtcNow;
@@ -47,6 +55,7 @@ public class SellerAuctionApplicationService : ISellerAuctionApplicationService
             TriggerBeforeEnd = request.TriggerBeforeEnd,
             Status = AuctionStatus.Draft,
             EndsAt = request.EndsAt,
+            RequiredDepositAmount = resolvedDeposit,
             CreatedAt = DateTimeOffset.UtcNow
         };
 
@@ -88,6 +97,7 @@ public class SellerAuctionApplicationService : ISellerAuctionApplicationService
 
         auction.Status = AuctionStatus.Canceled;
         auction.UpdatedAt = DateTimeOffset.UtcNow;
+        await _deposits.ReleaseDepositsOnCancelAsync(auction.Id, ct);
         await _uow.SaveChangesAsync(ct);
 
         return (true, null, new AuctionActionResponse(auction.Id, auction.Status.ToString()));
@@ -109,6 +119,9 @@ public class SellerAuctionApplicationService : ISellerAuctionApplicationService
         var hasDraftOrLive = await _auctions.ExistsDraftOrLiveByProductIdAsync(source.ProductId, ct);
         if (hasDraftOrLive) return (false, "An active/draft auction already exists for this product.", null);
 
+        // Required bid deposit is derived from the floor price (e.g. 10%), not seller-supplied.
+        var resolvedDeposit = _depositPolicy.ComputeRequiredDeposit(request.FloorPrice);
+
         var newAuction = new Auction
         {
             ProductId = source.ProductId,
@@ -122,6 +135,7 @@ public class SellerAuctionApplicationService : ISellerAuctionApplicationService
             TriggerBeforeEnd = request.TriggerBeforeEnd,
             Status = AuctionStatus.Draft,
             EndsAt = request.EndsAt,
+            RequiredDepositAmount = resolvedDeposit,
             CreatedAt = DateTimeOffset.UtcNow
         };
 

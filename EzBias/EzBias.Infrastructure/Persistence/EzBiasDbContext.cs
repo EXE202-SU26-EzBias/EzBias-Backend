@@ -18,6 +18,7 @@ public class EzBiasDbContext : DbContext
     public DbSet<Wishlist> Wishlists => Set<Wishlist>();
     public DbSet<SellerFollow> SellerFollows => Set<SellerFollow>();
     public DbSet<Auction> Auctions => Set<Auction>();
+    public DbSet<AuctionDeposit> AuctionDeposits => Set<AuctionDeposit>();
     public DbSet<Bid> Bids => Set<Bid>();
     public DbSet<Order> Orders => Set<Order>();
     public DbSet<OrderItem> OrderItems => Set<OrderItem>();

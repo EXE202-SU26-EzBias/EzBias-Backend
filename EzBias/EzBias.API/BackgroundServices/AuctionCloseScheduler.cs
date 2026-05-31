@@ -1,3 +1,4 @@
+using EzBias.Application.Features.Deposits;
 using EzBias.Application.Features.Notifications;
 using EzBias.Domain.Entities;
 using EzBias.Domain.Enums;
@@ -35,6 +36,7 @@ public class AuctionCloseScheduler : BackgroundService
                 var orders = scope.ServiceProvider.GetRequiredService<IOrderRepository>();
                 var notifications = scope.ServiceProvider.GetRequiredService<INotificationRepository>();
                 var notificationFactory = scope.ServiceProvider.GetRequiredService<INotificationFactory>();
+                var deposits = scope.ServiceProvider.GetRequiredService<IDepositApplicationService>();
                 var uow = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
 
                 var now = DateTimeOffset.UtcNow;
@@ -63,6 +65,12 @@ public class AuctionCloseScheduler : BackgroundService
                 var noWinner = 0;
                 var pendingPayment = 0;
 
+                // Deposit processing collections (Req 5, 6, 7) — populated during the loops below,
+                // processed after status changes are persisted.
+                var noWinnerAuctionIds = new List<long>();
+                var winnerAssignedAuctions = new List<(long AuctionId, long WinnerId)>();
+                var winnerFailedAuctions = new List<(long AuctionId, long WinnerId)>();
+
                 foreach (var auction in closable)
                 {
                     var topBid = await bids.GetTopBidAsync(auction.Id, stoppingToken);
@@ -71,6 +79,7 @@ public class AuctionCloseScheduler : BackgroundService
                         auction.Status = AuctionStatus.EndedNoWinner;
                         notifications.Add(notificationFactory.AuctionExpired(
                             auction.SellerId, auction.Id, auction.Product.Name));
+                        noWinnerAuctionIds.Add(auction.Id);
                         noWinner++;
                     }
                     else
@@ -82,6 +91,7 @@ public class AuctionCloseScheduler : BackgroundService
 
                         notifications.Add(notificationFactory.AuctionWon(
                             topBid.UserId, auction.Id, auction.Product.Name, topBid.Amount));
+                        winnerAssignedAuctions.Add((auction.Id, topBid.UserId));
 
                         var order = await orders.GetByAuctionIdAsync(auction.Id, stoppingToken);
                         if (order is null)
@@ -133,6 +143,9 @@ public class AuctionCloseScheduler : BackgroundService
                     auction.Status = AuctionStatus.WinnerFailed;
                     auction.UpdatedAt = now;
 
+                    if (auction.WinnerId.HasValue)
+                        winnerFailedAuctions.Add((auction.Id, auction.WinnerId.Value));
+
                     var auctionOrder = await orders.GetByAuctionIdAsync(auction.Id, stoppingToken);
                     if (auctionOrder is not null && auctionOrder.Status == OrderStatus.Pending)
                     {
@@ -161,6 +174,15 @@ public class AuctionCloseScheduler : BackgroundService
                         _logger.LogInformation("Auction scheduler marked {Count} winner-timeout auctions as WinnerFailed", winnerFailed);
                     }
                 }
+
+                // Deposit lifecycle hooks (Req 5, 6, 7) — run after status changes are persisted so the
+                // deposit service sees committed auction state and Held deposits.
+                foreach (var (auctionId, winnerId) in winnerAssignedAuctions)
+                    await deposits.RefundNonWinnerDepositsAsync(auctionId, winnerId, stoppingToken); // Req 5.1, keep winner Held (6.1)
+                foreach (var auctionId in noWinnerAuctionIds)
+                    await deposits.RefundNonWinnerDepositsAsync(auctionId, null, stoppingToken); // Req 5.4 refund all held
+                foreach (var (auctionId, winnerId) in winnerFailedAuctions)
+                    await deposits.ForfeitWinnerDepositAsync(auctionId, winnerId, stoppingToken); // Req 7.1
             }
             catch (OperationCanceledException) when (stoppingToken.IsCancellationRequested)
             {
