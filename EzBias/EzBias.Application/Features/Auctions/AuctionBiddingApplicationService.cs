@@ -12,6 +12,7 @@ public class AuctionBiddingApplicationService : IAuctionBiddingApplicationServic
     private readonly IBidRepository _bids;
     private readonly INotificationRepository _notifications;
     private readonly INotificationFactory _notificationFactory;
+    private readonly IAuctionDepositRepository _deposits;
     private readonly IUnitOfWork _uow;
 
     public AuctionBiddingApplicationService(
@@ -19,12 +20,14 @@ public class AuctionBiddingApplicationService : IAuctionBiddingApplicationServic
         IBidRepository bids,
         INotificationRepository notifications,
         INotificationFactory notificationFactory,
+        IAuctionDepositRepository deposits,
         IUnitOfWork uow)
     {
         _auctions = auctions;
         _bids = bids;
         _notifications = notifications;
         _notificationFactory = notificationFactory;
+        _deposits = deposits;
         _uow = uow;
     }
 
@@ -86,6 +89,14 @@ public class AuctionBiddingApplicationService : IAuctionBiddingApplicationServic
         if (auction.Status is not (AuctionStatus.Live or AuctionStatus.Extended)) return (false, "Auction is not live.", null);
         if (auction.EndsAt <= DateTimeOffset.UtcNow) return (false, "Auction has ended.", null);
         if (auction.SellerId == bidderId) return (false, "Seller cannot bid own auction.", null);
+
+        // Req 4: a held deposit is required to bid when the auction is deposit-gated.
+        if (auction.RequiredDepositAmount > 0m)
+        {
+            var hasHeld = await _deposits.HasHeldDepositAsync(bidderId, auctionId, ct);
+            if (!hasHeld)
+                return (false, "A held deposit is required to bid on this auction.", null);
+        }
 
         var highest = await _bids.GetHighestBidAmountAsync(auctionId, ct);
 

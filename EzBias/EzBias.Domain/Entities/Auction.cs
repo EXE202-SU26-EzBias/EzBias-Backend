@@ -11,6 +11,7 @@ public class Auction
     public decimal FloorPrice { get; set; }
     public decimal? ReservePrice { get; set; }
     public decimal CurrentBid { get; set; } = 0m;
+    public decimal RequiredDepositAmount { get; set; }
     public bool IsUrgent { get; set; } = false;
     public bool HasProofImage { get; set; } = false;
 
@@ -33,4 +34,5 @@ public class Auction
     public User? Winner { get; set; }
     public ICollection<Bid> Bids { get; set; } = new List<Bid>();
     public ICollection<Order> Orders { get; set; } = new List<Order>();
+    public ICollection<AuctionDeposit> Deposits { get; set; } = new List<AuctionDeposit>();
 }

@@ -24,4 +24,5 @@ public class Payment
     public ICollection<EscrowTransaction> EscrowTransactions { get; set; } = new List<EscrowTransaction>();
     public ICollection<CommissionTransaction> CommissionTransactions { get; set; } = new List<CommissionTransaction>();
     public ICollection<Refund> Refunds { get; set; } = new List<Refund>();
+    public ICollection<AuctionDeposit> AuctionDeposits { get; set; } = new List<AuctionDeposit>();
 }

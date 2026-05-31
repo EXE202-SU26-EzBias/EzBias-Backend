@@ -6,6 +6,7 @@ using EzBias.Application.Features.Auth;
 using EzBias.Application.Features.Auth.Services;
 using EzBias.Application.Features.Cart;
 using EzBias.Application.Features.Chat;
+using EzBias.Application.Features.Deposits;
 using EzBias.Application.Features.Disputes;
 using EzBias.Application.Features.Admin;
 using EzBias.Application.Features.Notifications;
@@ -47,6 +48,7 @@ builder.Services.AddResponseCompression(opts =>
 builder.Services.Configure<SePayOptions>(builder.Configuration.GetSection(SePayOptions.SectionName));
 builder.Services.Configure<BrevoOptions>(builder.Configuration.GetSection(BrevoOptions.SectionName));
 builder.Services.Configure<CommissionOptions>(builder.Configuration.GetSection(CommissionOptions.SectionName));
+builder.Services.Configure<DepositOptions>(builder.Configuration.GetSection(DepositOptions.SectionName));
 builder.Services.Configure<CloudinaryOptions>(builder.Configuration.GetSection(CloudinaryOptions.SectionName));
 builder.Services.AddHttpClient("SePay", client =>
 {
@@ -108,6 +110,7 @@ builder.Services.AddScoped<INotificationRepository, NotificationRepository>();
 builder.Services.AddScoped<ICommissionRepository, CommissionRepository>();
 builder.Services.AddScoped<IAuctionRepository, AuctionRepository>();
 builder.Services.AddScoped<IBidRepository, BidRepository>();
+builder.Services.AddScoped<IAuctionDepositRepository, AuctionDepositRepository>();
 builder.Services.AddScoped<IUnitOfWork, NotificationDispatchingUnitOfWork>();
 builder.Services.AddScoped<IRealtimeNotifier, SignalRRealtimeNotifier>();
 builder.Services.AddScoped<IAuthApplicationService, AuthApplicationService>();
@@ -119,6 +122,7 @@ builder.Services.AddScoped<ICatalogQueryService, CatalogQueryService>();
 builder.Services.AddScoped<ICartApplicationService, CartApplicationService>();
 builder.Services.AddScoped<IPaymentApplicationService, PaymentApplicationService>();
 builder.Services.AddScoped<ICommissionRateProvider, ConfiguredCommissionRateProvider>();
+builder.Services.AddScoped<IDepositPolicy, ConfiguredDepositPolicy>();
 builder.Services.AddScoped<ISePayClient, SePayClient>();
 builder.Services.AddScoped<ISePayWebhookVerifier, SePayWebhookVerifier>();
 builder.Services.AddScoped<IOrderApplicationService, OrderApplicationService>();
@@ -128,6 +132,7 @@ builder.Services.AddScoped<INotificationApplicationService, NotificationApplicat
 builder.Services.AddSingleton<INotificationFactory, NotificationFactory>();
 builder.Services.AddScoped<ISellerAuctionApplicationService, SellerAuctionApplicationService>();
 builder.Services.AddScoped<IAuctionBiddingApplicationService, AuctionBiddingApplicationService>();
+builder.Services.AddScoped<IDepositApplicationService, DepositApplicationService>();
 builder.Services.AddScoped<IAuctionPostFlowQueryService, AuctionPostFlowQueryService>();
 builder.Services.AddScoped<IDisputeRepository, DisputeRepository>();
 builder.Services.AddScoped<IRefundRepository, RefundRepository>();

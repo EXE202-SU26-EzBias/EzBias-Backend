@@ -88,6 +88,24 @@ public sealed class NotificationFactory : INotificationFactory
             preview,
             new { conversationId, senderName });
 
+    public Notification DepositConfirmed(long userId, long auctionId, string productName, decimal amount)
+        => Build(userId, NotificationType.DepositConfirmed,
+            "Deposit confirmed",
+            $"Your deposit of {amount:N0} VND for \"{productName}\" is confirmed. You can now place bids.",
+            new { auctionId });
+
+    public Notification DepositRefundInitiated(long userId, long auctionId, string productName, decimal amount)
+        => Build(userId, NotificationType.DepositRefundInitiated,
+            "Deposit refund initiated",
+            $"Your deposit of {amount:N0} VND for \"{productName}\" is being refunded to your bank account.",
+            new { auctionId });
+
+    public Notification DepositForfeited(long userId, long auctionId, string productName, decimal amount)
+        => Build(userId, NotificationType.DepositForfeited,
+            "Deposit forfeited",
+            $"Your deposit of {amount:N0} VND for \"{productName}\" has been forfeited because the winning payment was not completed in time.",
+            new { auctionId });
+
     private static Notification Build(long userId, NotificationType type, string title, string body, object meta)
         => new()
         {

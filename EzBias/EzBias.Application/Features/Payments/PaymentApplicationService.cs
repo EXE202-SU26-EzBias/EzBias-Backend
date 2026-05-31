@@ -1,3 +1,4 @@
+using EzBias.Application.Features.Deposits;
 using EzBias.Application.Features.Notifications;
 using EzBias.Application.Features.Payments.Dtos;
 using EzBias.Domain.Entities;
@@ -19,6 +20,7 @@ public class PaymentApplicationService : IPaymentApplicationService
     private readonly IUnitOfWork _uow;
     private readonly ISePayWebhookVerifier _webhookVerifier;
     private readonly ICommissionRateProvider _commissionRateProvider;
+    private readonly IDepositApplicationService _deposits;
 
     public PaymentApplicationService(
         IPaymentRepository payments,
@@ -31,7 +33,8 @@ public class PaymentApplicationService : IPaymentApplicationService
         ISePayClient sepay,
         IUnitOfWork uow,
         ISePayWebhookVerifier webhookVerifier,
-        ICommissionRateProvider commissionRateProvider)
+        ICommissionRateProvider commissionRateProvider,
+        IDepositApplicationService deposits)
     {
         _payments = payments;
         _orders = orders;
@@ -44,6 +47,7 @@ public class PaymentApplicationService : IPaymentApplicationService
         _uow = uow;
         _webhookVerifier = webhookVerifier;
         _commissionRateProvider = commissionRateProvider;
+        _deposits = deposits;
     }
 
     public async Task<(bool Success, string? Error, CreatePaymentResponse? Data)> CreateAsync(long userId, CreatePaymentRequest request, CancellationToken ct)
@@ -67,6 +71,13 @@ public class PaymentApplicationService : IPaymentApplicationService
         if (alreadyHasPayment) return (false, "One or more orders already has payment.", null);
 
         var amount = orders.Sum(x => x.Total);
+        var auctionOrder = orders[0];
+        if (uniqueOrderIds.Count == 1 && auctionOrder.Source == OrderSource.Auction && auctionOrder.AuctionId is long winnerAuctionId)
+        {
+            var (computed, _, amountDue) = await _deposits.ComputeWinnerAmountDueAsync(
+                winnerAuctionId, userId, auctionOrder.Total, ct);
+            if (computed) amount = amountDue; // Req 6.2/6.4: reduce by held deposit; Order.Total stays = FinalPrice
+        }
         var now = DateTimeOffset.UtcNow;
         var reference = $"PAY-{now:yyyyMMddHHmmss}-{userId}";
         var transfer = $"EZB-{userId}-{now:HHmmss}";
@@ -220,6 +231,16 @@ public class PaymentApplicationService : IPaymentApplicationService
         payment.PaidAt = DateTimeOffset.UtcNow;
         payment.UpdatedAt = DateTimeOffset.UtcNow;
 
+        if (payment.Type == PaymentType.AuctionDeposit)
+        {
+            // Deposit payments have no orders/escrow/commission. Persist the Paid status, then hand off
+            // to the Deposit_Service to transition the linked deposit PendingPayment -> Held (Req 3.1).
+            await _uow.SaveChangesAsync(ct);
+            var hold = await _deposits.ConfirmDepositAsync(payment.Id, ct);
+            if (!hold.Success) return (false, hold.Error);
+            return (true, null);
+        }
+
         foreach (var po in payment.PaymentOrders)
         {
             po.Order.Status = OrderStatus.Paid;
@@ -236,6 +257,11 @@ public class PaymentApplicationService : IPaymentApplicationService
                 {
                     auction.Status = AuctionStatus.Sold;
                     auction.UpdatedAt = DateTimeOffset.UtcNow;
+
+                    // Req 6.3: the winner's Held deposit is consumed toward the final payment (Held -> Applied).
+                    // Ignore the result: the winner has already paid, so a missing/already-applied deposit
+                    // must not block marking the order Paid.
+                    await _deposits.ApplyWinnerDepositAsync(po.Order.AuctionId.Value, po.Order.UserId, ct);
                 }
                 continue;
             }

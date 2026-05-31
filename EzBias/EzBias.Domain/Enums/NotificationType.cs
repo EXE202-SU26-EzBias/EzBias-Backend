@@ -14,5 +14,8 @@ public enum NotificationType
     DisputeResolved = 10,
     UserVerified = 11,
     OrderConfirmed = 12,
-    NewMessage = 13
+    NewMessage = 13,
+    DepositConfirmed = 14,
+    DepositRefundInitiated = 15,
+    DepositForfeited = 16
 }

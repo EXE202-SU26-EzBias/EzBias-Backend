@@ -21,4 +21,7 @@ public interface INotificationFactory
     Notification UserVerified(long userId);
     Notification OrderConfirmed(long sellerId, long orderId);
     Notification NewMessage(long recipientId, long conversationId, string senderName, string preview);
+    Notification DepositConfirmed(long userId, long auctionId, string productName, decimal amount);
+    Notification DepositRefundInitiated(long userId, long auctionId, string productName, decimal amount);
+    Notification DepositForfeited(long userId, long auctionId, string productName, decimal amount);
 }
