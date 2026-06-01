@@ -140,6 +140,14 @@ public class SellerAuctionApplicationService : ISellerAuctionApplicationService
         };
 
         _auctions.Add(newAuction);
+        
+        // Save first to generate the new auction ID
+        await _uow.SaveChangesAsync(ct);
+        
+        // Now mark the source auction as relisted with the generated ID
+        source.RelistedToAuctionId = newAuction.Id;
+        source.UpdatedAt = DateTimeOffset.UtcNow;
+        
         await _uow.SaveChangesAsync(ct);
 
         return (true, null, new AuctionActionResponse(newAuction.Id, newAuction.Status.ToString()));
@@ -156,7 +164,8 @@ public class SellerAuctionApplicationService : ISellerAuctionApplicationService
             x.Status,
             x.EndsAt,
             x.CreatedAt,
-            new AuctionProductSummary(x.Product.Id, x.Product.Name, x.Product.Artist, x.Product.Type, x.Product.Price, x.Product.Stock, x.Product.PrimaryImageUrl, x.Product.Status, x.Product.FandomId)
+            new AuctionProductSummary(x.Product.Id, x.Product.Name, x.Product.Artist, x.Product.Type, x.Product.Price, x.Product.Stock, x.Product.PrimaryImageUrl, x.Product.Status, x.Product.FandomId),
+            x.RelistedToAuctionId
         )).ToList();
     }
 }
