@@ -13,4 +13,5 @@ public record SellerAuctionItem(
     AuctionStatus Status,
     DateTimeOffset EndsAt,
     DateTimeOffset CreatedAt,
-    AuctionProductSummary Product);
+    AuctionProductSummary Product,
+    long? RelistedToAuctionId);
