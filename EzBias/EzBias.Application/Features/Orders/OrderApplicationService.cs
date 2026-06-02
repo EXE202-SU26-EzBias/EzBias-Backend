@@ -11,6 +11,7 @@ public class OrderApplicationService : IOrderApplicationService
 {
     private readonly IOrderRepository _orders;
     private readonly ICartRepository _carts;
+    private readonly IAuctionRepository _auctions;
     private readonly IEscrowRepository _escrows;
     private readonly IPayoutRepository _payouts;
     private readonly INotificationRepository _notifications;
@@ -20,6 +21,7 @@ public class OrderApplicationService : IOrderApplicationService
     public OrderApplicationService(
         IOrderRepository orders,
         ICartRepository carts,
+        IAuctionRepository auctions,
         IEscrowRepository escrows,
         IPayoutRepository payouts,
         INotificationRepository notifications,
@@ -28,6 +30,7 @@ public class OrderApplicationService : IOrderApplicationService
     {
         _orders = orders;
         _carts = carts;
+        _auctions = auctions;
         _escrows = escrows;
         _payouts = payouts;
         _notifications = notifications;
@@ -86,25 +89,51 @@ public class OrderApplicationService : IOrderApplicationService
             .ToList();
 
         var now = DateTimeOffset.UtcNow;
-        var orderList = sellerGroups.Select(g => new Order
+        var orderList = new List<Order>();
+        
+        foreach (var group in sellerGroups)
         {
-            UserId = userId,
-            SellerId = g.SellerId,
-            Source = OrderSource.Cart,
-            Total = g.Total,
-            Status = OrderStatus.Pending,
-            AddressSnap = normalizedAddressSnap,
-            CreatedAt = now,
-            Items = g.Items.Select(i => new OrderItem
+            var orderItems = new List<OrderItem>();
+            decimal orderTotal = 0;
+            
+            foreach (var cartItem in group.Items)
             {
-                ProductId = i.ProductId,
-                ProductName = i.Product.Name,
-                ProductImage = i.Product.PrimaryImageUrl,
-                Quantity = i.Quantity,
-                UnitPrice = i.Product.Price,
-                Subtotal = i.Product.Price * i.Quantity
-            }).ToList()
-        }).ToList();
+                decimal unitPrice = cartItem.Product.Price;
+                
+                // Check if this product is from a won auction
+                var auction = await _auctions.GetByProductIdAndWinnerAsync(cartItem.ProductId, userId, ct);
+                if (auction is not null && auction.Status == AuctionStatus.EndedPendingPayment && auction.FinalPrice.HasValue)
+                {
+                    // Use the final bid price instead of product price
+                    unitPrice = auction.FinalPrice.Value;
+                }
+                
+                var subtotal = unitPrice * cartItem.Quantity;
+                orderTotal += subtotal;
+                
+                orderItems.Add(new OrderItem
+                {
+                    ProductId = cartItem.ProductId,
+                    ProductName = cartItem.Product.Name,
+                    ProductImage = cartItem.Product.PrimaryImageUrl,
+                    Quantity = cartItem.Quantity,
+                    UnitPrice = unitPrice,
+                    Subtotal = subtotal
+                });
+            }
+            
+            orderList.Add(new Order
+            {
+                UserId = userId,
+                SellerId = group.SellerId,
+                Source = OrderSource.Cart,
+                Total = orderTotal,
+                Status = OrderStatus.Pending,
+                AddressSnap = normalizedAddressSnap,
+                CreatedAt = now,
+                Items = orderItems
+            });
+        }
 
         _orders.AddRange(orderList);
         _carts.RemoveRange(cartItems);
