@@ -77,6 +77,9 @@ public class AuctionCloseScheduler : BackgroundService
                     if (topBid is null || (auction.ReservePrice.HasValue && topBid.Amount < auction.ReservePrice.Value))
                     {
                         auction.Status = AuctionStatus.EndedNoWinner;
+                        // Free up the product since auction ended with no winner
+                        auction.Product.IsAuction = false;
+                        auction.Product.UpdatedAt = now;
                         notifications.Add(notificationFactory.AuctionExpired(
                             auction.SellerId, auction.Id, auction.Product.Name));
                         noWinnerAuctionIds.Add(auction.Id);
@@ -141,6 +144,9 @@ public class AuctionCloseScheduler : BackgroundService
                 foreach (var auction in winnerExpired)
                 {
                     auction.Status = AuctionStatus.WinnerFailed;
+                    // Free up the product since winner failed to pay
+                    auction.Product.IsAuction = false;
+                    auction.Product.UpdatedAt = now;
                     auction.UpdatedAt = now;
 
                     if (auction.WinnerId.HasValue)

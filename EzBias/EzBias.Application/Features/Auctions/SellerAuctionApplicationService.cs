@@ -97,6 +97,15 @@ public class SellerAuctionApplicationService : ISellerAuctionApplicationService
 
         auction.Status = AuctionStatus.Canceled;
         auction.UpdatedAt = DateTimeOffset.UtcNow;
+        
+        // Free up the product so seller can create a new auction or relist
+        var product = await _products.GetByIdAsync(auction.ProductId, ct);
+        if (product is not null)
+        {
+            product.IsAuction = false;
+            product.UpdatedAt = DateTimeOffset.UtcNow;
+        }
+        
         await _deposits.ReleaseDepositsOnCancelAsync(auction.Id, ct);
         await _uow.SaveChangesAsync(ct);
 
@@ -121,6 +130,14 @@ public class SellerAuctionApplicationService : ISellerAuctionApplicationService
 
         // Required bid deposit is derived from the floor price (e.g. 10%), not seller-supplied.
         var resolvedDeposit = _depositPolicy.ComputeRequiredDeposit(request.FloorPrice);
+
+        // Mark product as in auction again (it was freed when the source auction ended/canceled)
+        var product = await _products.GetByIdAsync(source.ProductId, ct);
+        if (product is not null)
+        {
+            product.IsAuction = true;
+            product.UpdatedAt = DateTimeOffset.UtcNow;
+        }
 
         var newAuction = new Auction
         {
