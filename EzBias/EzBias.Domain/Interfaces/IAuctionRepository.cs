@@ -19,5 +19,6 @@ public interface IAuctionRepository
     Task<Auction?> GetByOrderIdAsync(long orderId, CancellationToken ct);
     Task<IReadOnlyList<Auction>> GetWonByBuyerAsync(long buyerId, bool onlyPendingPayment, CancellationToken ct);
     Task<IReadOnlyList<Auction>> GetEndedBySellerAsync(long sellerId, CancellationToken ct);
+    Task<Auction?> GetByProductIdAndWinnerAsync(long productId, long winnerId, CancellationToken ct);
     void Add(Auction auction);
 }
