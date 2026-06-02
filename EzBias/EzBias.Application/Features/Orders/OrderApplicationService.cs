@@ -59,7 +59,9 @@ public class OrderApplicationService : IOrderApplicationService
 
             item.Quantity = newQuantity;
 
-            if (item.Product.DeletedAt is not null || item.Product.Status != ProductStatus.Active || item.Product.IsAuction)
+            // Allow auction products in cart (added when winner proceeds to payment)
+            // but reject if product is deleted or inactive
+            if (item.Product.DeletedAt is not null || item.Product.Status != ProductStatus.Active)
                 return (false, $"Product '{item.Product.Name}' is not available for checkout.", null);
 
             if (item.Product.Stock < item.Quantity)
