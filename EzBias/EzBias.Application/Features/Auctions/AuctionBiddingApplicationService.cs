@@ -140,19 +140,23 @@ public class AuctionBiddingApplicationService : IAuctionBiddingApplicationServic
 
         auction.CurrentBid = request.Amount;
 
-        var remaining = auction.EndsAt - DateTimeOffset.UtcNow;
-        if (remaining.TotalSeconds <= auction.TriggerBeforeEnd)
-        {
-            auction.EndsAt = auction.EndsAt.AddSeconds(auction.ExtensionSeconds);
-            auction.ExtensionCount += 1;
-            auction.Status = AuctionStatus.Extended;
-            // Reset reminder flag so the 5-min reminder fires again after extension
-            auction.ReminderSent5Min = false;
-        }
-        else
-        {
-            auction.Status = AuctionStatus.Live;
-        }
+        // TEMPORARILY DISABLED: Auction extension for testing
+        // var remaining = auction.EndsAt - DateTimeOffset.UtcNow;
+        // if (remaining.TotalSeconds <= auction.TriggerBeforeEnd)
+        // {
+        //     auction.EndsAt = auction.EndsAt.AddSeconds(auction.ExtensionSeconds);
+        //     auction.ExtensionCount += 1;
+        //     auction.Status = AuctionStatus.Extended;
+        //     // Reset reminder flag so the 5-min reminder fires again after extension
+        //     auction.ReminderSent5Min = false;
+        // }
+        // else
+        // {
+        //     auction.Status = AuctionStatus.Live;
+        // }
+        
+        // Keep auction in Live status
+        auction.Status = AuctionStatus.Live;
 
         auction.UpdatedAt = DateTimeOffset.UtcNow;
 
