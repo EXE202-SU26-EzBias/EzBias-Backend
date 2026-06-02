@@ -62,6 +62,7 @@ builder.Services.AddHttpClient("Brevo", client =>
     client.BaseAddress = new Uri("https://api.brevo.com/");
     client.Timeout = TimeSpan.FromSeconds(30);
 });
+builder.Services.AddHttpClient("KeepAlive");
 builder.Services.AddScoped<IImageUploader, CloudinaryImageUploader>();
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen(options =>
@@ -147,6 +148,7 @@ builder.Services.AddScoped<IVideoCallRealtime, SignalRVideoCallRealtime>();
 builder.Services.AddScoped<IVideoCallApplicationService, VideoCallApplicationService>();
 builder.Services.AddHostedService<AuctionCloseScheduler>();
 builder.Services.AddHostedService<DeliveredOrderFinalizeScheduler>();
+builder.Services.AddHostedService<KeepAliveScheduler>();
 
 builder.Services
     .AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
