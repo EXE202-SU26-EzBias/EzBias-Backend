@@ -23,4 +23,7 @@ public interface IAuctionDepositRepository
 
     // All Held deposits for an auction excluding an optional userId (Req 5 non-winner refunds).
     Task<IReadOnlyList<AuctionDeposit>> GetHeldByAuctionAsync(long auctionId, long? excludeUserId, CancellationToken ct);
+
+    // Admin management: all Held deposits across auctions (for manual refund processing).
+    Task<IReadOnlyList<AuctionDeposit>> GetAllHeldDepositsForAdminAsync(CancellationToken ct);
 }

@@ -31,4 +31,14 @@ public interface IDepositApplicationService
 
     // Req 8 — release all Held deposits on cancellation (Held -> Refunded)
     Task<(bool Success, string? Error)> ReleaseDepositsOnCancelAsync(long auctionId, CancellationToken ct);
+
+    // Admin deposit management
+    Task<(bool Success, string? Error, IReadOnlyList<AdminDepositListItem>? Data)> GetPendingRefundsAsync(
+        CancellationToken ct);
+
+    Task<(bool Success, string? Error, AdminDepositDetailResponse? Data)> GetDepositDetailAsync(
+        long depositId, CancellationToken ct);
+
+    Task<(bool Success, string? Error)> ProcessManualRefundAsync(
+        long depositId, string reason, CancellationToken ct);
 }
