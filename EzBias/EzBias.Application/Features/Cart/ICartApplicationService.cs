@@ -8,4 +8,5 @@ public interface ICartApplicationService
     Task<CartResponse> GetMyCartAsync(long userId, CancellationToken ct);
     Task<(bool Success, string? Error)> UpdateItemQuantityAsync(long userId, long cartItemId, UpdateCartItemQuantityRequest request, CancellationToken ct);
     Task<(bool Success, string? Error)> RemoveItemAsync(long userId, long cartItemId, CancellationToken ct);
+    Task<(bool Success, string? Error)> AddAuctionItemToCartAsync(long userId, long auctionId, CancellationToken ct);
 }

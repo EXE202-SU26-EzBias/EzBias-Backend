@@ -37,6 +37,17 @@ public class CartController : ControllerBase
         return Ok(new { message = "Cart updated." });
     }
 
+    [HttpPost("auction/{auctionId:long}")]
+    public async Task<IActionResult> AddAuctionItemToCart([FromRoute] long auctionId, CancellationToken ct)
+    {
+        if (!TryGetUserId(out var userId)) return Unauthorized();
+
+        var result = await _cartService.AddAuctionItemToCartAsync(userId, auctionId, ct);
+        if (!result.Success) return BadRequest(new { message = result.Error });
+
+        return Ok(new { message = "Auction item added to cart." });
+    }
+
     [HttpPut("items/{cartItemId:long}/quantity")]
     public async Task<IActionResult> UpdateItemQuantity(
         [FromRoute] long cartItemId,
