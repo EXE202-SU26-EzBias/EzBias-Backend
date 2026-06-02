@@ -7,3 +7,33 @@ public record InitiateDepositResponse(
 public record DepositStatusResponse(
     long AuctionId, decimal RequiredDepositAmount,
     bool HasDeposit, long? DepositId, decimal? Amount, string? State, string? PaymentReference);
+
+// Admin deposit management DTOs
+public record AdminDepositListItem(
+    long DepositId,
+    long AuctionId,
+    string AuctionTitle,
+    long UserId,
+    string UserEmail,
+    string UserFullName,
+    decimal Amount,
+    DateTimeOffset HeldAt,
+    string? PaymentReference);
+
+public record AdminDepositDetailResponse(
+    long DepositId,
+    long AuctionId,
+    string AuctionTitle,
+    string AuctionStatus,
+    long? WinnerId,
+    long UserId,
+    string UserEmail,
+    string UserFullName,
+    decimal Amount,
+    string State,
+    DateTimeOffset HeldAt,
+    long? PaymentId,
+    string? PaymentReference,
+    DateTimeOffset CreatedAt);
+
+public record ProcessManualRefundRequest(string Reason);

@@ -52,4 +52,14 @@ public class AuctionDepositRepository : IAuctionDepositRepository
                 && x.State == DepositState.Held
                 && (excludeUserId == null || x.UserId != excludeUserId.Value))
             .ToListAsync(ct);
+
+    public async Task<IReadOnlyList<AuctionDeposit>> GetAllHeldDepositsForAdminAsync(CancellationToken ct)
+        => await _db.Set<AuctionDeposit>()
+            .Include(x => x.Auction)
+                .ThenInclude(a => a.Product)
+            .Include(x => x.User)
+            .Include(x => x.Payment)
+            .Where(x => x.State == DepositState.Held)
+            .OrderByDescending(x => x.HeldAt)
+            .ToListAsync(ct);
 }

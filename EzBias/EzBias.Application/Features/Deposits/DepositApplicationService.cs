@@ -620,4 +620,137 @@ public class DepositApplicationService : IDepositApplicationService
     // Auction canceled: refund every Held deposit for the auction (no exclusions) — Req 8.1.
     public async Task<(bool Success, string? Error)> ReleaseDepositsOnCancelAsync(long auctionId, CancellationToken ct)
         => await RefundHeldDepositsAsync(auctionId, null, ct);
+
+    // -------------------------------------------------------------------------
+    // Admin deposit management methods
+    // -------------------------------------------------------------------------
+
+    /// <summary>
+    /// Returns all Held deposits across all auctions for admin review. These are deposits that may need
+    /// manual refund processing when bidders lose auctions.
+    /// </summary>
+    public async Task<(bool Success, string? Error, IReadOnlyList<AdminDepositListItem>? Data)> GetPendingRefundsAsync(
+        CancellationToken ct)
+    {
+        var deposits = await _deposits.GetAllHeldDepositsForAdminAsync(ct);
+
+        var items = deposits.Select(d => new AdminDepositListItem(
+            d.Id,
+            d.AuctionId,
+            d.Auction?.Product?.Name ?? "Unknown Auction",
+            d.UserId,
+            d.User?.Email ?? "Unknown",
+            d.User?.FullName ?? "Unknown",
+            d.Amount,
+            d.HeldAt ?? d.CreatedAt,
+            d.Payment?.Reference
+        )).ToList();
+
+        return (true, null, items);
+    }
+
+    /// <summary>
+    /// Returns detailed information about a specific deposit for admin review.
+    /// </summary>
+    public async Task<(bool Success, string? Error, AdminDepositDetailResponse? Data)> GetDepositDetailAsync(
+        long depositId, CancellationToken ct)
+    {
+        var deposit = await _deposits.GetByIdAsync(depositId, ct);
+        if (deposit is null)
+        {
+            return (false, "Deposit not found.", null);
+        }
+
+        // Load related entities
+        var auction = await _auctions.GetByIdWithProductAsync(deposit.AuctionId, ct);
+        var user = await _users.GetByIdAsync(deposit.UserId, ct);
+        Payment? payment = null;
+        if (deposit.PaymentId is long paymentId)
+        {
+            payment = await _payments.GetByIdAsync(paymentId, ct);
+        }
+
+        var detail = new AdminDepositDetailResponse(
+            deposit.Id,
+            deposit.AuctionId,
+            auction?.Product?.Name ?? "Unknown Auction",
+            auction?.Status.ToString() ?? "Unknown",
+            auction?.WinnerId,
+            deposit.UserId,
+            user?.Email ?? "Unknown",
+            user?.FullName ?? "Unknown",
+            deposit.Amount,
+            deposit.State.ToString(),
+            deposit.HeldAt ?? deposit.CreatedAt,
+            deposit.PaymentId,
+            payment?.Reference,
+            deposit.CreatedAt);
+
+        return (true, null, detail);
+    }
+
+    /// <summary>
+    /// Admin manually processes a refund for a Held deposit. This is typically used for losing bidders
+    /// whose deposits need to be refunded after an auction closes. Transitions the deposit from Held to
+    /// Refunded, creates a Refund record, and sends a notification to the user.
+    /// </summary>
+    public async Task<(bool Success, string? Error)> ProcessManualRefundAsync(
+        long depositId, string reason, CancellationToken ct)
+    {
+        // (1) Load the deposit by ID
+        var deposit = await _deposits.GetByIdAsync(depositId, ct);
+        if (deposit is null)
+        {
+            return (false, "Deposit not found.");
+        }
+
+        // (2) Verify deposit is in Held state
+        if (deposit.State != DepositState.Held)
+        {
+            return (false, $"Deposit is not in Held state. Current state: {deposit.State}");
+        }
+
+        // (3) Verify deposit has a linked payment
+        if (deposit.PaymentId is null)
+        {
+            deposit.LastError = "Cannot refund: deposit has no linked payment.";
+            await SaveAsync(ct);
+            return (false, "Cannot refund: deposit has no linked payment.");
+        }
+
+        // (4) Create a Refund record
+        var refund = new Refund
+        {
+            PaymentId = deposit.PaymentId.Value,
+            Amount = deposit.Amount,
+            Reason = reason,
+            Status = RefundStatus.Pending,
+            CreatedAt = DateTimeOffset.UtcNow
+        };
+        _refunds.Add(refund);
+
+        // (5) Transition Held -> Refunded
+        var (transitioned, transitionError) = TryTransition(deposit, DepositState.Refunded);
+        if (!transitioned)
+        {
+            return (false, transitionError);
+        }
+
+        deposit.RefundedAt = DateTimeOffset.UtcNow;
+        deposit.Refund = refund; // Link so EF assigns deposit.RefundId on save
+
+        // (6) Send notification to the user
+        var productName = await ResolveProductNameAsync(deposit.AuctionId, ct);
+        _notifications.Add(_notificationFactory.DepositRefundInitiated(
+            deposit.UserId, deposit.AuctionId, productName, deposit.Amount));
+
+        // (7) Persist all changes
+        var (saved, saveError) = await SaveAsync(ct);
+        if (!saved)
+        {
+            return (false, saveError);
+        }
+
+        return (true, null);
+    }
 }
