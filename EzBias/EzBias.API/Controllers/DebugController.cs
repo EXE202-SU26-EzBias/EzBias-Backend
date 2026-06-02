@@ -58,6 +58,21 @@ public class DebugController : ControllerBase
     }
 
     /// <summary>
+    /// Health check endpoint for keep-alive services.
+    /// Returns simple OK response with timestamp.
+    /// </summary>
+    [HttpGet("health")]
+    public IActionResult Health()
+    {
+        return Ok(new
+        {
+            status = "healthy",
+            timestamp = DateTimeOffset.UtcNow,
+            uptime = Environment.TickCount64 / 1000.0 // seconds since app start
+        });
+    }
+
+    /// <summary>
     /// Truncates all data (except EF migration history) and re-seeds.
     /// Requires header: X-Debug-Secret matching Debug:ResetSecret in config.
     /// </summary>
