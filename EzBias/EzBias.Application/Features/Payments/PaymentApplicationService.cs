@@ -12,6 +12,7 @@ public class PaymentApplicationService : IPaymentApplicationService
     private readonly IPaymentRepository _payments;
     private readonly IOrderRepository _orders;
     private readonly IAuctionRepository _auctions;
+    private readonly IProductRepository _products;
     private readonly IEscrowRepository _escrows;
     private readonly ICommissionRepository _commissions;
     private readonly INotificationRepository _notifications;
@@ -26,6 +27,7 @@ public class PaymentApplicationService : IPaymentApplicationService
         IPaymentRepository payments,
         IOrderRepository orders,
         IAuctionRepository auctions,
+        IProductRepository products,
         IEscrowRepository escrows,
         ICommissionRepository commissions,
         INotificationRepository notifications,
@@ -39,6 +41,7 @@ public class PaymentApplicationService : IPaymentApplicationService
         _payments = payments;
         _orders = orders;
         _auctions = auctions;
+        _products = products;
         _escrows = escrows;
         _commissions = commissions;
         _notifications = notifications;
@@ -257,6 +260,14 @@ public class PaymentApplicationService : IPaymentApplicationService
                 {
                     auction.Status = AuctionStatus.Sold;
                     auction.UpdatedAt = DateTimeOffset.UtcNow;
+                    
+                    // Product was successfully sold in auction, free it up
+                    var product = await _products.GetByIdAsync(auction.ProductId, ct);
+                    if (product is not null)
+                    {
+                        product.IsAuction = false;
+                        product.UpdatedAt = DateTimeOffset.UtcNow;
+                    }
 
                     // Req 6.3: the winner's Held deposit is consumed toward the final payment (Held -> Applied).
                     // Ignore the result: the winner has already paid, so a missing/already-applied deposit

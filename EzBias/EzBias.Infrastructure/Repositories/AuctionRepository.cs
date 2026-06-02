@@ -82,6 +82,7 @@ public class AuctionRepository : IAuctionRepository
 
     public async Task<IReadOnlyList<Auction>> GetPendingPaymentExpiredAsync(DateTimeOffset now, CancellationToken ct)
         => await _db.Auctions
+            .Include(x => x.Product)
             .Where(x => x.Status == AuctionStatus.EndedPendingPayment
                 && x.WinnerPaymentDeadline.HasValue
                 && x.WinnerPaymentDeadline.Value <= now)
