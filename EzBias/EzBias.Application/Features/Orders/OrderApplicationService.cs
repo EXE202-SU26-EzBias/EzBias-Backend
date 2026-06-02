@@ -95,6 +95,8 @@ public class OrderApplicationService : IOrderApplicationService
         {
             var orderItems = new List<OrderItem>();
             decimal orderTotal = 0;
+            Order? existingAuctionOrder = null;
+            long? auctionId = null;
             
             foreach (var cartItem in group.Items)
             {
@@ -106,6 +108,10 @@ public class OrderApplicationService : IOrderApplicationService
                 {
                     // Use the final bid price instead of product price
                     unitPrice = auction.FinalPrice.Value;
+                    auctionId = auction.Id;
+                    
+                    // Check if Order already exists from AuctionCloseScheduler
+                    existingAuctionOrder = await _orders.GetByAuctionIdAsync(auction.Id, ct);
                 }
                 
                 var subtotal = unitPrice * cartItem.Quantity;
@@ -122,20 +128,33 @@ public class OrderApplicationService : IOrderApplicationService
                 });
             }
             
-            orderList.Add(new Order
+            // If this is an auction order and Order already exists, UPDATE it instead of creating new
+            if (existingAuctionOrder is not null)
             {
-                UserId = userId,
-                SellerId = group.SellerId,
-                Source = OrderSource.Cart,
-                Total = orderTotal,
-                Status = OrderStatus.Pending,
-                AddressSnap = normalizedAddressSnap,
-                CreatedAt = now,
-                Items = orderItems
-            });
+                existingAuctionOrder.AddressSnap = normalizedAddressSnap;
+                existingAuctionOrder.UpdatedAt = now;
+                // Items already exist, just update address
+                orderList.Add(existingAuctionOrder);
+            }
+            else
+            {
+                // Create new order for regular cart or first-time auction
+                orderList.Add(new Order
+                {
+                    UserId = userId,
+                    SellerId = group.SellerId,
+                    Source = auctionId.HasValue ? OrderSource.Auction : OrderSource.Cart,
+                    AuctionId = auctionId,
+                    Total = orderTotal,
+                    Status = OrderStatus.Pending,
+                    AddressSnap = normalizedAddressSnap,
+                    CreatedAt = now,
+                    Items = orderItems
+                });
+            }
         }
 
-        _orders.AddRange(orderList);
+        _orders.AddRange(orderList.Where(o => o.Id == 0).ToList()); // Only add NEW orders
         _carts.RemoveRange(cartItems);
         await _uow.SaveChangesAsync(ct);
 
