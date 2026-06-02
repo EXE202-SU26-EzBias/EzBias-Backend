@@ -9,12 +9,14 @@ public class CartApplicationService : ICartApplicationService
 {
     private readonly ICartRepository _cartRepository;
     private readonly IProductRepository _productRepository;
+    private readonly IAuctionRepository _auctionRepository;
     private readonly IUnitOfWork _unitOfWork;
 
-    public CartApplicationService(ICartRepository cartRepository, IProductRepository productRepository, IUnitOfWork unitOfWork)
+    public CartApplicationService(ICartRepository cartRepository, IProductRepository productRepository, IAuctionRepository auctionRepository, IUnitOfWork unitOfWork)
     {
         _cartRepository = cartRepository;
         _productRepository = productRepository;
+        _auctionRepository = auctionRepository;
         _unitOfWork = unitOfWork;
     }
 
@@ -113,6 +115,40 @@ public class CartApplicationService : ICartApplicationService
             return (false, "Cart item not found.");
 
         _cartRepository.Remove(item);
+        await _unitOfWork.SaveChangesAsync(ct);
+        return (true, null);
+    }
+
+    public async Task<(bool Success, string? Error)> AddAuctionItemToCartAsync(long userId, long auctionId, CancellationToken ct)
+    {
+        var auction = await _auctionRepository.GetByIdAsync(auctionId, ct);
+        if (auction is null)
+            return (false, "Auction not found.");
+
+        if (auction.Status != AuctionStatus.EndedPendingPayment)
+            return (false, "Auction is not in pending payment status.");
+
+        if (auction.WinnerId != userId)
+            return (false, "You are not the winner of this auction.");
+
+        var product = await _productRepository.GetByIdAsync(auction.ProductId, ct);
+        if (product is null || product.DeletedAt is not null)
+            return (false, "Product not found.");
+
+        // Check if auction item already in cart
+        var existing = await _cartRepository.GetByUserAndProductAsync(userId, product.Id, ct);
+        if (existing is not null)
+            return (true, null); // Already in cart, no error
+
+        // Add auction product to cart with quantity 1
+        _cartRepository.Add(new CartItem
+        {
+            UserId = userId,
+            ProductId = product.Id,
+            Quantity = 1,
+            CreatedAt = DateTimeOffset.UtcNow
+        });
+
         await _unitOfWork.SaveChangesAsync(ct);
         return (true, null);
     }
