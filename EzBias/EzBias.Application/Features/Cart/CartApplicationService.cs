@@ -65,15 +65,30 @@ public class CartApplicationService : ICartApplicationService
     public async Task<CartResponse> GetMyCartAsync(long userId, CancellationToken ct)
     {
         var items = await _cartRepository.GetByUserIdAsync(userId, ct);
-        var mapped = items.Select(x => new CartItemDto(
-            x.Id,
-            x.ProductId,
-            x.Product.Name,
-            x.Product.PrimaryImageUrl,
-            x.Product.Price,
-            x.Quantity,
-            x.Product.Price * x.Quantity,
-            x.Product.SellerId)).ToList();
+        
+        var mapped = new List<CartItemDto>();
+        foreach (var item in items)
+        {
+            decimal unitPrice = item.Product.Price;
+            
+            // Check if this product is from a won auction
+            var auction = await _auctionRepository.GetByProductIdAndWinnerAsync(item.ProductId, userId, ct);
+            if (auction is not null && auction.Status == AuctionStatus.EndedPendingPayment && auction.FinalPrice.HasValue)
+            {
+                // Use the final bid price instead of product price
+                unitPrice = auction.FinalPrice.Value;
+            }
+            
+            mapped.Add(new CartItemDto(
+                item.Id,
+                item.ProductId,
+                item.Product.Name,
+                item.Product.PrimaryImageUrl,
+                unitPrice,
+                item.Quantity,
+                unitPrice * item.Quantity,
+                item.Product.SellerId));
+        }
 
         return new CartResponse(mapped, mapped.Sum(x => x.Subtotal));
     }

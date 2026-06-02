@@ -104,5 +104,9 @@ public class AuctionRepository : IAuctionRepository
             .OrderByDescending(x => x.EndedAt ?? x.UpdatedAt ?? x.CreatedAt)
             .ToListAsync(ct);
 
+    public Task<Auction?> GetByProductIdAndWinnerAsync(long productId, long winnerId, CancellationToken ct)
+        => _db.Auctions
+            .FirstOrDefaultAsync(x => x.ProductId == productId && x.WinnerId == winnerId, ct);
+
     public void Add(Auction auction) => _db.Auctions.Add(auction);
 }
