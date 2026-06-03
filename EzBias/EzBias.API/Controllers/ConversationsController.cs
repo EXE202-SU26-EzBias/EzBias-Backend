@@ -1,6 +1,7 @@
 using System.Security.Claims;
 using EzBias.Application.Features.Chat;
 using EzBias.Application.Features.Chat.Dtos;
+using EzBias.API.Integrations;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
@@ -12,8 +13,13 @@ namespace EzBias.API.Controllers;
 public class ConversationsController : ControllerBase
 {
     private readonly IChatApplicationService _chat;
+    private readonly IImageUploader _imageUploader;
 
-    public ConversationsController(IChatApplicationService chat) => _chat = chat;
+    public ConversationsController(IChatApplicationService chat, IImageUploader imageUploader)
+    {
+        _chat = chat;
+        _imageUploader = imageUploader;
+    }
 
     /// <summary>POST /api/conversations — start or resume a conversation</summary>
     [HttpPost]
@@ -84,6 +90,43 @@ public class ConversationsController : ControllerBase
             return BadRequest(new { message = result.Error });
         }
         return NoContent();
+    }
+
+    /// <summary>POST /api/conversations/{id}/upload-image — upload chat image</summary>
+    [HttpPost("{id:long}/upload-image")]
+    [RequestSizeLimit(5_242_880)] // 5MB limit
+    public async Task<IActionResult> UploadImage(
+        [FromRoute] long id,
+        [FromForm] IFormFile image,
+        CancellationToken ct)
+    {
+        if (!TryGetUserId(out var userId)) return Unauthorized();
+
+        // Verify user is participant
+        var conversations = await _chat.GetMyConversationsAsync(userId, ct);
+        if (!conversations.Any(c => c.Id == id))
+            return Forbid();
+
+        // Validate file
+        if (image == null || image.Length == 0)
+            return BadRequest(new { message = "No image file provided." });
+
+        var allowedTypes = new[] { "image/jpeg", "image/jpg", "image/png", "image/gif", "image/webp" };
+        if (!allowedTypes.Contains(image.ContentType.ToLower()))
+            return BadRequest(new { message = "Only JPEG, PNG, GIF, and WebP images are allowed." });
+
+        if (image.Length > 5_242_880) // 5MB
+            return BadRequest(new { message = "Image size cannot exceed 5MB." });
+
+        try
+        {
+            var imageUrl = await _imageUploader.UploadProductImageAsync(image, ct);
+            return Ok(new { imageUrl });
+        }
+        catch (Exception ex)
+        {
+            return StatusCode(500, new { message = $"Image upload failed: {ex.Message}" });
+        }
     }
 
     private bool TryGetUserId(out long userId)
