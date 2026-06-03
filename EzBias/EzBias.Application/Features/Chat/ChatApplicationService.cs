@@ -112,7 +112,10 @@ public class ChatApplicationService : IChatApplicationService
         _messages.Add(message);
         conversation.LastMessageAt = message.SentAt;
 
-        var preview = trimmed.Length > 100 ? trimmed[..100] : trimmed;
+        // Use "📷 Photo" for image URLs in notification preview
+        var preview = IsImageUrl(trimmed) 
+            ? "📷 Photo" 
+            : (trimmed.Length > 100 ? trimmed[..100] : trimmed);
         _notifications.Add(_notificationFactory.NewMessage(recipientId, conversationId, sender.Username, preview));
 
         await _uow.SaveChangesAsync(ct);
@@ -183,8 +186,12 @@ public class ChatApplicationService : IChatApplicationService
 
         var lastMsgs = await _messages.GetPageAsync(c.Id, null, 1, ct);
         var lastMsg = lastMsgs.FirstOrDefault();
+        
+        // Check if content is an image URL
         var preview = lastMsg?.Content is { } content
-            ? (content.Length > 100 ? content[..100] : content)
+            ? IsImageUrl(content) 
+                ? "📷 Photo" 
+                : (content.Length > 100 ? content[..100] : content)
             : null;
 
         var unread = await _messages.CountUnreadAsync(c.Id, callerId, ct);
@@ -199,6 +206,23 @@ public class ChatApplicationService : IChatApplicationService
             unread,
             c.ProductId,
             c.OrderId);
+    }
+
+    private static bool IsImageUrl(string content)
+    {
+        if (string.IsNullOrWhiteSpace(content)) return false;
+        
+        // Check if it's a Cloudinary URL (most common case)
+        if (content.Contains("cloudinary.com", StringComparison.OrdinalIgnoreCase) ||
+            content.Contains("res.cloudinary.com", StringComparison.OrdinalIgnoreCase))
+            return true;
+        
+        // Check if it's a standard image URL with common extensions
+        var lowerContent = content.ToLowerInvariant();
+        return lowerContent.StartsWith("http://") || lowerContent.StartsWith("https://")
+            && (lowerContent.Contains(".jpg") || lowerContent.Contains(".jpeg") || 
+                lowerContent.Contains(".png") || lowerContent.Contains(".gif") || 
+                lowerContent.Contains(".webp"));
     }
 
     private static MessageResponse ToMessageResponse(Message m, User? sender)
