@@ -183,10 +183,16 @@ public class AuctionCloseScheduler : BackgroundService
 
                 // Deposit lifecycle hooks (Req 5, 6, 7) — run after status changes are persisted so the
                 // deposit service sees committed auction state and Held deposits.
-                foreach (var (auctionId, winnerId) in winnerAssignedAuctions)
-                    await deposits.RefundNonWinnerDepositsAsync(auctionId, winnerId, stoppingToken); // Req 5.1, keep winner Held (6.1)
-                foreach (var auctionId in noWinnerAuctionIds)
-                    await deposits.RefundNonWinnerDepositsAsync(auctionId, null, stoppingToken); // Req 5.4 refund all held
+                
+                // NOTE: Auto-refund của non-winner deposits đã bị TẮT để admin có thể review trước khi refund
+                // Uncomment các dòng dưới đây nếu muốn tự động refund:
+                
+                // foreach (var (auctionId, winnerId) in winnerAssignedAuctions)
+                //     await deposits.RefundNonWinnerDepositsAsync(auctionId, winnerId, stoppingToken); // Req 5.1, keep winner Held (6.1)
+                // foreach (var auctionId in noWinnerAuctionIds)
+                //     await deposits.RefundNonWinnerDepositsAsync(auctionId, null, stoppingToken); // Req 5.4 refund all held
+                
+                // Winner failed vẫn giữ forfeit logic
                 foreach (var (auctionId, winnerId) in winnerFailedAuctions)
                     await deposits.ForfeitWinnerDepositAsync(auctionId, winnerId, stoppingToken); // Req 7.1
             }

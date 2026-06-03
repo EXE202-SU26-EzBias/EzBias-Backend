@@ -18,7 +18,8 @@ public record AdminDepositListItem(
     string UserFullName,
     decimal Amount,
     DateTimeOffset HeldAt,
-    string? PaymentReference);
+    string? PaymentReference,
+    string State);
 
 public record AdminDepositDetailResponse(
     long DepositId,

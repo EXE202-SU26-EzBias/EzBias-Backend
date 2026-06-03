@@ -643,7 +643,8 @@ public class DepositApplicationService : IDepositApplicationService
             d.User?.FullName ?? "Unknown",
             d.Amount,
             d.HeldAt ?? d.CreatedAt,
-            d.Payment?.Reference
+            d.Payment?.Reference,
+            d.State.ToString()
         )).ToList();
 
         return (true, null, items);
