@@ -95,9 +95,14 @@ public class ConversationsController : ControllerBase
     /// <summary>POST /api/conversations/{id}/upload-image — upload chat image</summary>
     [HttpPost("{id:long}/upload-image")]
     [RequestSizeLimit(5_242_880)] // 5MB limit
+    [Consumes("multipart/form-data")]
+    [ProducesResponseType(typeof(object), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(StatusCodes.Status403Forbidden)]
     public async Task<IActionResult> UploadImage(
         [FromRoute] long id,
-        [FromForm] IFormFile image,
+        IFormFile image,
         CancellationToken ct)
     {
         if (!TryGetUserId(out var userId)) return Unauthorized();
