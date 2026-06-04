@@ -11,16 +11,30 @@ public class SellerAuctionApplicationService : ISellerAuctionApplicationService
     private readonly IAuctionRepository _auctions;
     private readonly IProductRepository _products;
     private readonly IUnitOfWork _uow;
-    private readonly IDepositPolicy _depositPolicy;
     private readonly IDepositApplicationService _deposits;
 
-    public SellerAuctionApplicationService(IAuctionRepository auctions, IProductRepository products, IUnitOfWork uow, IDepositPolicy depositPolicy, IDepositApplicationService deposits)
+    public SellerAuctionApplicationService(IAuctionRepository auctions, IProductRepository products, IUnitOfWork uow, IDepositApplicationService deposits)
     {
         _auctions = auctions;
         _products = products;
         _uow = uow;
-        _depositPolicy = depositPolicy;
         _deposits = deposits;
+    }
+
+    /// <summary>
+    /// Validates and normalizes a seller-supplied bid deposit. The deposit must be a whole VND amount
+    /// between 0 and the floor price (inclusive); 0 disables the deposit gate. Returns the rounded amount
+    /// on success, or an error when out of range.
+    /// </summary>
+    private static (bool Success, string? Error, decimal Amount) ResolveSellerDeposit(decimal requiredDeposit, decimal floorPrice)
+    {
+        if (requiredDeposit < 0m)
+            return (false, "Required deposit cannot be negative.", 0m);
+        if (requiredDeposit > floorPrice)
+            return (false, "Required deposit cannot exceed the floor price.", 0m);
+
+        var rounded = Math.Round(requiredDeposit, 0, MidpointRounding.AwayFromZero);
+        return (true, null, rounded);
     }
 
     public async Task<(bool Success, string? Error, AuctionActionResponse? Data)> CreateAsync(long sellerId, CreateAuctionRequest request, CancellationToken ct)
@@ -36,8 +50,9 @@ public class SellerAuctionApplicationService : ISellerAuctionApplicationService
         var hasLive = await _auctions.ExistsLiveByProductIdAsync(product.Id, ct);
         if (hasLive) return (false, "A live auction already exists for this product.", null);
 
-        // Required bid deposit is derived from the floor price (e.g. 10%), not seller-supplied.
-        var resolvedDeposit = _depositPolicy.ComputeRequiredDeposit(request.FloorPrice);
+        // Seller sets the required bid deposit. 0 disables the deposit gate; it may not exceed the floor price.
+        var (depositOk, depositError, resolvedDeposit) = ResolveSellerDeposit(request.RequiredDepositAmount, request.FloorPrice);
+        if (!depositOk) return (false, depositError, null);
 
         product.IsAuction = true;
         product.UpdatedAt = DateTimeOffset.UtcNow;
@@ -121,15 +136,17 @@ public class SellerAuctionApplicationService : ISellerAuctionApplicationService
         if (source.Status is not (AuctionStatus.Canceled or AuctionStatus.EndedNoWinner or AuctionStatus.WinnerFailed))
             return (false, "Auction cannot be relisted in current status.", null);
 
-        if (request.FloorPrice <= 0) return (false, "Floor price must be greater than zero.", null);
-        if (request.ReservePrice.HasValue && request.ReservePrice.Value < request.FloorPrice) return (false, "Reserve price must be >= floor price.", null);
+        // Floor price is carried over from the source auction — it cannot be changed on relist.
+        var floorPrice = source.FloorPrice;
+        if (request.ReservePrice.HasValue && request.ReservePrice.Value < floorPrice) return (false, "Reserve price must be >= floor price.", null);
         if (request.EndsAt <= DateTimeOffset.UtcNow.AddMinutes(1)) return (false, "EndsAt must be in the future.", null);
 
         var hasDraftOrLive = await _auctions.ExistsDraftOrLiveByProductIdAsync(source.ProductId, ct);
         if (hasDraftOrLive) return (false, "An active/draft auction already exists for this product.", null);
 
-        // Required bid deposit is derived from the floor price (e.g. 10%), not seller-supplied.
-        var resolvedDeposit = _depositPolicy.ComputeRequiredDeposit(request.FloorPrice);
+        // Seller sets the required bid deposit. 0 disables the deposit gate; it may not exceed the floor price.
+        var (depositOk, depositError, resolvedDeposit) = ResolveSellerDeposit(request.RequiredDepositAmount, floorPrice);
+        if (!depositOk) return (false, depositError, null);
 
         // Mark product as in auction again (it was freed when the source auction ended/canceled)
         var product = await _products.GetByIdAsync(source.ProductId, ct);
@@ -143,9 +160,9 @@ public class SellerAuctionApplicationService : ISellerAuctionApplicationService
         {
             ProductId = source.ProductId,
             SellerId = source.SellerId,
-            FloorPrice = request.FloorPrice,
+            FloorPrice = floorPrice,
             ReservePrice = request.ReservePrice,
-            CurrentBid = request.FloorPrice,
+            CurrentBid = floorPrice,
             IsUrgent = request.IsUrgent,
             HasProofImage = request.HasProofImage,
             ExtensionSeconds = request.ExtensionSeconds,
