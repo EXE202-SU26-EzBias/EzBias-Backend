@@ -65,5 +65,10 @@ public class OrderRepository : IOrderRepository
                 && !x.Refunds.Any(r => r.Status == RefundStatus.Pending))
             .ToListAsync(ct);
 
+    public Task<bool> HasUserPurchasedProductAsync(long userId, long productId, CancellationToken ct)
+        => _db.Orders.AnyAsync(o => o.UserId == userId
+            && (o.Status == OrderStatus.Delivered || o.Status == OrderStatus.Completed)
+            && o.Items.Any(i => i.ProductId == productId), ct);
+
     public void Remove(Order order) => _db.Orders.Remove(order);
 }
