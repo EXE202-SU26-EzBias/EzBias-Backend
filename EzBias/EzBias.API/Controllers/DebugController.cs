@@ -104,6 +104,7 @@ public class DebugController : ControllerBase
             await ProductSeedData.SeedAsync(_db, ct);
             var sellers = ProductSeedData.GetSeedSellers(_db);
             await AuctionSeedData.SeedAsync(_db, sellers, ct);
+            await SalesSeedData.SeedAsync(_db, ct);
 
             return Ok(new { message = "Database reset and re-seeded successfully." });
         }

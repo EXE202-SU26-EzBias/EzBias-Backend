@@ -209,6 +209,7 @@ using (var scope = app.Services.CreateScope())
 
     var sellers = ProductSeedData.GetSeedSellers(db);
     await AuctionSeedData.SeedAsync(db, sellers);
+    await SalesSeedData.SeedAsync(db);
 }
 
 var enableSwagger = app.Environment.IsDevelopment() ||
