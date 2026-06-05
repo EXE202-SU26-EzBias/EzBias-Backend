@@ -81,18 +81,20 @@ public class UserProfileApplicationService : IUserProfileApplicationService
         var sellerOrders = await _orders.GetBySellerAsync(sellerId, ct);
         int Count(OrderStatus s) => sellerOrders.Count(o => o.Status == s);
 
-        // Commission
+        // Payouts
         var payouts = await _payouts.GetBySellerAsync(sellerId, null, ct);
         var pendingPayouts = payouts.Where(p => p.Status == PayoutStatus.Pending || p.Status == PayoutStatus.Processing).ToList();
         var paidPayouts = payouts.Where(p => p.Status == PayoutStatus.Paid).ToList();
 
-        // Revenue from completed orders via commission transactions
-        var completedOrders = sellerOrders.Where(o => o.Status == OrderStatus.Completed).ToList();
-        var grossRevenue = completedOrders.Sum(o => o.Total);
+        // Revenue + items sold come from commission transactions (written when an order is Paid)
+        // — the authoritative record of realized sales, gross/commission/net per order.
+        var commissions = await _commissions.GetBySellerWithItemsAsync(sellerId, null, ct);
+        var grossRevenue = commissions.Sum(c => c.GrossAmount);
+        var commissionPaid = commissions.Sum(c => c.CommissionAmount);
+        var netRevenue = commissions.Sum(c => c.SellerNetAmount);
+        var itemsSold = commissions.Sum(c => c.Order?.Items.Sum(i => i.Quantity) ?? 0);
 
-        // Sum commission paid from payout amounts (net = payout amount, commission = gross - net)
-        var netRevenue = paidPayouts.Sum(p => p.Amount);
-        var commissionPaid = grossRevenue - netRevenue < 0 ? 0 : grossRevenue - netRevenue;
+        var monthlySales = BuildMonthlySeries(commissions);
 
         // Auctions
         var allAuctions = await _auctions.GetBySellerAsync(sellerId, null, ct);
@@ -101,6 +103,7 @@ public class UserProfileApplicationService : IUserProfileApplicationService
             GrossRevenue: grossRevenue,
             CommissionPaid: commissionPaid,
             NetRevenue: netRevenue,
+            ItemsSold: itemsSold,
             TotalOrders: sellerOrders.Count,
             PendingOrders: Count(OrderStatus.Pending),
             PaidOrders: Count(OrderStatus.Paid),
@@ -116,8 +119,48 @@ public class UserProfileApplicationService : IUserProfileApplicationService
             LiveAuctions: allAuctions.Count(a => a.Status == AuctionStatus.Live || a.Status == AuctionStatus.Extended),
             SoldAuctions: allAuctions.Count(a => a.Status == AuctionStatus.Sold),
             AvgRating: user?.AvgSellerRating ?? 0m,
-            TotalRatings: user?.TotalRatings ?? 0
+            TotalRatings: user?.TotalRatings ?? 0,
+            MonthlySales: monthlySales
         );
+    }
+
+    // Builds a dense last-12-calendar-months series (oldest first) so the chart has no gaps,
+    // even for months with zero sales. Buckets by commission CreatedAt (UTC).
+    private static readonly string[] _monthAbbr = { "Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec" };
+
+    private static IReadOnlyList<SellerMonthlySalesPoint> BuildMonthlySeries(IReadOnlyList<Domain.Entities.CommissionTransaction> commissions)
+    {
+        var now = DateTimeOffset.UtcNow;
+        var buckets = commissions
+            .GroupBy(c => new { c.CreatedAt.Year, c.CreatedAt.Month })
+            .ToDictionary(g => (g.Key.Year, g.Key.Month), g => g.ToList());
+
+        var points = new List<SellerMonthlySalesPoint>(12);
+        for (var i = 11; i >= 0; i--)
+        {
+            var d = now.AddMonths(-i);
+            var key = (d.Year, d.Month);
+            var monthKey = $"{d.Year:D4}-{d.Month:D2}";
+            var label = $"{_monthAbbr[d.Month - 1]} {d.Year}";
+
+            if (buckets.TryGetValue(key, out var rows))
+            {
+                points.Add(new SellerMonthlySalesPoint(
+                    monthKey,
+                    label,
+                    rows.Sum(c => c.Order?.Items.Sum(it => it.Quantity) ?? 0),
+                    rows.Count,
+                    rows.Sum(c => c.GrossAmount),
+                    rows.Sum(c => c.CommissionAmount),
+                    rows.Sum(c => c.SellerNetAmount)));
+            }
+            else
+            {
+                points.Add(new SellerMonthlySalesPoint(monthKey, label, 0, 0, 0m, 0m, 0m));
+            }
+        }
+
+        return points;
     }
 
     private static UserProfileResponse Map(Domain.Entities.User user)

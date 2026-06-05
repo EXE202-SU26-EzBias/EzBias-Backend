@@ -25,6 +25,9 @@ public class AdminApplicationService : IAdminApplicationService
         var topSellers = x.TopSellersByNetRevenue
             .Select(s => new AdminTopSellerCommissionResponse(s.SellerId, s.Username, s.FullName, s.OrderCount, s.GrossRevenue, s.CommissionRevenue, s.NetRevenue))
             .ToList();
+        var monthlySales = x.MonthlySales
+            .Select(m => new AdminMonthlySalesResponse(m.Month, m.Label, m.OrderCount, m.GrossSales, m.CommissionRevenue, m.SellerNetAmount))
+            .ToList();
 
         return new AdminDashboardOverviewResponse(
             x.TotalUsers,
@@ -51,7 +54,8 @@ public class AdminApplicationService : IAdminApplicationService
             x.OpenDisputes,
             x.PendingRefunds,
             x.PendingPayouts,
-            topSellers);
+            topSellers,
+            monthlySales);
     }
 
     public async Task<AdminUserListResponse> GetUsersAsync(AdminUserListQuery query, CancellationToken ct)

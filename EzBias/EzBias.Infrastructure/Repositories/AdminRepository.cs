@@ -86,6 +86,8 @@ public class AdminRepository : IAdminRepository
         var pendingRefunds = await _db.Refunds.CountAsync(x => x.Status == RefundStatus.Pending, ct);
         var pendingPayouts = await _db.Payouts.CountAsync(x => x.Status == PayoutStatus.Pending || x.Status == PayoutStatus.Processing, ct);
 
+        var monthlySales = await BuildMonthlySalesAsync(now, ct);
+
         return new AdminDashboardOverviewData(
             totalUsers,
             newUsersToday,
@@ -111,7 +113,47 @@ public class AdminRepository : IAdminRepository
             openDisputes,
             pendingRefunds,
             pendingPayouts,
-            topSellers);
+            topSellers,
+            monthlySales);
+    }
+
+    private static readonly string[] _monthAbbr = { "Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec" };
+
+    // Last-12-calendar-months commission rollup (oldest first), dense so zero-sale months still render.
+    private async Task<IReadOnlyList<AdminMonthlySalesData>> BuildMonthlySalesAsync(DateTimeOffset now, CancellationToken ct)
+    {
+        var windowStart = new DateTimeOffset(now.Year, now.Month, 1, 0, 0, 0, TimeSpan.Zero).AddMonths(-11);
+
+        var raw = await _db.CommissionTransactions
+            .Where(x => x.CreatedAt >= windowStart)
+            .GroupBy(x => new { x.CreatedAt.Year, x.CreatedAt.Month })
+            .Select(g => new
+            {
+                g.Key.Year,
+                g.Key.Month,
+                OrderCount = g.Count(),
+                GrossSales = g.Sum(x => x.GrossAmount),
+                CommissionRevenue = g.Sum(x => x.CommissionAmount),
+                SellerNetAmount = g.Sum(x => x.SellerNetAmount)
+            })
+            .ToListAsync(ct);
+
+        var byKey = raw.ToDictionary(x => (x.Year, x.Month));
+
+        var points = new List<AdminMonthlySalesData>(12);
+        for (var i = 11; i >= 0; i--)
+        {
+            var d = now.AddMonths(-i);
+            var monthKey = $"{d.Year:D4}-{d.Month:D2}";
+            var label = $"{_monthAbbr[d.Month - 1]} {d.Year}";
+
+            if (byKey.TryGetValue((d.Year, d.Month), out var r))
+                points.Add(new AdminMonthlySalesData(monthKey, label, r.OrderCount, r.GrossSales, r.CommissionRevenue, r.SellerNetAmount));
+            else
+                points.Add(new AdminMonthlySalesData(monthKey, label, 0, 0m, 0m, 0m));
+        }
+
+        return points;
     }
 
     public async Task<(IReadOnlyList<User> Items, int TotalItems)> GetUsersAsync(string? keyword, UserRole? role, bool? isDeleted, int page, int pageSize, CancellationToken ct)
