@@ -8,6 +8,9 @@ public record SellerDashboardResponse(
     decimal CommissionPaid,
     decimal NetRevenue,
 
+    // Items sold
+    int ItemsSold,
+
     // Orders
     int TotalOrders,
     int PendingOrders,
@@ -30,5 +33,18 @@ public record SellerDashboardResponse(
 
     // Ratings
     decimal AvgRating,
-    int TotalRatings
+    int TotalRatings,
+
+    // Monthly trend (last 12 calendar months, oldest first)
+    IReadOnlyList<SellerMonthlySalesPoint> MonthlySales
+);
+
+public record SellerMonthlySalesPoint(
+    string Month,          // "yyyy-MM"
+    string Label,          // "Jan 2026"
+    int ItemsSold,
+    int OrderCount,
+    decimal GrossRevenue,
+    decimal CommissionPaid,
+    decimal NetRevenue
 );

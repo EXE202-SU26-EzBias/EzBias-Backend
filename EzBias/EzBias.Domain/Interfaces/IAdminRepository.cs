@@ -38,7 +38,17 @@ public record AdminDashboardOverviewData(
     int OpenDisputes,
     int PendingRefunds,
     int PendingPayouts,
-    IReadOnlyList<AdminTopSellerCommissionData> TopSellersByNetRevenue
+    IReadOnlyList<AdminTopSellerCommissionData> TopSellersByNetRevenue,
+    IReadOnlyList<AdminMonthlySalesData> MonthlySales
+);
+
+public record AdminMonthlySalesData(
+    string Month,
+    string Label,
+    int OrderCount,
+    decimal GrossSales,
+    decimal CommissionRevenue,
+    decimal SellerNetAmount
 );
 
 public record AdminTopSellerCommissionData(
