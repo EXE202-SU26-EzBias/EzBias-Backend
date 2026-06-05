@@ -35,4 +35,5 @@ public class Product
     public PhotocardDetail? PhotocardDetail { get; set; }
     public ICollection<Auction> Auctions { get; set; } = new List<Auction>();
     public ICollection<ProductBoost> ProductBoosts { get; set; } = new List<ProductBoost>();
+    public ICollection<ProductReview> Reviews { get; set; } = new List<ProductReview>();
 }
