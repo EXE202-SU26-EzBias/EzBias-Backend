@@ -52,10 +52,10 @@ public class PayoutApplicationService : IPayoutApplicationService
         var payout = await _payouts.GetByIdAsync(payoutId, ct);
         if (payout is null) return (false, "Payout not found.", null);
 
-        if (payout.Status == PayoutStatus.Paid)
+        if (payout.Status == PayoutStatus.Approved)
             return (true, null, new MarkPayoutPaidResponse(payout.Id, payout.Status, payout.PaidAt ?? DateTimeOffset.UtcNow, payout.BankTransferRef));
 
-        payout.Status = PayoutStatus.Paid;
+        payout.Status = PayoutStatus.Approved;
         payout.PaidAt = DateTimeOffset.UtcNow;
         payout.BankTransferRef = string.IsNullOrWhiteSpace(request.BankTransferRef) ? payout.BankTransferRef : request.BankTransferRef.Trim();
         payout.UpdatedAt = DateTimeOffset.UtcNow;
@@ -72,13 +72,13 @@ public class PayoutApplicationService : IPayoutApplicationService
         var payout = await _payouts.GetByIdAsync(payoutId, ct);
         if (payout is null) return (false, "Payout not found.", null);
 
-        if (payout.Status == PayoutStatus.Failed)
+        if (payout.Status == PayoutStatus.Rejected)
             return (true, null, new RejectPayoutResponse(payout.Id, payout.Status, request.Reason));
 
-        if (payout.Status == PayoutStatus.Paid)
-            return (false, "Paid payout cannot be rejected.", null);
+        if (payout.Status == PayoutStatus.Approved)
+            return (false, "Approved payout cannot be rejected.", null);
 
-        payout.Status = PayoutStatus.Failed;
+        payout.Status = PayoutStatus.Rejected;
         payout.UpdatedAt = DateTimeOffset.UtcNow;
         await _uow.SaveChangesAsync(ct);
 

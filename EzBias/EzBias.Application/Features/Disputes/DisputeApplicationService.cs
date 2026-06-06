@@ -112,7 +112,7 @@ public class DisputeApplicationService : IDisputeApplicationService
         if (order is null) return (false, "Order not found.", null);
 
         var payout = await _payouts.GetByOrderIdAsync(order.Id, ct);
-        if (payout is not null && payout.Status == PayoutStatus.Paid) return (false, "Payout already paid. Manual recovery required.", null);
+        if (payout is not null && payout.Status == PayoutStatus.Approved) return (false, "Payout already paid. Manual recovery required.", null);
 
         var payment = await _payments.GetByOrderIdAsync(order.Id, ct);
         if (payment is null) return (false, "Payment not found for order.", null);

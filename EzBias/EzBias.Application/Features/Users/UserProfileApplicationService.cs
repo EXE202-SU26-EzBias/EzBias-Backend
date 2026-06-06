@@ -83,8 +83,8 @@ public class UserProfileApplicationService : IUserProfileApplicationService
 
         // Payouts
         var payouts = await _payouts.GetBySellerAsync(sellerId, null, ct);
-        var pendingPayouts = payouts.Where(p => p.Status == PayoutStatus.Pending || p.Status == PayoutStatus.Processing).ToList();
-        var paidPayouts = payouts.Where(p => p.Status == PayoutStatus.Paid).ToList();
+        var pendingPayouts = payouts.Where(p => p.Status == PayoutStatus.Pending).ToList();
+        var paidPayouts = payouts.Where(p => p.Status == PayoutStatus.Approved).ToList();
 
         // Revenue + items sold come from commission transactions (written when an order is Paid)
         // — the authoritative record of realized sales, gross/commission/net per order.
