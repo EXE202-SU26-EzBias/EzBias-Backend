@@ -14,6 +14,7 @@ public class OrderApplicationService : IOrderApplicationService
     private readonly IAuctionRepository _auctions;
     private readonly IEscrowRepository _escrows;
     private readonly IPayoutRepository _payouts;
+    private readonly ICommissionRepository _commissions;
     private readonly INotificationRepository _notifications;
     private readonly INotificationFactory _notificationFactory;
     private readonly IUnitOfWork _uow;
@@ -24,6 +25,7 @@ public class OrderApplicationService : IOrderApplicationService
         IAuctionRepository auctions,
         IEscrowRepository escrows,
         IPayoutRepository payouts,
+        ICommissionRepository commissions,
         INotificationRepository notifications,
         INotificationFactory notificationFactory,
         IUnitOfWork uow)
@@ -33,6 +35,7 @@ public class OrderApplicationService : IOrderApplicationService
         _auctions = auctions;
         _escrows = escrows;
         _payouts = payouts;
+        _commissions = commissions;
         _notifications = notifications;
         _notificationFactory = notificationFactory;
         _uow = uow;
@@ -212,6 +215,37 @@ public class OrderApplicationService : IOrderApplicationService
         _orders.Remove(order);
         await _uow.SaveChangesAsync(ct);
         return (true, null);
+    }
+
+    public async Task FinalizeOrderPayoutAsync(Order order, DateTimeOffset now, CancellationToken ct)
+    {
+        var commission = await _commissions.GetByOrderIdAsync(order.Id, ct);
+        var amount = commission?.SellerNetAmount ?? order.Total;
+
+        _escrows.AddRange(new[]
+        {
+            new EscrowTransaction
+            {
+                OrderId = order.Id,
+                SellerId = order.SellerId,
+                Type = EscrowType.OUT,
+                Amount = amount,
+                CreatedAt = now
+            }
+        });
+
+        var existing = await _payouts.GetByOrderIdAsync(order.Id, ct);
+        if (existing is null)
+        {
+            _payouts.Add(new Payout
+            {
+                OrderId = order.Id,
+                SellerId = order.SellerId,
+                Amount = amount,
+                Status = PayoutStatus.Pending,
+                CreatedAt = now
+            });
+        }
     }
 
     private static OrderViewResponse Map(Order o)

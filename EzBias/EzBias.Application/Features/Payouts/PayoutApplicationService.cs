@@ -8,23 +8,17 @@ namespace EzBias.Application.Features.Payouts;
 public class PayoutApplicationService : IPayoutApplicationService
 {
     private readonly IPayoutRepository _payouts;
-    private readonly IOrderRepository _orders;
-    private readonly ICommissionRepository _commissions;
     private readonly INotificationRepository _notifications;
     private readonly INotificationFactory _notificationFactory;
     private readonly IUnitOfWork _uow;
 
     public PayoutApplicationService(
         IPayoutRepository payouts,
-        IOrderRepository orders,
-        ICommissionRepository commissions,
         INotificationRepository notifications,
         INotificationFactory notificationFactory,
         IUnitOfWork uow)
     {
         _payouts = payouts;
-        _orders = orders;
-        _commissions = commissions;
         _notifications = notifications;
         _notificationFactory = notificationFactory;
         _uow = uow;
@@ -34,33 +28,6 @@ public class PayoutApplicationService : IPayoutApplicationService
     {
         var items = await _payouts.GetBySellerAsync(sellerId, status, ct);
         return items.Select(x => new SellerPayoutItem(x.Id, x.OrderId, x.Amount, x.Status, x.CreatedAt, x.PaidAt, x.BankTransferRef)).ToList();
-    }
-
-    public async Task<(bool Success, string? Error, RequestPayoutResponse? Data)> RequestAsync(long sellerId, long orderId, CancellationToken ct)
-    {
-        var order = await _orders.GetByIdAsync(orderId, ct);
-        if (order is null) return (false, "Order not found.", null);
-        if (order.SellerId != sellerId) return (false, "Forbidden.", null);
-        if (order.Status != OrderStatus.Completed) return (false, "Order is not eligible for payout request.", null);
-
-        var existing = await _payouts.GetByOrderIdAsync(orderId, ct);
-        if (existing is not null)
-            return (true, null, new RequestPayoutResponse(existing.Id, existing.OrderId, existing.Amount, existing.Status, existing.CreatedAt));
-
-        var commission = await _commissions.GetByOrderIdAsync(order.Id, ct);
-        var payout = new Domain.Entities.Payout
-        {
-            OrderId = order.Id,
-            SellerId = order.SellerId,
-            Amount = commission?.SellerNetAmount ?? order.Total,
-            Status = PayoutStatus.Pending,
-            CreatedAt = DateTimeOffset.UtcNow
-        };
-
-        _payouts.Add(payout);
-        await _uow.SaveChangesAsync(ct);
-
-        return (true, null, new RequestPayoutResponse(payout.Id, payout.OrderId, payout.Amount, payout.Status, payout.CreatedAt));
     }
 
     public async Task<IReadOnlyList<AdminPayoutItem>> GetAdminPayoutsAsync(PayoutStatus? status, CancellationToken ct)

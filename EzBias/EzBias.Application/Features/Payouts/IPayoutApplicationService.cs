@@ -6,7 +6,6 @@ namespace EzBias.Application.Features.Payouts;
 public interface IPayoutApplicationService
 {
     Task<IReadOnlyList<SellerPayoutItem>> GetSellerPayoutsAsync(long sellerId, PayoutStatus? status, CancellationToken ct);
-    Task<(bool Success, string? Error, RequestPayoutResponse? Data)> RequestAsync(long sellerId, long orderId, CancellationToken ct);
     Task<IReadOnlyList<AdminPayoutItem>> GetAdminPayoutsAsync(PayoutStatus? status, CancellationToken ct);
     Task<(bool Success, string? Error, MarkPayoutPaidResponse? Data)> MarkPaidAsync(long payoutId, MarkPayoutPaidRequest request, CancellationToken ct);
     Task<(bool Success, string? Error, RejectPayoutResponse? Data)> RejectAsync(long payoutId, RejectPayoutRequest request, CancellationToken ct);

@@ -1,4 +1,4 @@
-using EzBias.Domain.Entities;
+using EzBias.Application.Features.Orders;
 using EzBias.Domain.Enums;
 using EzBias.Domain.Interfaces;
 
@@ -33,8 +33,7 @@ public class DeliveredOrderFinalizeScheduler : BackgroundService
             {
                 using var scope = _scopeFactory.CreateScope();
                 var orders = scope.ServiceProvider.GetRequiredService<IOrderRepository>();
-                var escrows = scope.ServiceProvider.GetRequiredService<IEscrowRepository>();
-                var payouts = scope.ServiceProvider.GetRequiredService<IPayoutRepository>();
+                var orderService = scope.ServiceProvider.GetRequiredService<IOrderApplicationService>();
                 var uow = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
 
                 var now = DateTimeOffset.UtcNow;
@@ -48,30 +47,7 @@ public class DeliveredOrderFinalizeScheduler : BackgroundService
                     order.Status = OrderStatus.Completed;
                     order.UpdatedAt = now;
 
-                    escrows.AddRange(new[]
-                    {
-                        new EscrowTransaction
-                        {
-                            OrderId = order.Id,
-                            SellerId = order.SellerId,
-                            Type = EscrowType.OUT,
-                            Amount = order.Total,
-                            CreatedAt = now
-                        }
-                    });
-
-                    var payout = await payouts.GetByOrderIdAsync(order.Id, stoppingToken);
-                    if (payout is null)
-                    {
-                        payouts.Add(new Payout
-                        {
-                            OrderId = order.Id,
-                            SellerId = order.SellerId,
-                            Amount = order.Total,
-                            Status = PayoutStatus.Pending,
-                            CreatedAt = now
-                        });
-                    }
+                    await orderService.FinalizeOrderPayoutAsync(order, now, stoppingToken);
 
                     finalizedCount++;
                 }
