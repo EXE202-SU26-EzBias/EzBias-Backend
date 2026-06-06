@@ -43,7 +43,7 @@ public class PayoutApplicationService : IPayoutApplicationService
             x.PaidAt,
             x.BankTransferRef,
             x.Order is null ? null : new AdminPayoutOrderSummary(x.Order.Id, x.Order.UserId, x.Order.SellerId, x.Order.Total, x.Order.Status, x.Order.CreatedAt),
-            x.Seller is null ? null : new AdminPayoutSellerSummary(x.Seller.Id, x.Seller.Username, x.Seller.FullName, x.Seller.AvatarUrl, x.Seller.AvgSellerRating, x.Seller.TotalRatings)
+            x.Seller is null ? null : new AdminPayoutSellerSummary(x.Seller.Id, x.Seller.Username, x.Seller.FullName, x.Seller.AvatarUrl, x.Seller.AvgSellerRating, x.Seller.TotalRatings, x.Seller.BankName, x.Seller.BankAccountNumber, x.Seller.BankAccountName)
         )).ToList();
     }
 
