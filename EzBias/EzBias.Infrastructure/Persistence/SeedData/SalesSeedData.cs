@@ -491,20 +491,25 @@ public static class SalesSeedData
         {
             order.CompletedAt = Clamp(createdAt.AddDays(7));
 
-            // Payout created on finalize; ~60% already paid out (escrow OUT), rest pending/processing.
-            var payoutPaid = Rng.NextDouble() < 0.6;
+            // Payout created on finalize. Distribution: ~60% Approved (paid out via escrow OUT),
+            // ~30% Pending (awaiting admin action), ~10% Rejected.
+            var payoutRoll = Rng.NextDouble();
+            var payoutStatus = payoutRoll < 0.6 ? PayoutStatus.Approved
+                : payoutRoll < 0.9 ? PayoutStatus.Pending
+                : PayoutStatus.Rejected;
+            var payoutApproved = payoutStatus == PayoutStatus.Approved;
             var payout = new Payout
             {
                 SellerId = seller.Id,
                 Amount = sellerNet,
-                Status = payoutPaid ? PayoutStatus.Paid : (Rng.NextDouble() < 0.5 ? PayoutStatus.Pending : PayoutStatus.Processing),
+                Status = payoutStatus,
                 CreatedAt = Clamp(createdAt.AddDays(7)),
-                BankTransferRef = payoutPaid ? $"PO-{createdAt:yyyyMMdd}-{seq}" : null,
-                PaidAt = payoutPaid ? Clamp(createdAt.AddDays(8)) : null
+                BankTransferRef = payoutApproved ? $"PO-{createdAt:yyyyMMdd}-{seq}" : null,
+                PaidAt = payoutApproved ? Clamp(createdAt.AddDays(8)) : null
             };
             order.Payout = payout;
 
-            if (payoutPaid)
+            if (payoutApproved)
             {
                 order.EscrowTransactions.Add(new EscrowTransaction
                 {

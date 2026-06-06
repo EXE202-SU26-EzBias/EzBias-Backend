@@ -1,5 +1,6 @@
 using EzBias.Application.Features.Disputes.Dtos;
 using EzBias.Application.Features.Notifications;
+using EzBias.Application.Features.Orders;
 using EzBias.Domain.Entities;
 using EzBias.Domain.Enums;
 using EzBias.Domain.Interfaces;
@@ -13,6 +14,7 @@ public class DisputeApplicationService : IDisputeApplicationService
     private readonly IPaymentRepository _payments;
     private readonly IRefundRepository _refunds;
     private readonly IPayoutRepository _payouts;
+    private readonly IOrderApplicationService _orderService;
     private readonly INotificationRepository _notifications;
     private readonly INotificationFactory _notificationFactory;
     private readonly IUnitOfWork _uow;
@@ -23,6 +25,7 @@ public class DisputeApplicationService : IDisputeApplicationService
         IPaymentRepository payments,
         IRefundRepository refunds,
         IPayoutRepository payouts,
+        IOrderApplicationService orderService,
         INotificationRepository notifications,
         INotificationFactory notificationFactory,
         IUnitOfWork uow)
@@ -32,6 +35,7 @@ public class DisputeApplicationService : IDisputeApplicationService
         _payments = payments;
         _refunds = refunds;
         _payouts = payouts;
+        _orderService = orderService;
         _notifications = notifications;
         _notificationFactory = notificationFactory;
         _uow = uow;
@@ -108,7 +112,7 @@ public class DisputeApplicationService : IDisputeApplicationService
         if (order is null) return (false, "Order not found.", null);
 
         var payout = await _payouts.GetByOrderIdAsync(order.Id, ct);
-        if (payout is not null && payout.Status == PayoutStatus.Paid) return (false, "Payout already paid. Manual recovery required.", null);
+        if (payout is not null && payout.Status == PayoutStatus.Approved) return (false, "Payout already paid. Manual recovery required.", null);
 
         var payment = await _payments.GetByOrderIdAsync(order.Id, ct);
         if (payment is null) return (false, "Payment not found for order.", null);
@@ -212,8 +216,16 @@ public class DisputeApplicationService : IDisputeApplicationService
         if (!string.IsNullOrWhiteSpace(request.Note))
             refund.Reason = $"{refund.Reason} | PaymentNote: {request.Note.Trim()}";
 
-        order.Status = refund.Amount >= order.Total ? OrderStatus.Refunded : OrderStatus.Completed;
-        order.UpdatedAt = DateTimeOffset.UtcNow;
+        var now = DateTimeOffset.UtcNow;
+        var fullRefund = refund.Amount >= order.Total;
+        order.Status = fullRefund ? OrderStatus.Refunded : OrderStatus.Completed;
+        order.UpdatedAt = now;
+
+        if (!fullRefund)
+        {
+            order.CompletedAt = now;
+            await _orderService.FinalizeOrderPayoutAsync(order, now, ct);
+        }
 
         var processedTotal = await _refunds.GetProcessedTotalByPaymentIdAsync(payment.Id, ct);
         var totalAfterThisRefund = processedTotal + refund.Amount;

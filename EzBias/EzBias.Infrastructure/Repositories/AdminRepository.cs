@@ -84,7 +84,7 @@ public class AdminRepository : IAdminRepository
 
         var openDisputes = await _db.Disputes.CountAsync(x => x.Status == DisputeStatus.Open || x.Status == DisputeStatus.UnderReview, ct);
         var pendingRefunds = await _db.Refunds.CountAsync(x => x.Status == RefundStatus.Pending, ct);
-        var pendingPayouts = await _db.Payouts.CountAsync(x => x.Status == PayoutStatus.Pending || x.Status == PayoutStatus.Processing, ct);
+        var pendingPayouts = await _db.Payouts.CountAsync(x => x.Status == PayoutStatus.Pending, ct);
 
         var monthlySales = await BuildMonthlySalesAsync(now, ct);
 

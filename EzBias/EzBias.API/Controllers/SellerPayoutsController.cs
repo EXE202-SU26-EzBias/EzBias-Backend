@@ -26,20 +26,6 @@ public class SellerPayoutsController : ControllerBase
         return Ok(data);
     }
 
-    [HttpPost("request")]
-    public async Task<IActionResult> Request([FromQuery] long orderId, CancellationToken ct)
-    {
-        if (!TryGetUserId(out var userId)) return Unauthorized();
-        var result = await _service.RequestAsync(userId, orderId, ct);
-        if (!result.Success || result.Data is null)
-        {
-            if (result.Error == "Forbidden.") return Forbid();
-            if (result.Error == "Order not found.") return NotFound(new { message = result.Error });
-            return BadRequest(new { message = result.Error });
-        }
-        return Ok(result.Data);
-    }
-
     private bool TryGetUserId(out long userId)
     {
         var sub = User.FindFirstValue(ClaimTypes.NameIdentifier)
