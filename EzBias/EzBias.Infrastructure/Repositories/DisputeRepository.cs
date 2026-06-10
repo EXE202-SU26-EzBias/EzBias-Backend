@@ -19,12 +19,19 @@ public class DisputeRepository : IDisputeRepository
 
     public void AddItems(IEnumerable<DisputeItem> items) => _db.DisputeItems.AddRange(items);
 
+    public void RemoveItems(IEnumerable<DisputeItem> items) => _db.DisputeItems.RemoveRange(items);
+
     public Task<Dispute?> GetByIdAsync(long id, CancellationToken ct)
         => _db.Disputes
             .Include(x => x.Order)
             .Include(x => x.Items)
                 .ThenInclude(i => i.OrderItem)
             .FirstOrDefaultAsync(x => x.Id == id, ct);
+
+    public Task<Dispute?> GetByOrderIdWithItemsAsync(long orderId, CancellationToken ct)
+        => _db.Disputes
+            .Include(x => x.Items)
+            .FirstOrDefaultAsync(x => x.OrderId == orderId, ct);
 
     public async Task<IReadOnlyList<DisputeItem>> GetItemsByDisputeIdAsync(long disputeId, CancellationToken ct)
         => await _db.DisputeItems

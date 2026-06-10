@@ -34,6 +34,7 @@ public class OrderRepository : IOrderRepository
             .Include(x => x.Seller)
             .Include(x => x.Items)
             .Include(x => x.PaymentOrders)
+            .Include(x => x.Dispute)
             .FirstOrDefaultAsync(x => x.Id == orderId, ct);
 
     public async Task<IReadOnlyList<Order>> GetByBuyerAsync(long buyerId, CancellationToken ct)
@@ -42,6 +43,7 @@ public class OrderRepository : IOrderRepository
             .Include(x => x.Seller)
             .Include(x => x.Items)
             .Include(x => x.PaymentOrders)
+            .Include(x => x.Dispute)
             .Where(x => x.UserId == buyerId)
             .OrderByDescending(x => x.CreatedAt)
             .ToListAsync(ct);
@@ -52,6 +54,7 @@ public class OrderRepository : IOrderRepository
             .Include(x => x.Seller)
             .Include(x => x.Items)
             .Include(x => x.PaymentOrders)
+            .Include(x => x.Dispute)
             .Where(x => x.SellerId == sellerId)
             .OrderByDescending(x => x.CreatedAt)
             .ToListAsync(ct);

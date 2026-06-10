@@ -59,14 +59,25 @@ public class DisputeApplicationService : IDisputeApplicationService
         var duplicate = request.Items.GroupBy(x => x.OrderItemId).FirstOrDefault(g => g.Count() > 1);
         if (duplicate is not null) return (false, "Duplicate order items are not allowed in dispute.", null);
 
-        var dispute = new Dispute
+        // A previously rejected dispute (ResolvedSeller) leaves a row behind; the order has a unique
+        // dispute constraint, so reuse that row instead of inserting a second one.
+        var prior = await _disputes.GetByOrderIdWithItemsAsync(order.Id, ct);
+
+        var dispute = prior ?? new Dispute
         {
             OrderId = order.Id,
             InitiatorId = buyerId,
-            Reason = request.Reason.Trim(),
-            Status = DisputeStatus.Open,
             CreatedAt = DateTimeOffset.UtcNow
         };
+
+        dispute.Reason = request.Reason.Trim();
+        dispute.Status = DisputeStatus.Open;
+        dispute.InitiatorId = buyerId;
+        dispute.AdminNote = null;
+        dispute.ResolvedAt = null;
+
+        if (prior is not null && prior.Items.Count > 0)
+            _disputes.RemoveItems(prior.Items.ToList());
 
         var disputeItems = new List<DisputeItem>();
         foreach (var item in request.Items)
@@ -88,7 +99,8 @@ public class DisputeApplicationService : IDisputeApplicationService
         order.Status = OrderStatus.ReturnRequested;
         order.UpdatedAt = DateTimeOffset.UtcNow;
 
-        _disputes.Add(dispute);
+        if (prior is null)
+            _disputes.Add(dispute);
         _disputes.AddItems(disputeItems);
 
         // Notify seller that a dispute was opened
@@ -179,7 +191,7 @@ public class DisputeApplicationService : IDisputeApplicationService
         if (order is null) return (false, "Order not found.", null);
 
         dispute.Status = DisputeStatus.ResolvedSeller;
-        dispute.AdminNote = $"Rejected by admin {adminId}: {request.Reason.Trim()}";
+        dispute.AdminNote = request.Reason.Trim();
         dispute.ResolvedAt = DateTimeOffset.UtcNow;
 
         order.Status = OrderStatus.Delivered;

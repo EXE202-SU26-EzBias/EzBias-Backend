@@ -3,6 +3,7 @@ namespace EzBias.Application.Features.Orders.Dtos;
 public record OrderUserSummary(long Id, string Username, string FullName, string AvatarUrl);
 public record OrderSellerSummary(long Id, string Username, string FullName, string AvatarUrl, decimal AvgSellerRating, int TotalRatings);
 public record OrderItemSummary(long Id, long? ProductId, string ProductName, string ProductImage, int Quantity, decimal UnitPrice, decimal Subtotal);
+public record OrderDisputeSummary(long Id, string Status, string? AdminNote, DateTimeOffset? ResolvedAt);
 
 public record OrderViewResponse(
     long Id,
@@ -17,7 +18,9 @@ public record OrderViewResponse(
     string? Carrier,
     string? TrackingNumber,
     DateTimeOffset CreatedAt,
+    DateTimeOffset? DeliveredAt,
     OrderUserSummary? User,
     OrderSellerSummary? Seller,
+    OrderDisputeSummary? Dispute,
     IReadOnlyList<OrderItemSummary> Items
 );
