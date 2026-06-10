@@ -262,8 +262,10 @@ public class OrderApplicationService : IOrderApplicationService
             o.Carrier,
             o.TrackingNumber,
             o.CreatedAt,
+            o.DeliveredAt,
             o.User is null ? null : new OrderUserSummary(o.User.Id, o.User.Username, o.User.FullName, o.User.AvatarUrl),
             o.Seller is null ? null : new OrderSellerSummary(o.Seller.Id, o.Seller.Username, o.Seller.FullName, o.Seller.AvatarUrl, o.Seller.AvgSellerRating, o.Seller.TotalRatings),
+            o.Dispute is null ? null : new OrderDisputeSummary(o.Dispute.Id, o.Dispute.Status.ToString(), o.Dispute.AdminNote, o.Dispute.ResolvedAt),
             o.Items.Select(i => new OrderItemSummary(i.Id, i.ProductId, i.ProductName, i.ProductImage, i.Quantity, i.UnitPrice, i.Subtotal)).ToList());
 
     private static string? NormalizeAddressSnap(CheckoutAddressSnap input)

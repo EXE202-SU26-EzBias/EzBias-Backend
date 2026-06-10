@@ -59,10 +59,10 @@ public class DisputesController : ControllerBase
 
     [HttpPut("{id:long}/refund-payment")]
     [Authorize(Roles = "Admin")]
-    public async Task<IActionResult> CompleteRefundPayment([FromRoute] long id, [FromBody] CompleteRefundPaymentRequest request, CancellationToken ct)
+    public async Task<IActionResult> CompleteRefundPayment([FromRoute] long id, CancellationToken ct)
     {
         if (!TryGetUserId(out var adminId)) return Unauthorized();
-        var result = await _service.CompleteRefundPaymentAsync(adminId, id, request, ct);
+        var result = await _service.CompleteRefundPaymentAsync(adminId, id, new CompleteRefundPaymentRequest(), ct);
         if (!result.Success || result.Data is null)
         {
             if (result.Error == "Dispute not found." || result.Error == "Refund not found for dispute." || result.Error == "Order not found." || result.Error == "Payment not found.") return NotFound(new { message = result.Error });
