@@ -45,6 +45,7 @@ public class DisputeRepository : IDisputeRepository
                 .ThenInclude(o => o.User)
             .Include(x => x.Items)
                 .ThenInclude(i => i.OrderItem)
+            .Include(x => x.Refunds)
             .OrderByDescending(x => x.CreatedAt)
             .ToListAsync(ct);
 }

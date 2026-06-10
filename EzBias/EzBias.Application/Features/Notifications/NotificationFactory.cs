@@ -70,6 +70,12 @@ public sealed class NotificationFactory : INotificationFactory
                 : "The dispute on your order has been resolved in the seller's favor.",
             new { disputeId });
 
+    public Notification DisputeRefundCompleted(long userId, long disputeId, decimal amount)
+        => Build(userId, NotificationType.DisputeRefundCompleted,
+            "Refund completed",
+            $"Your refund of {amount:N0} VND has been transferred to your bank account.",
+            new { disputeId });
+
     public Notification UserVerified(long userId)
         => Build(userId, NotificationType.UserVerified,
             "Email verified",

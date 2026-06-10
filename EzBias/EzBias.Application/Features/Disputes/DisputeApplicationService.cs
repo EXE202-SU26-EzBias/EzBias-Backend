@@ -210,11 +210,7 @@ public class DisputeApplicationService : IDisputeApplicationService
 
         refund.Status = RefundStatus.Processed;
         refund.ProcessedAt = DateTimeOffset.UtcNow;
-        refund.ProviderRef = string.IsNullOrWhiteSpace(request.ProviderRef)
-            ? $"MANUAL-{DateTimeOffset.UtcNow:yyyyMMddHHmmss}"
-            : request.ProviderRef.Trim();
-        if (!string.IsNullOrWhiteSpace(request.Note))
-            refund.Reason = $"{refund.Reason} | PaymentNote: {request.Note.Trim()}";
+        refund.ProviderRef = $"MANUAL-{DateTimeOffset.UtcNow:yyyyMMddHHmmss}";
 
         var now = DateTimeOffset.UtcNow;
         var fullRefund = refund.Amount >= order.Total;
@@ -234,6 +230,9 @@ public class DisputeApplicationService : IDisputeApplicationService
             payment.Status = PaymentStatus.Refunded;
             payment.UpdatedAt = DateTimeOffset.UtcNow;
         }
+
+        // Notify buyer that the refund has been paid out
+        _notifications.Add(_notificationFactory.DisputeRefundCompleted(dispute.InitiatorId, dispute.Id, refund.Amount));
 
         await _uow.SaveChangesAsync(ct);
         return (true, null, Map(dispute));
@@ -287,6 +286,8 @@ public class DisputeApplicationService : IDisputeApplicationService
                 buyer.BankAccountName);
         }
 
+        var refundProcessed = x.Refunds.Any(r => r.Status == RefundStatus.Processed);
+
         return new DisputeListItemResponse(
             x.Id,
             x.OrderId,
@@ -296,6 +297,7 @@ public class DisputeApplicationService : IDisputeApplicationService
             x.AdminNote,
             x.CreatedAt,
             x.ResolvedAt,
+            refundProcessed,
             payoutInfo,
             MapItems(x.Items));
     }
