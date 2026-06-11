@@ -11,6 +11,7 @@ public class UserProfileApplicationService : IUserProfileApplicationService
     private readonly ICommissionRepository _commissions;
     private readonly IPayoutRepository _payouts;
     private readonly IAuctionRepository _auctions;
+    private readonly IProductReviewRepository _productReviews;
     private readonly IUnitOfWork _uow;
 
     public UserProfileApplicationService(
@@ -19,6 +20,7 @@ public class UserProfileApplicationService : IUserProfileApplicationService
         ICommissionRepository commissions,
         IPayoutRepository payouts,
         IAuctionRepository auctions,
+        IProductReviewRepository productReviews,
         IUnitOfWork uow)
     {
         _users = users;
@@ -26,6 +28,7 @@ public class UserProfileApplicationService : IUserProfileApplicationService
         _commissions = commissions;
         _payouts = payouts;
         _auctions = auctions;
+        _productReviews = productReviews;
         _uow = uow;
     }
 
@@ -99,6 +102,9 @@ public class UserProfileApplicationService : IUserProfileApplicationService
         // Auctions
         var allAuctions = await _auctions.GetBySellerAsync(sellerId, null, ct);
 
+        // Avg rating from product reviews (not seller ratings)
+        var (avgStars, totalReviews) = await _productReviews.GetSellerStatsAsync(sellerId, ct);
+
         return new SellerDashboardResponse(
             GrossRevenue: grossRevenue,
             CommissionPaid: commissionPaid,
@@ -118,8 +124,8 @@ public class UserProfileApplicationService : IUserProfileApplicationService
             TotalAuctions: allAuctions.Count,
             LiveAuctions: allAuctions.Count(a => a.Status == AuctionStatus.Live || a.Status == AuctionStatus.Extended),
             SoldAuctions: allAuctions.Count(a => a.Status == AuctionStatus.Sold),
-            AvgRating: user?.AvgSellerRating ?? 0m,
-            TotalRatings: user?.TotalRatings ?? 0,
+            AvgRating: avgStars,
+            TotalRatings: totalReviews,
             MonthlySales: monthlySales
         );
     }

@@ -26,7 +26,6 @@ public class EzBiasDbContext : DbContext
     public DbSet<PaymentOrder> PaymentOrders => Set<PaymentOrder>();
     public DbSet<EscrowTransaction> EscrowTransactions => Set<EscrowTransaction>();
     public DbSet<Payout> Payouts => Set<Payout>();
-    public DbSet<Rating> Ratings => Set<Rating>();
     public DbSet<ProductReview> ProductReviews => Set<ProductReview>();
     public DbSet<Notification> Notifications => Set<Notification>();
     public DbSet<RefreshToken> RefreshTokens => Set<RefreshToken>();

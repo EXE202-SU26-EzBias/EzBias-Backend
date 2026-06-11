@@ -30,7 +30,6 @@ public class Order
     public ICollection<EscrowTransaction> EscrowTransactions { get; set; } = new List<EscrowTransaction>();
     public CommissionTransaction? CommissionTransaction { get; set; }
     public Payout? Payout { get; set; }
-    public Rating? Rating { get; set; }
     public Dispute? Dispute { get; set; }
     public ICollection<Refund> Refunds { get; set; } = new List<Refund>();
 }

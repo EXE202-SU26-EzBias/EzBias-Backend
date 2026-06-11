@@ -293,9 +293,6 @@ public static class SalesSeedData
         var monthTotalWeight = MonthWeights.Sum();
         var statusTotalWeight = StatusWeights.Sum(s => s.Weight);
 
-        // Track rating aggregates per seller to update User.AvgSellerRating / TotalRatings.
-        var ratingAgg = sellers.ToDictionary(s => s.Id, _ => (Sum: 0, Count: 0));
-
         var orders = new List<Order>(OrderCount);
         var seq = 0;
         var disputeCreated = 0;
@@ -345,7 +342,7 @@ public static class SalesSeedData
                 Items = items
             };
 
-            ApplyStatusGraph(order, status, buyer, seller, createdAt, now, seq, ratingAgg, ref disputeCreated);
+            ApplyStatusGraph(order, status, buyer, seller, createdAt, now, seq, ref disputeCreated);
             orders.Add(order);
         }
 
@@ -357,15 +354,6 @@ public static class SalesSeedData
             await db.SaveChangesAsync(ct);
         }
 
-        // Update seller rating aggregates.
-        foreach (var seller in sellers)
-        {
-            var agg = ratingAgg[seller.Id];
-            if (agg.Count == 0) continue;
-            seller.TotalRatings = agg.Count;
-            seller.AvgSellerRating = Math.Round((decimal)agg.Sum / agg.Count, 2);
-            seller.UpdatedAt = now;
-        }
         await db.SaveChangesAsync(ct);
     }
 
@@ -382,7 +370,6 @@ public static class SalesSeedData
         DateTimeOffset createdAt,
         DateTimeOffset now,
         int seq,
-        Dictionary<long, (int Sum, int Count)> ratingAgg,
         ref int disputeCreated)
     {
         DateTimeOffset Clamp(DateTimeOffset d) => d > now ? now : d;
@@ -521,23 +508,7 @@ public static class SalesSeedData
                 });
             }
 
-            // ~70% of completed orders leave a rating.
-            if (Rng.NextDouble() < 0.7)
-            {
-                var sellerRating = (short)Rng.Next(4, 6); // 4–5
-                order.Rating = new Rating
-                {
-                    BuyerId = buyer.Id,
-                    SellerId = seller.Id,
-                    ProductRating = (short)Rng.Next(4, 6),
-                    SellerRating = sellerRating,
-                    Tags = Array.Empty<string>(),
-                    Comment = null,
-                    CreatedAt = Clamp(createdAt.AddDays(9))
-                };
-                var agg = ratingAgg[seller.Id];
-                ratingAgg[seller.Id] = (agg.Sum + sellerRating, agg.Count + 1);
-            }
+            // ~70% of completed orders leave a rating — handled by ProductReviewSeedData.
         }
 
         // ReturnRequested: open dispute + pending refund → populates admin alerts.
