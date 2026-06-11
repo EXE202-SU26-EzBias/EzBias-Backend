@@ -25,4 +25,6 @@ public interface INotificationFactory
     Notification DepositConfirmed(long userId, long auctionId, string productName, decimal amount);
     Notification DepositRefundInitiated(long userId, long auctionId, string productName, decimal amount);
     Notification DepositForfeited(long userId, long auctionId, string productName, decimal amount);
+    Notification DepositPendingReview(long adminId, long depositId, long auctionId, decimal amount);
+    Notification DisputePendingReview(long adminId, long disputeId, long orderId);
 }

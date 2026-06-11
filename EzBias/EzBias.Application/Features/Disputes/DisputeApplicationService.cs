@@ -17,6 +17,7 @@ public class DisputeApplicationService : IDisputeApplicationService
     private readonly IOrderApplicationService _orderService;
     private readonly INotificationRepository _notifications;
     private readonly INotificationFactory _notificationFactory;
+    private readonly IUserRepository _users;
     private readonly IUnitOfWork _uow;
 
     public DisputeApplicationService(
@@ -28,6 +29,7 @@ public class DisputeApplicationService : IDisputeApplicationService
         IOrderApplicationService orderService,
         INotificationRepository notifications,
         INotificationFactory notificationFactory,
+        IUserRepository users,
         IUnitOfWork uow)
     {
         _disputes = disputes;
@@ -38,6 +40,7 @@ public class DisputeApplicationService : IDisputeApplicationService
         _orderService = orderService;
         _notifications = notifications;
         _notificationFactory = notificationFactory;
+        _users = users;
         _uow = uow;
     }
 
@@ -103,10 +106,16 @@ public class DisputeApplicationService : IDisputeApplicationService
             _disputes.Add(dispute);
         _disputes.AddItems(disputeItems);
 
-        // Notify seller that a dispute was opened
-        _notifications.Add(_notificationFactory.DisputeOpened(order.SellerId, dispute.Id, order.Id));
-
         await _uow.SaveChangesAsync(ct);
+
+        // Notify all admins that a new dispute was opened and needs resolution.
+        var adminIds = await _users.GetUserIdsByRoleAsync(UserRole.Admin, ct);
+        if (adminIds.Count > 0)
+        {
+            _notifications.AddRange(adminIds.Select(adminId =>
+                _notificationFactory.DisputePendingReview(adminId, dispute.Id, order.Id)));
+            await _uow.SaveChangesAsync(ct);
+        }
 
         dispute.Items = disputeItems;
         return (true, null, Map(dispute));
@@ -171,9 +180,8 @@ public class DisputeApplicationService : IDisputeApplicationService
         dispute.AdminNote = request.AdminNote?.Trim();
         dispute.ResolvedAt = DateTimeOffset.UtcNow;
 
-        // Notify both buyer (won) and seller (lost)
+        // Notify buyer (won)
         _notifications.Add(_notificationFactory.DisputeResolved(dispute.InitiatorId, dispute.Id, resolvedForBuyer: true));
-        _notifications.Add(_notificationFactory.DisputeResolved(order.SellerId, dispute.Id, resolvedForBuyer: false));
 
         await _uow.SaveChangesAsync(ct);
         return (true, null, Map(dispute));
@@ -197,9 +205,8 @@ public class DisputeApplicationService : IDisputeApplicationService
         order.Status = OrderStatus.Delivered;
         order.UpdatedAt = DateTimeOffset.UtcNow;
 
-        // Notify buyer (lost) and seller (won)
+        // Notify buyer (lost)
         _notifications.Add(_notificationFactory.DisputeResolved(dispute.InitiatorId, dispute.Id, resolvedForBuyer: false));
-        _notifications.Add(_notificationFactory.DisputeResolved(order.SellerId, dispute.Id, resolvedForBuyer: true));
 
         await _uow.SaveChangesAsync(ct);
         return (true, null, Map(dispute));

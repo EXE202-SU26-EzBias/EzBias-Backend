@@ -1,4 +1,5 @@
 using EzBias.Domain.Entities;
+using EzBias.Domain.Enums;
 using EzBias.Domain.Interfaces;
 using EzBias.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
@@ -25,6 +26,9 @@ public class UserRepository : IUserRepository
 
     public Task<User?> GetByIdAsync(long userId, CancellationToken ct)
         => _db.Users.FirstOrDefaultAsync(x => x.Id == userId, ct);
+
+    public async Task<IReadOnlyList<long>> GetUserIdsByRoleAsync(UserRole role, CancellationToken ct)
+        => await _db.Users.Where(x => x.Role == role).Select(x => x.Id).ToListAsync(ct);
 
     public void Add(User user) => _db.Users.Add(user);
 

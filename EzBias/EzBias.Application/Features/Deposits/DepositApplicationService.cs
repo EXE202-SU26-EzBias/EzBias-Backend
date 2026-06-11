@@ -264,6 +264,15 @@ public class DepositApplicationService : IDepositApplicationService
             return (false, saveError, null);
         }
 
+        // Notify all admins that a new deposit was submitted and needs resolution.
+        var adminIds = await _users.GetUserIdsByRoleAsync(UserRole.Admin, ct);
+        if (adminIds.Count > 0)
+        {
+            _notifications.AddRange(adminIds.Select(adminId =>
+                _notificationFactory.DepositPendingReview(adminId, deposit.Id, auctionId, deposit.Amount)));
+            await _uow.SaveChangesAsync(ct);
+        }
+
         var response = new InitiateDepositResponse(
             deposit.Id,
             auctionId,
