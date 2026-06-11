@@ -31,6 +31,8 @@ public class AdminApplicationService : IAdminApplicationService
 
         return new AdminDashboardOverviewResponse(
             x.TotalUsers,
+            x.TotalReviews,
+            x.AvgReviewStars,
             x.NewUsersToday,
             x.NewUsersLast7Days,
             x.NewUsersLast30Days,

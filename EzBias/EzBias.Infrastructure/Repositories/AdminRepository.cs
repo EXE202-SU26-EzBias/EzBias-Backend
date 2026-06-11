@@ -23,6 +23,10 @@ public class AdminRepository : IAdminRepository
         var last30Days = now.AddDays(-30);
 
         var totalUsers = await _db.Users.CountAsync(ct);
+        var totalReviews = await _db.ProductReviews.CountAsync(ct);
+        var avgReviewStars = totalReviews > 0
+            ? Math.Round(await _db.ProductReviews.AverageAsync(x => (double)x.Stars, ct), 2)
+            : 0d;
         var newUsersToday = await _db.Users.CountAsync(x => x.CreatedAt >= todayStart, ct);
         var newUsersLast7Days = await _db.Users.CountAsync(x => x.CreatedAt >= last7Days, ct);
         var newUsersLast30Days = await _db.Users.CountAsync(x => x.CreatedAt >= last30Days, ct);
@@ -90,6 +94,8 @@ public class AdminRepository : IAdminRepository
 
         return new AdminDashboardOverviewData(
             totalUsers,
+            totalReviews,
+            (decimal)avgReviewStars,
             newUsersToday,
             newUsersLast7Days,
             newUsersLast30Days,
