@@ -2,6 +2,8 @@ namespace EzBias.Application.Features.Admin.Dtos;
 
 public record AdminDashboardOverviewResponse(
     int TotalUsers,
+    int TotalReviews,
+    decimal AvgReviewStars,
     int NewUsersToday,
     int NewUsersLast7Days,
     int NewUsersLast30Days,

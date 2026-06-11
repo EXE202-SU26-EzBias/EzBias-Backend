@@ -15,6 +15,8 @@ public interface IAdminRepository
 
 public record AdminDashboardOverviewData(
     int TotalUsers,
+    int TotalReviews,
+    decimal AvgReviewStars,
     int NewUsersToday,
     int NewUsersLast7Days,
     int NewUsersLast30Days,
