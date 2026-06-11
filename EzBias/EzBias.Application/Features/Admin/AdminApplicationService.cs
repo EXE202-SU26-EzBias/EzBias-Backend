@@ -170,4 +170,24 @@ public class AdminApplicationService : IAdminApplicationService
 
         return await GetUserDetailAsync(userId, ct);
     }
+
+    public async Task<IReadOnlyList<AdminTransactionItem>> GetTransactionsAsync(CancellationToken ct)
+    {
+        var rows = await _adminRepository.GetTransactionsAsync(ct);
+        return rows.Select(r => new AdminTransactionItem(
+            r.Id,
+            r.Kind,
+            r.Kind == "payment" || r.Kind == "deposit" ? "in" : "out",
+            r.Amount,
+            r.Status,
+            r.Reference,
+            r.OrderId,
+            r.BuyerUsername,
+            r.BuyerEmail,
+            r.SellerUsername,
+            r.SellerEmail,
+            r.CreatedAt,
+            r.SettledAt
+        )).ToList();
+    }
 }

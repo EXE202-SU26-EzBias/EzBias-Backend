@@ -11,4 +11,5 @@ public interface IAdminApplicationService
     Task<(bool Success, string? Error, AdminUserDetailResponse? Data)> UpdateUserAsync(long userId, AdminUpdateUserRequest request, CancellationToken ct);
     Task<(bool Success, string? Error)> SoftDeleteUserAsync(long userId, long adminId, CancellationToken ct);
     Task<(bool Success, string? Error, AdminUserDetailResponse? Data)> RestoreUserAsync(long userId, CancellationToken ct);
+    Task<IReadOnlyList<AdminTransactionItem>> GetTransactionsAsync(CancellationToken ct);
 }

@@ -40,7 +40,7 @@ public class AdminRepository : IAdminRepository
         int Count(OrderStatus status) => orderStatusCounts.FirstOrDefault(x => x.Status == status)?.Count ?? 0;
 
         var grossRevenue = await _db.Payments.Where(x => x.Status == PaymentStatus.Paid).SumAsync(x => (decimal?)x.Amount, ct) ?? 0m;
-        var refundedAmount = await _db.Refunds.Where(x => x.Status == RefundStatus.Processed).SumAsync(x => (decimal?)x.Amount, ct) ?? 0m;
+        var refundedAmount = await _db.Refunds.Where(x => x.Status == RefundStatus.Completed).SumAsync(x => (decimal?)x.Amount, ct) ?? 0m;
         var netRevenue = grossRevenue - refundedAmount;
         var totalCommissionRevenue = await _db.CommissionTransactions.SumAsync(x => (decimal?)x.CommissionAmount, ct) ?? 0m;
         var commissionRevenueToday = await _db.CommissionTransactions
@@ -207,4 +207,127 @@ public class AdminRepository : IAdminRepository
             && (x.Email.ToLower() == normalizedEmail || x.Username.ToLower() == normalizedUsername), ct);
 
     public void AddUser(User user) => _db.Users.Add(user);
+
+    public async Task<IReadOnlyList<AdminTransactionRow>> GetTransactionsAsync(CancellationToken ct)
+    {
+        // ---- Payments (Buyer → Platform) ----
+        var payments = await _db.Payments
+            .Where(p => p.Type == PaymentType.Order)
+            .Include(p => p.User)
+            .Include(p => p.PaymentOrders)
+                .ThenInclude(po => po.Order)
+                    .ThenInclude(o => o.Seller)
+            .OrderByDescending(p => p.CreatedAt)
+            .ToListAsync(ct);
+
+        var paymentRows = payments.Select(p =>
+        {
+            var firstOrder = p.PaymentOrders.FirstOrDefault()?.Order;
+            return new AdminTransactionRow(
+                p.Id,
+                "payment",
+                p.Amount,
+                p.Status.ToString(),
+                p.Reference ?? string.Empty,
+                firstOrder?.Id,
+                p.UserId,
+                p.User?.Username,
+                p.User?.Email,
+                firstOrder?.SellerId,
+                firstOrder?.Seller?.Username,
+                firstOrder?.Seller?.Email,
+                p.CreatedAt,
+                p.PaidAt
+            );
+        }).ToList();
+
+        // ---- Payouts (Platform → Seller) ----
+        var payouts = await _db.Payouts
+            .Include(p => p.Seller)
+            .Include(p => p.Order)
+                .ThenInclude(o => o.User)
+            .OrderByDescending(p => p.CreatedAt)
+            .ToListAsync(ct);
+
+        var payoutRows = payouts.Select(p => new AdminTransactionRow(
+            p.Id,
+            "payout",
+            p.Amount,
+            p.Status.ToString(),
+            p.BankTransferRef ?? string.Empty,
+            p.OrderId,
+            p.Order?.UserId,
+            p.Order?.User?.Username,
+            p.Order?.User?.Email,
+            p.SellerId,
+            p.Seller?.Username,
+            p.Seller?.Email,
+            p.CreatedAt,
+            p.PaidAt
+        )).ToList();
+
+        // ---- Auction Deposits (Buyer → Platform, Type=AuctionDeposit) ----
+        var deposits = await _db.Payments
+            .Where(p => p.Type == PaymentType.AuctionDeposit)
+            .Include(p => p.User)
+            .Include(p => p.AuctionDeposits)
+                .ThenInclude(d => d.Auction)
+            .OrderByDescending(p => p.CreatedAt)
+            .ToListAsync(ct);
+
+        var depositRows = deposits.Select(p =>
+        {
+            var auctionDeposit = p.AuctionDeposits.FirstOrDefault();
+            return new AdminTransactionRow(
+                p.Id,
+                "deposit",
+                p.Amount,
+                p.Status.ToString(),
+                p.Reference ?? string.Empty,
+                null,
+                p.UserId,
+                p.User?.Username,
+                p.User?.Email,
+                null,
+                null,
+                null,
+                p.CreatedAt,
+                p.PaidAt
+            );
+        }).ToList();
+
+        // ---- Refunds (Platform → Buyer) ----
+        var refunds = await _db.Refunds
+            .Include(r => r.Payment)
+                .ThenInclude(pay => pay.User)
+            .Include(r => r.Order)
+                .ThenInclude(o => o != null ? o.Seller : null)
+            .OrderByDescending(r => r.CreatedAt)
+            .ToListAsync(ct);
+
+        var refundRows = refunds.Select(r => new AdminTransactionRow(
+            r.Id,
+            "refund",
+            r.Amount,
+            r.Status.ToString(),
+            r.ProviderRef ?? string.Empty,
+            r.OrderId,
+            r.Payment?.UserId,
+            r.Payment?.User?.Username,
+            r.Payment?.User?.Email,
+            r.Order?.SellerId,
+            r.Order?.Seller?.Username,
+            r.Order?.Seller?.Email,
+            r.CreatedAt,
+            r.ProcessedAt
+        )).ToList();
+
+        // Merge and sort by date descending
+        return paymentRows
+            .Concat(payoutRows)
+            .Concat(depositRows)
+            .Concat(refundRows)
+            .OrderByDescending(r => r.CreatedAt)
+            .ToList();
+    }
 }

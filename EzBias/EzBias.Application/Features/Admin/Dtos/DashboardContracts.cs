@@ -112,3 +112,22 @@ public record AdminUpdateUserRequest(
     string? Phone,
     string? City
 );
+
+// ==================== Transaction History ====================
+
+/// <summary>Unified money-movement record shown in the Admin Orders / Transactions tab.</summary>
+public record AdminTransactionItem(
+    long Id,
+    string Kind,           // "payment" | "payout"
+    string Direction,      // "in" = buyer→platform | "out" = platform→seller
+    decimal Amount,
+    string Status,         // "Paid","Pending","Approved","Rejected", etc.
+    string Reference,      // SePay reference or bank-transfer ref
+    long? OrderId,
+    string? BuyerUsername,
+    string? BuyerEmail,
+    string? SellerUsername,
+    string? SellerEmail,
+    DateTimeOffset CreatedAt,
+    DateTimeOffset? SettledAt  // PaidAt for payment, PaidAt for payout
+);
