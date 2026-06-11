@@ -22,4 +22,11 @@ public class AdminDashboardController : ControllerBase
         var data = await _adminService.GetDashboardOverviewAsync(ct);
         return Ok(data);
     }
+
+    [HttpGet("transactions")]
+    public async Task<IActionResult> Transactions(CancellationToken ct)
+    {
+        var data = await _adminService.GetTransactionsAsync(ct);
+        return Ok(data);
+    }
 }

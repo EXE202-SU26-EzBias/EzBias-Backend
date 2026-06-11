@@ -11,6 +11,7 @@ public interface IAdminRepository
     Task<User?> GetUserByIdAsync(long userId, CancellationToken ct);
     Task<bool> ExistsByEmailOrUsernameAsync(string normalizedEmail, string normalizedUsername, long? excludeUserId, CancellationToken ct);
     void AddUser(User user);
+    Task<IReadOnlyList<AdminTransactionRow>> GetTransactionsAsync(CancellationToken ct);
 }
 
 public record AdminDashboardOverviewData(
@@ -61,4 +62,21 @@ public record AdminTopSellerCommissionData(
     decimal GrossRevenue,
     decimal CommissionRevenue,
     decimal NetRevenue
+);
+
+public record AdminTransactionRow(
+    long Id,
+    string Kind,
+    decimal Amount,
+    string Status,
+    string Reference,
+    long? OrderId,
+    long? BuyerUserId,
+    string? BuyerUsername,
+    string? BuyerEmail,
+    long? SellerUserId,
+    string? SellerUsername,
+    string? SellerEmail,
+    DateTimeOffset CreatedAt,
+    DateTimeOffset? SettledAt
 );

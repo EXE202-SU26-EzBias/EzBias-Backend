@@ -435,7 +435,7 @@ public static class SalesSeedData
                 Payment = payment,
                 Amount = order.Total,
                 Reason = "Buyer returned item — full refund.",
-                Status = RefundStatus.Processed,
+                Status = RefundStatus.Completed,
                 ProcessedAt = refundedAt,
                 CreatedAt = Clamp(createdAt.AddDays(1))
             });

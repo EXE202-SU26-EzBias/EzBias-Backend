@@ -227,7 +227,7 @@ public class DisputeApplicationService : IDisputeApplicationService
         var payment = await _payments.GetByIdAsync(refund.PaymentId, ct);
         if (payment is null) return (false, "Payment not found.", null);
 
-        refund.Status = RefundStatus.Processed;
+        refund.Status = RefundStatus.Completed;
         refund.ProcessedAt = DateTimeOffset.UtcNow;
         refund.ProviderRef = $"MANUAL-{DateTimeOffset.UtcNow:yyyyMMddHHmmss}";
 
@@ -305,7 +305,7 @@ public class DisputeApplicationService : IDisputeApplicationService
                 buyer.BankAccountName);
         }
 
-        var refundProcessed = x.Refunds.Any(r => r.Status == RefundStatus.Processed);
+        var refundProcessed = x.Refunds.Any(r => r.Status == RefundStatus.Completed);
 
         return new DisputeListItemResponse(
             x.Id,
