@@ -51,8 +51,6 @@ public class User
     public ICollection<Payout> Payouts { get; set; } = new List<Payout>();
     public ICollection<EscrowTransaction> EscrowTransactionsAsSeller { get; set; } = new List<EscrowTransaction>();
 
-    public ICollection<Rating> RatingsAsBuyer { get; set; } = new List<Rating>();
-    public ICollection<Rating> RatingsAsSeller { get; set; } = new List<Rating>();
     public ICollection<Notification> Notifications { get; set; } = new List<Notification>();
     public ICollection<RefreshToken> RefreshTokens { get; set; } = new List<RefreshToken>();
     public ICollection<ProductBoost> ProductBoosts { get; set; } = new List<ProductBoost>();
