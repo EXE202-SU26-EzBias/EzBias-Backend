@@ -32,4 +32,17 @@ public class ProductReviewRepository : IProductReviewRepository
             .Where(x => x.ProductId == productId)
             .OrderByDescending(x => x.CreatedAt)
             .ToListAsync(ct);
+
+    public async Task<(decimal AvgStars, int TotalReviews)> GetSellerStatsAsync(long sellerId, CancellationToken ct)
+    {
+        // Join ProductReviews → Products to filter by seller
+        var stats = await _db.ProductReviews
+            .Where(r => r.Product.SellerId == sellerId)
+            .GroupBy(_ => 1)
+            .Select(g => new { Avg = g.Average(r => (double)r.Stars), Count = g.Count() })
+            .FirstOrDefaultAsync(ct);
+
+        if (stats is null) return (0m, 0);
+        return (Math.Round((decimal)stats.Avg, 2), stats.Count);
+    }
 }
