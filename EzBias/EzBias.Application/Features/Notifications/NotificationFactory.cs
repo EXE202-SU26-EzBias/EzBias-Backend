@@ -112,6 +112,18 @@ public sealed class NotificationFactory : INotificationFactory
             $"Your deposit of {amount:N0} VND for \"{productName}\" has been forfeited because the winning payment was not completed in time.",
             new { auctionId });
 
+    public Notification DepositPendingReview(long adminId, long depositId, long auctionId, decimal amount)
+        => Build(adminId, NotificationType.DepositPendingReview,
+            "New deposit needs resolution",
+            $"A new deposit of {amount:N0} VND has been submitted and needs to be resolved.",
+            new { depositId, auctionId });
+
+    public Notification DisputePendingReview(long adminId, long disputeId, long orderId)
+        => Build(adminId, NotificationType.DisputePendingReview,
+            "New dispute needs resolution",
+            "A buyer has opened a new dispute that needs to be reviewed and resolved.",
+            new { disputeId, orderId });
+
     private static Notification Build(long userId, NotificationType type, string title, string body, object meta)
         => new()
         {

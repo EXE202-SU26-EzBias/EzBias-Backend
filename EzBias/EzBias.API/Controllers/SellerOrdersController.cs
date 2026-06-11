@@ -52,8 +52,12 @@ public class SellerOrdersController : ControllerBase
         if (order.Status != OrderStatus.Paid && order.Status != OrderStatus.Processing)
             return BadRequest(new { message = "Order cannot be marked shipped in current status." });
 
-        order.Carrier = request.Carrier?.Trim();
-        order.TrackingNumber = $"TRK-{DateTimeOffset.UtcNow:yyyyMMddHHmmss}-{order.Id}";
+        var carrier = request.Carrier?.Trim();
+        order.Carrier = carrier;
+        var suffix = Random.Shared.Next(0, 1_000_000).ToString("D6");
+        order.TrackingNumber = string.IsNullOrEmpty(carrier)
+            ? $"tracking - {suffix}"
+            : $"{carrier} - {suffix}";
         order.ShippedAt = DateTimeOffset.UtcNow;
         order.Status = OrderStatus.Shipped;
         order.UpdatedAt = DateTimeOffset.UtcNow;
