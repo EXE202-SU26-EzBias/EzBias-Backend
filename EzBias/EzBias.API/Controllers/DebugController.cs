@@ -95,7 +95,7 @@ public class DebugController : ControllerBase
                     dispute_items, disputes, refunds, commission_transactions,
                     escrow_transactions, payouts, payment_orders, payments,
                     order_items, orders, bids, auctions, cart_items, wishlists,
-                    seller_follows, product_images, product_boosts, products,
+                    seller_follows, product_images, product_boosts, product_reviews, products,
                     contact_messages, fandoms, users
                 RESTART IDENTITY CASCADE;
             ", ct);
@@ -105,6 +105,7 @@ public class DebugController : ControllerBase
             var sellers = ProductSeedData.GetSeedSellers(_db);
             await AuctionSeedData.SeedAsync(_db, sellers, ct);
             await SalesSeedData.SeedAsync(_db, ct);
+            await ProductReviewSeedData.SeedAsync(_db, ct);
 
             return Ok(new { message = "Database reset and re-seeded successfully." });
         }
