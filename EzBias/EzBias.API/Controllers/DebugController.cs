@@ -91,10 +91,10 @@ public class DebugController : ControllerBase
             // Truncate all tables using CASCADE (handles FK automatically)
             await _db.Database.ExecuteSqlRawAsync(@"
                 TRUNCATE TABLE
-                    otp_verifications, refresh_tokens, notifications, ratings,
+                    otp_verifications, refresh_tokens, notifications,
                     dispute_items, disputes, refunds, commission_transactions,
                     escrow_transactions, payouts, payment_orders, payments,
-                    order_items, orders, bids, auctions, cart_items, wishlists,
+                    order_items, orders, bids, auction_deposits, auctions, cart_items, wishlists,
                     seller_follows, product_images, product_boosts, product_reviews, products,
                     contact_messages, fandoms, users
                 RESTART IDENTITY CASCADE;
