@@ -9,4 +9,6 @@ public interface IProductReviewApplicationService
     Task<(bool Success, string? Error, ProductReviewResponse? Data)> CreateAsync(long userId, long productId, CreateProductReviewRequest request, CancellationToken ct);
     Task<(bool Success, string? Error, ProductReviewResponse? Data)> UpdateAsync(long userId, long reviewId, UpdateProductReviewRequest request, CancellationToken ct);
     Task<(bool Success, string? Error)> DeleteAsync(long userId, long reviewId, CancellationToken ct);
+    Task<IReadOnlyList<AdminReviewListItem>> GetAllForAdminAsync(CancellationToken ct);
+    Task<(bool Success, string? Error)> AdminDeleteAsync(long reviewId, CancellationToken ct);
 }

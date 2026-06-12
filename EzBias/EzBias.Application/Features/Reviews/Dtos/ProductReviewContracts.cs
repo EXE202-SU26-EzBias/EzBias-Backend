@@ -21,3 +21,15 @@ public record ProductReviewSummary(
     IReadOnlyList<ProductReviewResponse> Reviews);
 
 public record ReviewEligibility(bool HasPurchased, ProductReviewResponse? ExistingReview);
+
+public record AdminReviewListItem(
+    long Id,
+    long ProductId,
+    string ProductName,
+    long UserId,
+    string Username,
+    short Stars,
+    string? Comment,
+    DateTimeOffset CreatedAt,
+    DateTimeOffset? UpdatedAt
+);

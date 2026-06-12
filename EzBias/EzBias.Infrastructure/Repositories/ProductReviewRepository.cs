@@ -33,6 +33,13 @@ public class ProductReviewRepository : IProductReviewRepository
             .OrderByDescending(x => x.CreatedAt)
             .ToListAsync(ct);
 
+    public async Task<IReadOnlyList<ProductReview>> GetAllAsync(CancellationToken ct)
+        => await _db.ProductReviews
+            .Include(x => x.User)
+            .Include(x => x.Product)
+            .OrderByDescending(x => x.CreatedAt)
+            .ToListAsync(ct);
+
     public async Task<(decimal AvgStars, int TotalReviews)> GetSellerStatsAsync(long sellerId, CancellationToken ct)
     {
         // Join ProductReviews → Products to filter by seller
