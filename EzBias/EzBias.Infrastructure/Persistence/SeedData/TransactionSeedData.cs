@@ -124,7 +124,7 @@ public static class TransactionSeedData
                 PaymentId = payment.Id,
                 HeldAt = state != DepositState.PendingPayment ? paidAt : null,
                 AppliedAt = state == DepositState.Applied ? paidAt.AddDays(1) : null,
-                RefundedAt = state == DepositState.Refunded ? paidAt.AddDays(Rng.Next(1, 5)) : null,
+                RefundedAt = state == DepositState.Refunded ? (paidAt.AddDays(Rng.Next(1, 5)) is var rd && rd > now ? now.AddMinutes(-10) : rd) : null,
                 CreatedAt = createdAt
             };
             db.AuctionDeposits.Add(deposit);
@@ -132,14 +132,18 @@ public static class TransactionSeedData
             // For Refunded deposits → also create a Refund record
             if (state == DepositState.Refunded)
             {
-                var refundedAt = paidAt.AddDays(Rng.Next(1, 5));
+                // Persist first so deposit.Id is assigned for the REF-DEP reference.
+                await db.SaveChangesAsync(ct);
+
+                var rawRefundedAt = paidAt.AddDays(Rng.Next(1, 5));
+                var refundedAt = rawRefundedAt > now ? now.AddMinutes(-Rng.Next(5, 60)) : rawRefundedAt;
                 var refund = new Refund
                 {
                     PaymentId = payment.Id,
                     Amount = depositAmount,
                     Reason = "Auction deposit refund — losing bidder.",
                     Status = RefundStatus.Completed,
-                    ProviderRef = $"REF-DEP-{refundedAt:yyyyMMddHHmmss}-{seq}",
+                    ProviderRef = $"REF-DEP-{refundedAt:yyyyMMddHHmmss}-{deposit.Id}",
                     ProcessedAt = refundedAt,
                     CreatedAt = refundedAt.AddMinutes(-5)
                 };
@@ -170,15 +174,16 @@ public static class TransactionSeedData
                 var refundAmount = Math.Round(order.Total * (decimal)(Rng.Next(20, 60) / 100.0), 0);
                 var daysAgo = Rng.Next(2, 20);
                 var createdAt = now.AddDays(-daysAgo);
-                var seq = Rng.Next(100000, 999999);
 
                 // Alternate between Pending and Completed
                 var isCompleted = processedCount % 2 == 0;
-                var providerRef = isCompleted
-                    ? $"REF-ORD-{createdAt:yyyyMMddHHmmss}-{seq}"
-                    : null;
+                var maxProcessedAt = now.AddMinutes(-5); // never in the future
+                var rawProcessedAt = createdAt.AddDays(Rng.Next(1, 4));
                 var processedAt = isCompleted
-                    ? (DateTimeOffset?)createdAt.AddDays(Rng.Next(1, 4))
+                    ? (DateTimeOffset?)(rawProcessedAt > maxProcessedAt ? maxProcessedAt : rawProcessedAt)
+                    : null;
+                var providerRef = isCompleted
+                    ? $"REF-ORD-{createdAt:yyyyMMddHHmmss}-{po.OrderId}"
                     : null;
 
                 var refund = new Refund
