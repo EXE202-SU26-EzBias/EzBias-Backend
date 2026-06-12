@@ -354,6 +354,20 @@ public static class SalesSeedData
             await db.SaveChangesAsync(ct);
         }
 
+        // Backfill REF-ORD reference codes now that order ids are assigned.
+        // Completed order refunds get REF-ORD-{ts}-{orderId}; pending ones stay null until processed.
+        foreach (var order in orders)
+        {
+            foreach (var refund in order.Refunds)
+            {
+                if (refund.Status != RefundStatus.Completed || refund.ProviderRef is not null)
+                    continue;
+
+                var ts = refund.ProcessedAt ?? refund.CreatedAt;
+                refund.ProviderRef = $"REF-ORD-{ts:yyyyMMddHHmmss}-{order.Id}";
+            }
+        }
+
         await db.SaveChangesAsync(ct);
     }
 
@@ -491,7 +505,7 @@ public static class SalesSeedData
                 Amount = sellerNet,
                 Status = payoutStatus,
                 CreatedAt = Clamp(createdAt.AddDays(7)),
-                BankTransferRef = payoutApproved ? $"PO-{createdAt:yyyyMMdd}-{seq}" : null,
+                BankTransferRef = payoutApproved ? $"PO-{createdAt:yyyyMMddHHmmss}-{seq}" : null,
                 PaidAt = payoutApproved ? Clamp(createdAt.AddDays(8)) : null
             };
             order.Payout = payout;

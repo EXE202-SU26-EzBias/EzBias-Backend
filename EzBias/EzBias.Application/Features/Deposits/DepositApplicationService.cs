@@ -732,13 +732,16 @@ public class DepositApplicationService : IDepositApplicationService
         }
 
         // (4) Create a Refund record
+        var now = DateTimeOffset.UtcNow;
         var refund = new Refund
         {
             PaymentId = deposit.PaymentId.Value,
             Amount = deposit.Amount,
             Reason = reason,
-            Status = RefundStatus.Pending,
-            CreatedAt = DateTimeOffset.UtcNow
+            Status = RefundStatus.Completed,
+            ProviderRef = $"REF-DEP-{now:yyyyMMddHHmmss}-{depositId}",
+            ProcessedAt = now,
+            CreatedAt = now
         };
         _refunds.Add(refund);
 

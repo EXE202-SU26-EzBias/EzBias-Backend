@@ -57,7 +57,9 @@ public class PayoutApplicationService : IPayoutApplicationService
 
         payout.Status = PayoutStatus.Approved;
         payout.PaidAt = DateTimeOffset.UtcNow;
-        payout.BankTransferRef = string.IsNullOrWhiteSpace(request.BankTransferRef) ? payout.BankTransferRef : request.BankTransferRef.Trim();
+        payout.BankTransferRef = !string.IsNullOrWhiteSpace(request.BankTransferRef)
+            ? request.BankTransferRef.Trim()
+            : $"PO-{DateTimeOffset.UtcNow:yyyyMMddHHmmss}-{payout.Id}";
         payout.UpdatedAt = DateTimeOffset.UtcNow;
 
         _notifications.Add(_notificationFactory.PayoutPaid(payout.SellerId, payout.Id, payout.Amount));

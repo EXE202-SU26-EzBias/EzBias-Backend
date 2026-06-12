@@ -229,7 +229,7 @@ public class DisputeApplicationService : IDisputeApplicationService
 
         refund.Status = RefundStatus.Completed;
         refund.ProcessedAt = DateTimeOffset.UtcNow;
-        refund.ProviderRef = $"MANUAL-{DateTimeOffset.UtcNow:yyyyMMddHHmmss}";
+        refund.ProviderRef = $"REF-DSP-{DateTimeOffset.UtcNow:yyyyMMddHHmmss}-{dispute.Id}";
 
         var now = DateTimeOffset.UtcNow;
         var fullRefund = refund.Amount >= order.Total;
