@@ -102,6 +102,32 @@ public class ProductReviewApplicationService : IProductReviewApplicationService
         return (true, null);
     }
 
+    public async Task<IReadOnlyList<AdminReviewListItem>> GetAllForAdminAsync(CancellationToken ct)
+    {
+        var all = await _reviews.GetAllAsync(ct);
+        return all.Select(r => new AdminReviewListItem(
+            r.Id,
+            r.ProductId,
+            r.Product?.Name ?? string.Empty,
+            r.UserId,
+            r.User?.Username ?? string.Empty,
+            r.Stars,
+            r.Comment,
+            r.CreatedAt,
+            r.UpdatedAt
+        )).ToList();
+    }
+
+    public async Task<(bool Success, string? Error)> AdminDeleteAsync(long reviewId, CancellationToken ct)
+    {
+        var review = await _reviews.GetByIdAsync(reviewId, ct);
+        if (review is null) return (false, "Review not found.");
+
+        _reviews.Remove(review);
+        await _uow.SaveChangesAsync(ct);
+        return (true, null);
+    }
+
     private static ProductReviewResponse Map(ProductReview x, string username)
         => new(x.Id, x.ProductId, x.UserId, username, x.Stars, x.Comment, x.CreatedAt, x.UpdatedAt);
 }

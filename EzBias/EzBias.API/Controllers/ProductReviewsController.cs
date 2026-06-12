@@ -74,6 +74,27 @@ public class ProductReviewsController : ControllerBase
         return NoContent();
     }
 
+    [Authorize(Roles = "Admin")]
+    [HttpGet("admin/reviews")]
+    public async Task<IActionResult> AdminGetAll(CancellationToken ct)
+    {
+        var items = await _reviews.GetAllForAdminAsync(ct);
+        return Ok(items);
+    }
+
+    [Authorize(Roles = "Admin")]
+    [HttpDelete("admin/reviews/{id:long}")]
+    public async Task<IActionResult> AdminDelete([FromRoute] long id, CancellationToken ct)
+    {
+        var result = await _reviews.AdminDeleteAsync(id, ct);
+        if (!result.Success)
+        {
+            if (result.Error == "Review not found.") return NotFound(new { message = result.Error });
+            return BadRequest(new { message = result.Error });
+        }
+        return NoContent();
+    }
+
     private bool TryGetUserId(out long userId)
     {
         var sub = User.FindFirstValue(ClaimTypes.NameIdentifier)
