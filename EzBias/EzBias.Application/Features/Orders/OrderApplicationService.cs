@@ -178,6 +178,13 @@ public class OrderApplicationService : IOrderApplicationService
         return (true, null, Map(order));
     }
 
+    public async Task<(bool Success, string? Error, OrderViewResponse? Data)> GetDetailForAdminAsync(long orderId, CancellationToken ct)
+    {
+        var order = await _orders.GetByIdWithItemsAsync(orderId, ct);
+        if (order is null) return (false, "Order not found.", null);
+        return (true, null, Map(order));
+    }
+
     public async Task<IReadOnlyList<OrderViewResponse>> GetBySellerAsync(long sellerId, CancellationToken ct)
     {
         var items = await _orders.GetBySellerAsync(sellerId, ct);
