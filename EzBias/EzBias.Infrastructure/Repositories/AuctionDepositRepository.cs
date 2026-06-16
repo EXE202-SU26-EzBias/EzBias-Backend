@@ -59,7 +59,10 @@ public class AuctionDepositRepository : IAuctionDepositRepository
                 .ThenInclude(a => a.Product)
             .Include(x => x.User)
             .Include(x => x.Payment)
-            .Where(x => x.State == DepositState.Held 
+            .Where(x => x.State == DepositState.Held
+                && x.Auction.Status != AuctionStatus.Draft
+                && x.Auction.Status != AuctionStatus.Live
+                && x.Auction.Status != AuctionStatus.Extended
                 && (x.Auction.WinnerId == null || x.UserId != x.Auction.WinnerId))
             .OrderByDescending(x => x.HeldAt)
             .ToListAsync(ct);
