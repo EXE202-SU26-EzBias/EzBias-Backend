@@ -160,7 +160,7 @@ public class DisputeApplicationService : IDisputeApplicationService
         if (refundAmount > order.Total) return (false, "Approved refund exceeds order total.", null);
 
         var processedTotal = await _refunds.GetProcessedTotalByPaymentIdAsync(payment.Id, ct);
-        var refundable = payment.Amount - processedTotal;
+        var refundable = EffectiveAmountPaid(order, payment) - processedTotal;
         if (refundable < refundAmount) return (false, "Insufficient refundable amount.", null);
 
         var refund = new Refund
@@ -244,7 +244,7 @@ public class DisputeApplicationService : IDisputeApplicationService
 
         var processedTotal = await _refunds.GetProcessedTotalByPaymentIdAsync(payment.Id, ct);
         var totalAfterThisRefund = processedTotal + refund.Amount;
-        if (Math.Abs(totalAfterThisRefund - payment.Amount) < 0.01m)
+        if (Math.Abs(totalAfterThisRefund - EffectiveAmountPaid(order, payment)) < 0.01m)
         {
             payment.Status = PaymentStatus.Refunded;
             payment.UpdatedAt = DateTimeOffset.UtcNow;
@@ -262,6 +262,13 @@ public class DisputeApplicationService : IDisputeApplicationService
         var disputes = await _disputes.GetAllWithOrderAndBuyerAsync(ct);
         return disputes.Select(MapListItem).ToList();
     }
+
+    // The amount the buyer actually paid against this order. For auction orders the winner's held
+    // deposit is credited toward the final price, so Payment.Amount = Order.Total - deposit. A full-order
+    // dispute refunds the full Order.Total (item unit prices), so the refundable ceiling must add back the
+    // applied deposit; otherwise a deposited auction win can never be fully refunded.
+    private static decimal EffectiveAmountPaid(Order order, Payment payment)
+        => payment.Amount >= order.Total ? payment.Amount : order.Total;
 
     private static DisputeResponse Map(Dispute x) => new(
         x.Id,
