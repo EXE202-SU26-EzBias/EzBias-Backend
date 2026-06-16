@@ -354,8 +354,8 @@ public static class SalesSeedData
             await db.SaveChangesAsync(ct);
         }
 
-        // Backfill REF-ORD reference codes now that order ids are assigned.
-        // Completed order refunds get REF-ORD-{ts}-{orderId}; pending ones stay null until processed.
+        // Backfill REF-DSP reference codes now that order ids are assigned.
+        // Completed dispute refunds get REF-DSP-{ts}-{orderId}; pending ones stay null until processed.
         foreach (var order in orders)
         {
             foreach (var refund in order.Refunds)
@@ -364,7 +364,7 @@ public static class SalesSeedData
                     continue;
 
                 var ts = refund.ProcessedAt ?? refund.CreatedAt;
-                refund.ProviderRef = $"REF-ORD-{ts:yyyyMMddHHmmss}-{order.Id}";
+                refund.ProviderRef = $"REF-DSP-{ts:yyyyMMddHHmmss}-{order.Id}";
             }
         }
 

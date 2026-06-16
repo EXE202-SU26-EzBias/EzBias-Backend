@@ -15,13 +15,12 @@ namespace EzBias.Infrastructure.Persistence.SeedData;
 /// </summary>
 public static class TransactionSeedData
 {
-    private const string MarkerRef = "DEPOSIT-SEED-MARKER-2026";
     private static readonly Random Rng = new(20260612);
 
     public static async Task SeedAsync(EzBiasDbContext db, CancellationToken ct = default)
     {
-        // Idempotency guard
-        if (db.Payments.Any(p => p.Reference == MarkerRef))
+        // Idempotency guard — if any seeded deposits already exist, do nothing.
+        if (db.AuctionDeposits.Any())
             return;
 
         var now = DateTimeOffset.UtcNow;
@@ -75,23 +74,6 @@ public static class TransactionSeedData
             depositSeeds.Add((buyer, auction, DepositState.Held, DaysAgo: Rng.Next(1, 7)));
         }
 
-        // Marker payment (first one)
-        var markerPayment = new Payment
-        {
-            UserId = buyers[0].Id,
-            Type = PaymentType.AuctionDeposit,
-            Amount = auctions[0].FloorPrice * 0.1m,
-            Currency = "VND",
-            Status = PaymentStatus.Paid,
-            Reference = MarkerRef,
-            TransferContent = $"EZB-DEPOSIT-{buyers[0].Id}-MARKER",
-            Payload = "{}",
-            PaidAt = now.AddDays(-30),
-            CreatedAt = now.AddDays(-30)
-        };
-        db.Payments.Add(markerPayment);
-        await db.SaveChangesAsync(ct);
-
         foreach (var (buyer, auction, state, daysAgo) in depositSeeds)
         {
             var depositAmount = Math.Round(auction.FloorPrice * 0.1m, 0);
@@ -106,7 +88,7 @@ public static class TransactionSeedData
                 Amount = depositAmount,
                 Currency = "VND",
                 Status = PaymentStatus.Paid,
-                Reference = $"DEP-{createdAt:yyyyMMddHHmmss}-{buyer.Id}",
+                Reference = $"PAY-{createdAt:yyyyMMddHHmmss}-{buyer.Id}",
                 TransferContent = $"EZB-{buyer.Id}-{seq}",
                 Payload = "{}",
                 PaidAt = paidAt,
@@ -183,7 +165,7 @@ public static class TransactionSeedData
                     ? (DateTimeOffset?)(rawProcessedAt > maxProcessedAt ? maxProcessedAt : rawProcessedAt)
                     : null;
                 var providerRef = isCompleted
-                    ? $"REF-ORD-{createdAt:yyyyMMddHHmmss}-{po.OrderId}"
+                    ? $"REF-DSP-{createdAt:yyyyMMddHHmmss}-{po.OrderId}"
                     : null;
 
                 var refund = new Refund
