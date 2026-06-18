@@ -191,36 +191,36 @@ public static class SalesSeedData
     // Step 4 — sale products
     // ----------------------------------------------------------------------------------
 
-    private record SaleProductTemplate(int SellerIndex, string FandomId, string Artist, string Name, string Type, ProductCondition Condition, decimal Price);
+    private record SaleProductTemplate(int SellerIndex, string FandomId, string Artist, string Name, string Type, ProductCondition Condition, decimal Price, string PrimaryImageUrl = "");
 
     private static readonly SaleProductTemplate[] ProductTemplates =
     {
         // Seller 0 — includes two hero items from the task.
-        new(0, "twice",     "TWICE",            "TWICE Ready To Be Tour T-Shirt", "Apparel",   ProductCondition.LikeNew, 350_000m),
-        new(0, "straykids", "Stray Kids",       "Stray Kids SKZOO Plush",         "Merch",     ProductCondition.New,     280_000m),
-        new(0, "newjeans",  "NewJeans",         "NewJeans Get Up Photocard",      "Photocard", ProductCondition.New,     160_000m),
-        new(0, "bts",       "BTS",              "BTS Proof Collector Edition",    "Album",     ProductCondition.LikeNew, 520_000m),
+        new(0, "twice",     "TWICE",            "TWICE Ready To Be Tour T-Shirt", "Apparel",   ProductCondition.LikeNew, 350_000m, "https://res.cloudinary.com/db7ueln9w/image/upload/v1779636016/TWICE_Ready_To_Be_Tour_T-Shirt_r7ub1d.jpg"),
+        new(0, "straykids", "Stray Kids",       "Stray Kids SKZOO Plush",         "Merch",     ProductCondition.New,     280_000m, "https://res.cloudinary.com/db7ueln9w/image/upload/v1779636015/Stray_Kids_SKZOO_Plush_vfbmjv.jpg"),
+        new(0, "newjeans",  "NewJeans",         "NewJeans Get Up Photocard",      "Photocard", ProductCondition.New,     160_000m, "https://res.cloudinary.com/db7ueln9w/image/upload/v1779636016/NewJeans_OMG_Photocard_Set_rhacx9.jpg"),
+        new(0, "bts",       "BTS",              "BTS Proof Collector Edition",    "Album",     ProductCondition.LikeNew, 520_000m, "https://res.cloudinary.com/db7ueln9w/image/upload/v1779636015/BTS_Butter_Album_Peaches_Version_kqm2w6.jpg"),
 
         // Seller 1 — includes the CORTIS Juhoon hero item.
-        new(1, "cortis",    "Juhoon",           "CORTIS Juhoon Photocard",        "Photocard", ProductCondition.New,     150_000m),
-        new(1, "blackpink", "BLACKPINK",        "BLACKPINK Born Pink Lightstick", "Merch",     ProductCondition.Good,    600_000m),
-        new(1, "twice",     "TWICE",            "TWICE With YOU-th Album",        "Album",     ProductCondition.New,     300_000m),
-        new(1, "snsd",      "Girls' Generation","SNSD FOREVER 1 Photobook",       "Merch",     ProductCondition.LikeNew, 240_000m),
+        new(1, "cortis",    "Juhoon",           "CORTIS Juhoon Photocard",        "Photocard", ProductCondition.New,     150_000m, "https://res.cloudinary.com/db7ueln9w/image/upload/v1779636963/Cortis_Juhoon_weverse_SHOP_Limited_Photocard_rfe1f0.jpg"),
+        new(1, "blackpink", "BLACKPINK",        "BLACKPINK Born Pink Lightstick", "Merch",     ProductCondition.Good,    600_000m, "https://res.cloudinary.com/db7ueln9w/image/upload/v1779636015/BLACKPINK_Lightstick_Ver.2_doxxrs.jpg"),
+        new(1, "twice",     "TWICE",            "TWICE With YOU-th Album",        "Album",     ProductCondition.New,     300_000m, "https://res.cloudinary.com/db7ueln9w/image/upload/v1779636016/TWICE_Ready_To_Be_Tour_T-Shirt_r7ub1d.jpg"),
+        new(1, "snsd",      "Girls' Generation","SNSD FOREVER 1 Photobook",       "Merch",     ProductCondition.LikeNew, 240_000m, "https://res.cloudinary.com/db7ueln9w/image/upload/v1779526485/Mini_Light_SNSD_Girls_Generation_zdrhtp.jpg"),
 
         // Seller 2
-        new(2, "bts",       "BTS",              "BTS Dynamite Photocard Set",     "Photocard", ProductCondition.New,     190_000m),
-        new(2, "blackpink", "Jisoo",            "BLACKPINK Jisoo Me Single",      "Album",     ProductCondition.New,     350_000m),
-        new(2, "newjeans",  "NewJeans",         "NewJeans Bunny Beach Bag",       "Merch",     ProductCondition.New,     280_000m),
+        new(2, "bts",       "BTS",              "BTS Dynamite Photocard Set",     "Photocard", ProductCondition.New,     190_000m, "https://res.cloudinary.com/db7ueln9w/image/upload/v1779526490/Card_%E1%BA%A3nh_Lotte_Layover_V_BTS_i0ivpu.jpg"),
+        new(2, "blackpink", "Jisoo",            "BLACKPINK Jisoo Me Single",      "Album",     ProductCondition.New,     350_000m, "https://res.cloudinary.com/db7ueln9w/image/upload/v1779526484/BLACKPINK_3rd_Mini_Album_Deadline_Silver_Version_gdbb5k.jpg"),
+        new(2, "newjeans",  "NewJeans",         "NewJeans Bunny Beach Bag",       "Merch",     ProductCondition.New,     280_000m, "https://res.cloudinary.com/db7ueln9w/image/upload/v1779526485/LOMO_CARD_BO_G%C3%93C_CORTIS_lpgvse.jpg"),
 
         // Seller 3
-        new(3, "cortis",    "CORTIS",           "CORTIS Color Outside Poster",    "Merch",     ProductCondition.New,     120_000m),
-        new(3, "bts",       "Jungkook",         "BTS Jungkook Golden Album",      "Album",     ProductCondition.New,     380_000m),
-        new(3, "twice",     "Nayeon",           "TWICE Nayeon IM NAYEON PC",      "Photocard", ProductCondition.New,     170_000m),
+        new(3, "cortis",    "CORTIS",           "CORTIS Color Outside Poster",    "Merch",     ProductCondition.New,     120_000m, "https://res.cloudinary.com/db7ueln9w/image/upload/v1779526486/Pre-order_CORTIS_The_1st_EP_COLOR_OUTSIDE_THE_LINES_u2o7pj.jpg"),
+        new(3, "bts",       "Jungkook",         "BTS Jungkook Golden Album",      "Album",     ProductCondition.New,     380_000m, "https://res.cloudinary.com/db7ueln9w/image/upload/v1779636964/BTS_THE_BEST_Limited_Edition_C_yavpbm.jpg"),
+        new(3, "twice",     "Nayeon",           "TWICE Nayeon IM NAYEON PC",      "Photocard", ProductCondition.New,     170_000m, "https://res.cloudinary.com/db7ueln9w/image/upload/v1779526486/10_card_gi%E1%BA%A5y_bo_g%C3%B3c_Jennie_ug9zax.jpg"),
 
         // Seller 4
-        new(4, "blackpink", "Lisa",             "BLACKPINK Lisa Solo Photocard",  "Photocard", ProductCondition.New,     200_000m),
-        new(4, "straykids", "Stray Kids",       "Stray Kids 5-STAR Album",        "Album",     ProductCondition.New,     320_000m),
-        new(4, "snsd",      "Girls' Generation","SNSD Mini Light Keyring",        "Merch",     ProductCondition.New,     130_000m),
+        new(4, "blackpink", "Lisa",             "BLACKPINK Lisa Solo Photocard",  "Photocard", ProductCondition.New,     200_000m, "https://res.cloudinary.com/db7ueln9w/image/upload/v1779526487/Polaroid_BlackpinK_fkrgrv.jpg"),
+        new(4, "straykids", "Stray Kids",       "Stray Kids 5-STAR Album",        "Album",     ProductCondition.New,     320_000m, "https://res.cloudinary.com/db7ueln9w/image/upload/v1779526486/WTS_BTS_MERCH_BOX_3_x6dfbn.jpg"),
+        new(4, "snsd",      "Girls' Generation","SNSD Mini Light Keyring",        "Merch",     ProductCondition.New,     130_000m, "https://res.cloudinary.com/db7ueln9w/image/upload/v1779526485/Mini_Light_SNSD_Girls_Generation_zdrhtp.jpg"),
     };
 
     private static async Task<Dictionary<long, List<Product>>> CreateSaleProductsAsync(EzBiasDbContext db, List<User> sellers, DateTimeOffset now, CancellationToken ct)
@@ -241,7 +241,7 @@ public static class SalesSeedData
                 Price = t.Price,
                 Stock = Rng.Next(8, 40),
                 Description = $"{t.Name} — chính hãng, đóng gói cẩn thận. Hàng seed phục vụ demo dashboard.",
-                PrimaryImageUrl = string.Empty,
+                PrimaryImageUrl = t.PrimaryImageUrl,
                 IsAuction = false,
                 Status = ProductStatus.Active,
                 CreatedAt = now.AddDays(-Rng.Next(120, 360))

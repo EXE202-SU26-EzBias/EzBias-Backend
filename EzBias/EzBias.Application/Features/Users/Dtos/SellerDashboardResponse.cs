@@ -36,7 +36,18 @@ public record SellerDashboardResponse(
     int TotalRatings,
 
     // Monthly trend (last 12 calendar months, oldest first)
-    IReadOnlyList<SellerMonthlySalesPoint> MonthlySales
+    IReadOnlyList<SellerMonthlySalesPoint> MonthlySales,
+
+    // Best-selling listings, ranked by units sold (desc), top 5
+    IReadOnlyList<SellerTopListing> TopListings
+);
+
+public record SellerTopListing(
+    long? ProductId,
+    string ProductName,
+    string ProductImage,
+    int UnitsSold,
+    decimal Revenue
 );
 
 public record SellerMonthlySalesPoint(
