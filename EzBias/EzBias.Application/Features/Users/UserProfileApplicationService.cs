@@ -98,6 +98,7 @@ public class UserProfileApplicationService : IUserProfileApplicationService
         var itemsSold = commissions.Sum(c => c.Order?.Items.Sum(i => i.Quantity) ?? 0);
 
         var monthlySales = BuildMonthlySeries(commissions);
+        var topListings = BuildTopListings(commissions);
 
         // Auctions
         var allAuctions = await _auctions.GetBySellerAsync(sellerId, null, ct);
@@ -126,7 +127,8 @@ public class UserProfileApplicationService : IUserProfileApplicationService
             SoldAuctions: allAuctions.Count(a => a.Status == AuctionStatus.Sold),
             AvgRating: avgStars,
             TotalRatings: totalReviews,
-            MonthlySales: monthlySales
+            MonthlySales: monthlySales,
+            TopListings: topListings
         );
     }
 
@@ -168,6 +170,23 @@ public class UserProfileApplicationService : IUserProfileApplicationService
 
         return points;
     }
+
+    // Ranks the seller's best-selling listings by units sold (desc), tie-broken by revenue (desc).
+    // Aggregates OrderItem rows across all realized (Paid) sales recorded as commission transactions.
+    private static IReadOnlyList<SellerTopListing> BuildTopListings(IReadOnlyList<Domain.Entities.CommissionTransaction> commissions)
+        => commissions
+            .SelectMany(c => c.Order?.Items ?? Enumerable.Empty<Domain.Entities.OrderItem>())
+            .GroupBy(i => i.ProductId.HasValue ? $"id:{i.ProductId.Value}" : $"name:{i.ProductName}")
+            .Select(g => new SellerTopListing(
+                g.First().ProductId,
+                g.First().ProductName,
+                g.First().ProductImage,
+                g.Sum(i => i.Quantity),
+                g.Sum(i => i.Subtotal)))
+            .OrderByDescending(t => t.UnitsSold)
+            .ThenByDescending(t => t.Revenue)
+            .Take(5)
+            .ToList();
 
     private static UserProfileResponse Map(Domain.Entities.User user)
         => new(user.Id, user.FullName, user.Username, user.Email, user.Phone, user.Address, user.City, user.Zip, user.AvatarUrl, user.AvatarBg, user.BankName, user.BankAccountNumber, user.BankAccountName);
