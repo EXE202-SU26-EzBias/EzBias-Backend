@@ -192,7 +192,9 @@ builder.Services.AddCors(options =>
     {
         policy.WithOrigins(
                 "http://localhost:5173",
-                "https://ez-bias-frontend.vercel.app")
+                "https://ez-bias-frontend.vercel.app",
+                "http://ezbias.io.vn",
+                "https://ezbias.io.vn")
             .AllowAnyHeader()
             .AllowAnyMethod()
             .AllowCredentials();

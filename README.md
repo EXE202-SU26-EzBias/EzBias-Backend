@@ -123,21 +123,25 @@ Full configuration notes are in [.claude/docs/configuration.md](.claude/docs/con
 - Seller-created auctions accept a required deposit between 0 and floor price; 0 disables the deposit gate.
 - Auction winner has 24 hours to pay after auction close.
 - If the winner does not pay, the auction becomes `WinnerFailed` and the winner deposit is forfeited.
+- Auction close creates a pending winner order with temporary address `{}`; winner checkout updates that order address instead of creating a duplicate.
+- Auction winner payments may be reduced by the held deposit, but `Order.Total`, escrow IN, and commission continue to use the final bid price.
 - Delivered orders auto-complete after 3 days when no open dispute or pending refund blocks finalization.
 - Auto-complete creates seller payout and escrow OUT records.
+- Buyers can open item-level disputes only while an order is `Delivered` and still inside the 3-day grace window.
+- Admin dispute approval creates a pending refund; a separate refund-payment action marks the refund completed and decides whether the order becomes `Refunded` or `Completed`.
 - Non-winner auction deposit auto-refund is intentionally disabled; admins manually process refunds.
 
 ## Main Runtime Flows
 
 ### Fixed-Price Checkout
 
-1. Buyer adds active products to cart.
-2. Buyer creates pending orders grouped by seller.
-3. Buyer creates a SePay payment for order IDs.
-4. Webhook/pull matching confirms the bank transaction.
-5. Payment confirmation marks orders paid, records escrow IN, records commission, and notifies sellers.
-6. Seller ships; buyer confirms delivery.
-7. Scheduler completes delivered orders after the grace period and creates payout records.
+1. Buyer adds active, non-auction products to cart.
+2. Buyer checks out selected cart items; orders are grouped by seller and address is snapshotted.
+3. Buyer creates a SePay payment for pending order IDs.
+4. Webhook/pull matching or admin manual confirmation confirms the bank transaction.
+5. Confirmation marks orders paid, decrements stock for cart orders, records escrow IN and commission, and notifies sellers.
+6. Seller marks paid/processing orders shipped; buyer confirms receipt.
+7. Scheduler completes delivered orders after the grace period and creates escrow OUT plus pending payout records.
 
 ### Auction Checkout
 
@@ -145,10 +149,25 @@ Full configuration notes are in [.claude/docs/configuration.md](.claude/docs/con
 2. Bidder pays deposit if `RequiredDepositAmount > 0`.
 3. Deposit payment confirmation moves deposit `PendingPayment -> Held`.
 4. Bidder places bids while auction is live.
-5. Scheduler closes auction and creates a pending auction order for the winner.
-6. Winner pays within 24 hours; held deposit reduces amount due.
-7. Payment confirmation moves auction to `Sold` and deposit `Held -> Applied`.
-8. If the winner misses the deadline, scheduler marks `WinnerFailed` and forfeits the held deposit.
+5. Scheduler closes auction, sets winner/final price/deadline, and creates a pending auction order.
+6. Winner adds the won item to cart, submits address through order creation, then creates a payment.
+7. Held deposit reduces amount due for the single auction order; final bid price remains the order total.
+8. Payment confirmation moves auction to `Sold`, frees the product from auction mode, and applies deposit `Held -> Applied`.
+9. If the winner misses the deadline, scheduler marks `WinnerFailed`, cancels the pending auction order, and forfeits the held deposit.
+
+### Disputes and Refunds
+
+1. Buyer opens a dispute for delivered items within 3 days of delivery.
+2. Order moves to `ReturnRequested`; admins are notified.
+3. Admin approves requested quantities to create a pending refund, or rejects to restore the order to `Delivered`.
+4. Admin completes the refund transfer separately.
+5. Full refunds move the order to `Refunded`; partial refunds complete the order and can release seller payout.
+
+### Payouts
+
+1. Delivered-order finalization creates a pending seller payout for seller net amount.
+2. Admin approves payout after bank transfer or rejects it while pending.
+3. Approved payout stores a bank transfer reference and notifies the seller.
 
 ## Realtime
 
