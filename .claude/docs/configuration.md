@@ -19,7 +19,7 @@
 - `Order:DeliveredFinalizeScheduler:GraceDays`: default `3`, minimum runtime value `0`.
 - `KeepAlive:Enabled`: default `false`.
 - `KeepAlive:TargetUrl`: default Render health URL placeholder.
-- `KeepAlive:IntervalSeconds`: default `240`.
+- `KeepAlive:IntervalSeconds`: default `240`, minimum runtime value `30`.
 - `SePay:BaseUrl`: default `https://my.sepay.vn`.
 - `SePay:ApiToken`: placeholder.
 - `SePay:AccountNumber`: placeholder.
@@ -29,7 +29,7 @@
 - `Brevo:FromEmail`: placeholder.
 - `Brevo:FromName`: default `EzBias`.
 - `Commission:RatePercent`: default `8`, clamped at runtime to `5..10`.
-- `Deposit:DepositFractionOfFloor`: default `0.10`.
+- `Deposit:DepositFractionOfFloor`: default `0.10`. The configured helper can compute a floor-price fraction, but seller auction creation currently persists the seller-provided `RequiredDepositAmount`.
 - `Cloudinary:CloudName`: default empty.
 - `Cloudinary:ApiKey`: default empty.
 - `Cloudinary:ApiSecret`: default empty.
@@ -48,8 +48,25 @@
 - Brevo env mapping: `Brevo__ApiKey`, `Brevo__FromEmail`, `Brevo__FromName`.
 - Commission env mapping: `Commission__RatePercent=${COMMISSION_RATE_PERCENT}`.
 - Cloudinary env mapping: `Cloudinary__CloudName`, `Cloudinary__ApiKey`, `Cloudinary__ApiSecret`, `Cloudinary__Folder`.
-- `.env.example` also defines keep-alive values, but `docker-compose.yml` currently does not inject `KeepAlive__*` keys.
+- `.env.example` defines keep-alive values, but `docker-compose.yml` currently does not inject `KeepAlive__*` keys.
 - `.env.example` does not define or inject SePay keys; configure `SePay__ApiToken`, `SePay__AccountNumber`, `SePay__WebhookSecret`, and optionally `SePay__DefaultLimit` in the deployment environment.
+
+## Integration Behavior
+- SePay requires both `ApiToken` and `AccountNumber`; otherwise payment pull matching returns an error.
+- SePay webhook signature verification is disabled when `WebhookSecret` is empty.
+- Brevo is considered configured when `ApiKey` and `FromEmail` are non-empty. If not configured, OTP emails are not sent and the OTP is logged.
+- Cloudinary is considered configured when `CloudName`, `ApiKey`, and `ApiSecret` are non-empty. Product uploads fail with `"Cloudinary is not configured."` when missing.
+- Shared Cloudinary upload validation allows JPEG, PNG, and WEBP images up to 5 MB. Chat upload controller also accepts GIF at the controller validation layer, but the shared uploader will reject GIF unless the uploader is extended.
+- KeepAlive waits 10 seconds after startup before the first ping, then pings on the configured interval.
+
+## Fixed Code-Level Settings
+- CORS origins are hard-coded in `Program.cs`: `http://localhost:5173` and `https://ez-bias-frontend.vercel.app`.
+- JWT via query string is accepted only for request paths starting with `/hubs`.
+- Auth refresh cookie name is `ezbias_refresh_token`, path is `/api/auth`, and cookie expiry is 14 days in `AuthController`.
+- Auction winner payment deadline is 24 hours from scheduler close time.
+- Bid increment is `1,000` VND above the current highest bid.
+- Dispute creation window is 3 days from `Order.DeliveredAt`.
+- Product multipart create requires 1-8 images; product update accepts at most 8 newly uploaded images.
 
 ## Production Must-Change Keys
 - `ConnectionStrings__DefaultConnection` or database credentials.
@@ -60,4 +77,4 @@
 - `Cloudinary__CloudName`, `Cloudinary__ApiKey`, `Cloudinary__ApiSecret`, and folder if uploads are enabled.
 - `Swagger__Enabled=false` unless public Swagger is intended.
 - `Debug__ResetSecret` if any debug reset endpoint is enabled in the target environment.
-- CORS origins are hard-coded in `Program.cs`; production frontend origin changes require code change, not config.
+- Frontend origin changes require code change, not config change.
