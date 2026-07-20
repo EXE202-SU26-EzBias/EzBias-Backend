@@ -2,6 +2,7 @@ using EzBias.Infrastructure.Persistence;
 using EzBias.Infrastructure.Persistence.SeedData;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Options;
 
 namespace EzBias.API.Controllers;
 
@@ -12,12 +13,18 @@ public class DebugController : ControllerBase
     private readonly EzBiasDbContext _db;
     private readonly IWebHostEnvironment _env;
     private readonly IConfiguration _config;
+    private readonly SeedDataOptions _seedOptions;
 
-    public DebugController(EzBiasDbContext db, IWebHostEnvironment env, IConfiguration config)
+    public DebugController(
+        EzBiasDbContext db,
+        IWebHostEnvironment env,
+        IConfiguration config,
+        IOptions<SeedDataOptions> seedOptions)
     {
         _db = db;
         _env = env;
         _config = config;
+        _seedOptions = seedOptions.Value;
     }
 
     [HttpGet("seed-products")]
@@ -77,7 +84,9 @@ public class DebugController : ControllerBase
     /// Requires header: X-Debug-Secret matching Debug:ResetSecret in config.
     /// </summary>
     [HttpPost("reset-and-reseed")]
-    public async Task<IActionResult> ResetAndReseed([FromQuery] string? secret, CancellationToken ct)
+    public async Task<IActionResult> ResetAndReseed(
+        [FromHeader(Name = "X-Debug-Secret")] string? secret,
+        CancellationToken ct)
     {
         var configSecret = _config["Debug:ResetSecret"];
         if (string.IsNullOrWhiteSpace(configSecret))
@@ -88,6 +97,9 @@ public class DebugController : ControllerBase
 
         try
         {
+            _seedOptions.Validate();
+            await using var transaction = await _db.Database.BeginTransactionAsync(ct);
+
             // Truncate all tables using CASCADE (handles FK automatically)
             await _db.Database.ExecuteSqlRawAsync(@"
                 TRUNCATE TABLE
@@ -100,15 +112,21 @@ public class DebugController : ControllerBase
                 RESTART IDENTITY CASCADE;
             ", ct);
 
-            // Re-seed
-            await ProductSeedData.SeedAsync(_db, ct);
-            var sellers = ProductSeedData.GetSeedSellers(_db);
-            await AuctionSeedData.SeedAsync(_db, sellers, ct);
-            await SalesSeedData.SeedAsync(_db, ct);
-            await ProductReviewSeedData.SeedAsync(_db, ct);
-            await TransactionSeedData.SeedAsync(_db, ct);
+            var seedResult = await SeedDataRunner.RunAsync(
+                _db,
+                _seedOptions,
+                applyMigrations: false,
+                ct: ct);
+            await transaction.CommitAsync(ct);
 
-            return Ok(new { message = "Database reset and re-seeded successfully." });
+            return Ok(new
+            {
+                message = seedResult.DemoSeedEnabled
+                    ? "Database reset and demo data seeded successfully."
+                    : "Database reset and Admin account seeded successfully.",
+                demoSeedEnabled = seedResult.DemoSeedEnabled,
+                seedMode = seedResult.Mode
+            });
         }
         catch (Exception ex)
         {

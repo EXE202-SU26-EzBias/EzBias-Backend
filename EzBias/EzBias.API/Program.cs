@@ -20,9 +20,11 @@ using EzBias.Application.Features.VideoCalls;
 using EzBias.Domain.Interfaces;
 using EzBias.Infrastructure.Auth;
 using EzBias.Infrastructure.Persistence;
-using EzBias.Infrastructure.Persistence.SeedData;using EzBias.Infrastructure.Repositories;
+using EzBias.Infrastructure.Persistence.SeedData;
+using EzBias.Infrastructure.Repositories;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Options;
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi.Models;
 using System.Text;
@@ -51,6 +53,7 @@ builder.Services.Configure<BrevoOptions>(builder.Configuration.GetSection(BrevoO
 builder.Services.Configure<CommissionOptions>(builder.Configuration.GetSection(CommissionOptions.SectionName));
 builder.Services.Configure<DepositOptions>(builder.Configuration.GetSection(DepositOptions.SectionName));
 builder.Services.Configure<CloudinaryOptions>(builder.Configuration.GetSection(CloudinaryOptions.SectionName));
+builder.Services.Configure<SeedDataOptions>(builder.Configuration.GetSection(SeedDataOptions.SectionName));
 builder.Services.AddHttpClient("SePay", client =>
 {
     var baseUrl = builder.Configuration["SePay:BaseUrl"] ?? "https://my.sepay.vn";
@@ -204,14 +207,9 @@ var app = builder.Build();
 using (var scope = app.Services.CreateScope())
 {
     var db = scope.ServiceProvider.GetRequiredService<EzBiasDbContext>();
-    db.Database.Migrate();
-    await ProductSeedData.SeedAsync(db);
-
-    var sellers = ProductSeedData.GetSeedSellers(db);
-    await AuctionSeedData.SeedAsync(db, sellers);
-    await SalesSeedData.SeedAsync(db);
-    await ProductReviewSeedData.SeedAsync(db);
-    await TransactionSeedData.SeedAsync(db);
+    var seedOptions = scope.ServiceProvider.GetRequiredService<IOptions<SeedDataOptions>>().Value;
+    var seedResult = await SeedDataRunner.RunAsync(db, seedOptions);
+    app.Logger.LogInformation("Database initialization completed in {SeedMode} mode.", seedResult.Mode);
 }
 
 var enableSwagger = app.Environment.IsDevelopment() ||
