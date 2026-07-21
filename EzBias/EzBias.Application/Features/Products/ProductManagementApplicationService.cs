@@ -1,18 +1,24 @@
+using System.Security.Cryptography;
+using System.Text;
 using EzBias.Application.Features.Products.Dtos;
 using EzBias.Domain.Entities;
 using EzBias.Domain.Enums;
+using EzBias.Domain.Exceptions;
 using EzBias.Domain.Interfaces;
+using EzBias.Domain.Services;
 
 namespace EzBias.Application.Features.Products;
 
 public class ProductManagementApplicationService : IProductManagementApplicationService
 {
     private readonly IProductRepository _products;
+    private readonly IFandomRepository _fandoms;
     private readonly IUnitOfWork _uow;
 
-    public ProductManagementApplicationService(IProductRepository products, IUnitOfWork uow)
+    public ProductManagementApplicationService(IProductRepository products, IFandomRepository fandoms, IUnitOfWork uow)
     {
         _products = products;
+        _fandoms = fandoms;
         _uow = uow;
     }
 
@@ -34,10 +40,14 @@ public class ProductManagementApplicationService : IProductManagementApplication
         var imageUrls = NormalizeImageUrls(request.ImageUrls, request.PrimaryImageUrl);
         if (imageUrls.Count == 0) return (false, "At least one product image is required.", null);
 
+        var fandomResult = await ResolveFandomAsync(request.FandomName, request.LegacyFandomId, ct);
+        if (fandomResult.Fandom is null)
+            return (false, fandomResult.Error, null);
+
         var p = new Product
         {
             SellerId = sellerId,
-            FandomId = request.FandomId.Trim(),
+            FandomId = fandomResult.Fandom.Id,
             Artist = request.Artist.Trim(),
             Name = request.Name.Trim(),
             Type = request.Type.Trim(),
@@ -57,7 +67,29 @@ public class ProductManagementApplicationService : IProductManagementApplication
         };
 
         _products.Add(p);
-        await _uow.SaveChangesAsync(ct);
+
+        var pendingFandom = fandomResult.WasAdded ? fandomResult.Fandom : null;
+        for (var attempt = 0; ; attempt++)
+        {
+            try
+            {
+                await _uow.SaveChangesAsync(ct);
+                break;
+            }
+            catch (FandomWriteConflictException) when (pendingFandom is not null && attempt < 2)
+            {
+                _fandoms.Detach(pendingFandom);
+
+                fandomResult = await ResolveFandomAsync(request.FandomName, request.LegacyFandomId, ct);
+                if (fandomResult.Fandom is null)
+                    return (false, fandomResult.Error, null);
+
+                p.FandomId = fandomResult.Fandom.Id;
+                _products.Add(p);
+                pendingFandom = fandomResult.WasAdded ? fandomResult.Fandom : null;
+            }
+        }
+
         return (true, null, Map(p));
     }
 
@@ -157,5 +189,67 @@ public class ProductManagementApplicationService : IProductManagementApplication
             .Distinct(StringComparer.OrdinalIgnoreCase)
             .Take(8)
             .ToList();
+    }
+
+    private async Task<(Fandom? Fandom, bool WasAdded, string? Error)> ResolveFandomAsync(
+        string? fandomName,
+        string? legacyFandomId,
+        CancellationToken ct)
+    {
+        if (!string.IsNullOrWhiteSpace(fandomName))
+        {
+            if (!FandomNameNormalizer.TryNormalize(fandomName, out var displayName, out var normalizedName, out var error))
+                return (null, false, error);
+
+            var existing = await _fandoms.GetByNormalizedNameAsync(normalizedName, ct);
+            if (existing is not null)
+                return existing.IsActive
+                    ? (existing, false, null)
+                    : (null, false, "This fandom is not available.");
+
+            var fandom = new Fandom
+            {
+                Id = await CreateAvailableFandomIdAsync(displayName, normalizedName, ct),
+                Name = displayName,
+                NormalizedName = normalizedName,
+                IsActive = true,
+                CreatedAt = DateTimeOffset.UtcNow
+            };
+
+            _fandoms.Add(fandom);
+            return (fandom, true, null);
+        }
+
+        if (string.IsNullOrWhiteSpace(legacyFandomId))
+            return (null, false, "Fandom is required.");
+
+        var legacyFandom = await _fandoms.GetByIdAsync(legacyFandomId.Trim(), ct);
+        if (legacyFandom is null)
+            return (null, false, "Fandom not found.");
+
+        return legacyFandom.IsActive
+            ? (legacyFandom, false, null)
+            : (null, false, "This fandom is not available.");
+    }
+
+    private async Task<string> CreateAvailableFandomIdAsync(string displayName, string normalizedName, CancellationToken ct)
+    {
+        var baseSlug = FandomNameNormalizer.ToSlug(displayName);
+        if (await _fandoms.GetByIdAsync(baseSlug, ct) is null)
+            return baseSlug;
+
+        var hash = Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(normalizedName))).ToLowerInvariant();
+        foreach (var hashLength in new[] { 8, 16, 32, 64 })
+        {
+            var candidate = $"{baseSlug}-{hash[..hashLength]}";
+            if (await _fandoms.GetByIdAsync(candidate, ct) is null)
+                return candidate;
+        }
+
+        var suffix = 2;
+        while (await _fandoms.GetByIdAsync($"{baseSlug}-{hash}-{suffix}", ct) is not null)
+            suffix++;
+
+        return $"{baseSlug}-{hash}-{suffix}";
     }
 }

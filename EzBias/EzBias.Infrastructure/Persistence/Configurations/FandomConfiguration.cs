@@ -22,6 +22,11 @@ public sealed class FandomConfiguration : IEntityTypeConfiguration<Fandom>
             .HasColumnType("text")
             .IsRequired();
 
+        builder.Property(x => x.NormalizedName)
+            .HasColumnName("normalized_name")
+            .HasColumnType("text")
+            .IsRequired();
+
         builder.Property(x => x.IsActive)
             .HasColumnName("is_active")
             .HasDefaultValue(true)
@@ -32,5 +37,9 @@ public sealed class FandomConfiguration : IEntityTypeConfiguration<Fandom>
             .HasColumnType("timestamptz")
             .HasDefaultValueSql("now()")
             .IsRequired();
+
+        builder.HasIndex(x => x.NormalizedName)
+            .IsUnique()
+            .HasDatabaseName("ux_fandoms_normalized_name");
     }
 }
