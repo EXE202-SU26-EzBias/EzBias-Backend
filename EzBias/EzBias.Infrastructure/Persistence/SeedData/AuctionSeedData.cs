@@ -1,5 +1,6 @@
 using EzBias.Domain.Entities;
 using EzBias.Domain.Enums;
+using EzBias.Domain.Services;
 
 namespace EzBias.Infrastructure.Persistence.SeedData;
 
@@ -226,7 +227,15 @@ public static class AuctionSeedData
         // Ensure straykids fandom exists
         if (!db.Fandoms.Any(x => x.Id == "straykids"))
         {
-            db.Fandoms.Add(new Fandom { Id = "straykids", Name = "Stray Kids", IsActive = true, CreatedAt = DateTimeOffset.UtcNow });
+            FandomNameNormalizer.TryNormalize("Stray Kids", out _, out var normalizedName, out _);
+            db.Fandoms.Add(new Fandom
+            {
+                Id = "straykids",
+                Name = "Stray Kids",
+                NormalizedName = normalizedName,
+                IsActive = true,
+                CreatedAt = DateTimeOffset.UtcNow
+            });
             await db.SaveChangesAsync(ct);
         }
 

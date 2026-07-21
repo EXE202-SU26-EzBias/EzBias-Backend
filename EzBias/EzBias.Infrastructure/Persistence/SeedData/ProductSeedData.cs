@@ -1,5 +1,6 @@
 using EzBias.Domain.Entities;
 using EzBias.Domain.Enums;
+using EzBias.Domain.Services;
 
 namespace EzBias.Infrastructure.Persistence.SeedData;
 
@@ -89,12 +90,12 @@ public static class ProductSeedData
     {
         var fandomSeeds = new List<Fandom>
         {
-            new() { Id = "bts",       Name = "BTS",               IsActive = true, CreatedAt = DateTimeOffset.UtcNow },
-            new() { Id = "blackpink", Name = "BLACKPINK",          IsActive = true, CreatedAt = DateTimeOffset.UtcNow },
-            new() { Id = "newjeans",  Name = "NewJeans",           IsActive = true, CreatedAt = DateTimeOffset.UtcNow },
-            new() { Id = "twice",     Name = "TWICE",              IsActive = true, CreatedAt = DateTimeOffset.UtcNow },
-            new() { Id = "cortis",    Name = "CORTIS",             IsActive = true, CreatedAt = DateTimeOffset.UtcNow },
-            new() { Id = "snsd",      Name = "Girls' Generation",  IsActive = true, CreatedAt = DateTimeOffset.UtcNow }
+            new() { Id = "bts",       Name = "BTS",               NormalizedName = NormalizeFandomName("BTS"),              IsActive = true, CreatedAt = DateTimeOffset.UtcNow },
+            new() { Id = "blackpink", Name = "BLACKPINK",         NormalizedName = NormalizeFandomName("BLACKPINK"),        IsActive = true, CreatedAt = DateTimeOffset.UtcNow },
+            new() { Id = "newjeans",  Name = "NewJeans",          NormalizedName = NormalizeFandomName("NewJeans"),         IsActive = true, CreatedAt = DateTimeOffset.UtcNow },
+            new() { Id = "twice",     Name = "TWICE",             NormalizedName = NormalizeFandomName("TWICE"),            IsActive = true, CreatedAt = DateTimeOffset.UtcNow },
+            new() { Id = "cortis",    Name = "CORTIS",            NormalizedName = NormalizeFandomName("CORTIS"),           IsActive = true, CreatedAt = DateTimeOffset.UtcNow },
+            new() { Id = "snsd",      Name = "Girls' Generation", NormalizedName = NormalizeFandomName("Girls' Generation"), IsActive = true, CreatedAt = DateTimeOffset.UtcNow }
         };
 
         var existingFandomIds = db.Fandoms.Select(x => x.Id).ToHashSet();
@@ -323,6 +324,12 @@ public static class ProductSeedData
         }
 
         await EnsureSeedProductImagesAsync(db, candidates, ct);
+    }
+
+    private static string NormalizeFandomName(string name)
+    {
+        FandomNameNormalizer.TryNormalize(name, out _, out var normalizedName, out _);
+        return normalizedName;
     }
 
     private static async Task<List<User>> EnsureSeedSellersAsync(EzBiasDbContext db, CancellationToken ct)

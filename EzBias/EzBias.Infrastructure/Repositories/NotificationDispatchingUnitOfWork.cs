@@ -1,8 +1,10 @@
 using EzBias.Application.Features.Notifications;
 using EzBias.Domain.Entities;
+using EzBias.Domain.Exceptions;
 using EzBias.Domain.Interfaces;
 using EzBias.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
+using Npgsql;
 
 namespace EzBias.Infrastructure.Repositories;
 
@@ -30,7 +32,15 @@ public sealed class NotificationDispatchingUnitOfWork : IUnitOfWork
             .Select(e => e.Entity)
             .ToList();
 
-        var result = await _db.SaveChangesAsync(cancellationToken);
+        int result;
+        try
+        {
+            result = await _db.SaveChangesAsync(cancellationToken);
+        }
+        catch (DbUpdateException ex) when (IsFandomWriteConflict(ex))
+        {
+            throw new FandomWriteConflictException("A conflicting fandom was created concurrently.", ex);
+        }
 
         // After save, EF has assigned Ids — push realtime best-effort
         if (pendingNotifications.Count > 0)
@@ -42,5 +52,11 @@ public sealed class NotificationDispatchingUnitOfWork : IUnitOfWork
         }
 
         return result;
+    }
+
+    private static bool IsFandomWriteConflict(DbUpdateException exception)
+    {
+        var postgresException = exception.InnerException as PostgresException;
+        return postgresException?.ConstraintName is "ux_fandoms_normalized_name" or "PK_fandoms";
     }
 }

@@ -3,6 +3,7 @@ using EzBias.API.Integrations;
 using EzBias.Application.Features.Products;
 using EzBias.Application.Features.Products.Dtos;
 using EzBias.Domain.Enums;
+using EzBias.Domain.Services;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
@@ -43,6 +44,17 @@ public class ProductsController : ControllerBase
     public async Task<IActionResult> Create([FromForm] CreateProductFormRequest request, CancellationToken ct)
     {
         if (!TryGetUserId(out var userId)) return Unauthorized();
+
+        if (!string.IsNullOrWhiteSpace(request.FandomName))
+        {
+            if (!FandomNameNormalizer.TryNormalize(request.FandomName, out _, out _, out var fandomError))
+                return BadRequest(new { message = fandomError });
+        }
+        else if (string.IsNullOrWhiteSpace(request.FandomId))
+        {
+            return BadRequest(new { message = "Fandom is required." });
+        }
+
         if (request.Images.Count == 0)
             return BadRequest(new { message = "At least one product image is required." });
         if (request.Images.Count > 8)
@@ -60,6 +72,7 @@ public class ProductsController : ControllerBase
         }
 
         var createRequest = new CreateProductRequest(
+            request.FandomName,
             request.FandomId,
             request.Artist,
             request.Name,
@@ -137,7 +150,8 @@ public class ProductsController : ControllerBase
 
 public sealed class CreateProductFormRequest
 {
-    public string FandomId { get; set; } = string.Empty;
+    public string? FandomName { get; set; }
+    public string? FandomId { get; set; }
     public string Artist { get; set; } = string.Empty;
     public string Name { get; set; } = string.Empty;
     public string Type { get; set; } = string.Empty;
