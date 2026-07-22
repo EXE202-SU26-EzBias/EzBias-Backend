@@ -31,32 +31,70 @@ public class ProductReviewsController : ControllerBase
 
     [Authorize]
     [HttpPost("products/{productId:long}/reviews")]
-    public async Task<IActionResult> Create([FromRoute] long productId, [FromBody] CreateProductReviewRequest request, CancellationToken ct)
+    [RequestSizeLimit(80 * 1024 * 1024)]
+    [RequestFormLimits(MultipartBodyLengthLimit = 80 * 1024 * 1024)]
+    public async Task<IActionResult> Create([FromRoute] long productId, [FromForm] ProductReviewFormRequest request, CancellationToken ct)
     {
         if (!TryGetUserId(out var userId)) return Unauthorized();
-        var result = await _reviews.CreateAsync(userId, productId, request, ct);
-        if (!result.Success || result.Data is null)
+
+        var (media, streams) = OpenMediaStreams(request.Media);
+        try
         {
-            if (result.Error == "Forbidden.") return Forbid();
-            if (result.Error == "Product not found.") return NotFound(new { message = result.Error });
-            return BadRequest(new { message = result.Error });
+            var result = await _reviews.CreateAsync(
+                userId,
+                productId,
+                new CreateProductReviewRequest(request.Stars, request.Comment, media),
+                ct);
+            if (!result.Success || result.Data is null)
+            {
+                if (result.Error == "Forbidden.") return Forbid();
+                if (result.Error == "Product not found.") return NotFound(new { message = result.Error });
+                return BadRequest(new { message = result.Error });
+            }
+            return Ok(result.Data);
         }
-        return Ok(result.Data);
+        catch (InvalidOperationException ex)
+        {
+            return BadRequest(new { message = ex.Message });
+        }
+        finally
+        {
+            await DisposeStreamsAsync(streams);
+        }
     }
 
     [Authorize]
     [HttpPut("reviews/{id:long}")]
-    public async Task<IActionResult> Update([FromRoute] long id, [FromBody] UpdateProductReviewRequest request, CancellationToken ct)
+    [RequestSizeLimit(80 * 1024 * 1024)]
+    [RequestFormLimits(MultipartBodyLengthLimit = 80 * 1024 * 1024)]
+    public async Task<IActionResult> Update([FromRoute] long id, [FromForm] ProductReviewFormRequest request, CancellationToken ct)
     {
         if (!TryGetUserId(out var userId)) return Unauthorized();
-        var result = await _reviews.UpdateAsync(userId, id, request, ct);
-        if (!result.Success || result.Data is null)
+
+        var (media, streams) = OpenMediaStreams(request.Media);
+        try
         {
-            if (result.Error == "Forbidden.") return Forbid();
-            if (result.Error == "Review not found.") return NotFound(new { message = result.Error });
-            return BadRequest(new { message = result.Error });
+            var result = await _reviews.UpdateAsync(
+                userId,
+                id,
+                new UpdateProductReviewRequest(request.Stars, request.Comment, request.KeepMediaIds, media),
+                ct);
+            if (!result.Success || result.Data is null)
+            {
+                if (result.Error == "Forbidden.") return Forbid();
+                if (result.Error == "Review not found.") return NotFound(new { message = result.Error });
+                return BadRequest(new { message = result.Error });
+            }
+            return Ok(result.Data);
         }
-        return Ok(result.Data);
+        catch (InvalidOperationException ex)
+        {
+            return BadRequest(new { message = ex.Message });
+        }
+        finally
+        {
+            await DisposeStreamsAsync(streams);
+        }
     }
 
     [Authorize]
@@ -102,4 +140,29 @@ public class ProductReviewsController : ControllerBase
                   ?? User.FindFirstValue("sub");
         return long.TryParse(sub, out userId);
     }
+
+    private static (List<ReviewMediaFile> Media, List<Stream> Streams) OpenMediaStreams(IReadOnlyList<IFormFile> files)
+    {
+        var streams = files.Select(file => file.OpenReadStream()).ToList();
+        var media = files.Select((file, index) => new ReviewMediaFile(
+            streams[index],
+            file.FileName,
+            file.ContentType,
+            file.Length)).ToList();
+        return (media, streams);
+    }
+
+    private static async Task DisposeStreamsAsync(IEnumerable<Stream> streams)
+    {
+        foreach (var stream in streams)
+            await stream.DisposeAsync();
+    }
+}
+
+public sealed class ProductReviewFormRequest
+{
+    public short Stars { get; set; }
+    public string? Comment { get; set; }
+    public List<IFormFile> Media { get; set; } = [];
+    public List<long> KeepMediaIds { get; set; } = [];
 }

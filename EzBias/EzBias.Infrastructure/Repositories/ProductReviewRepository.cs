@@ -19,16 +19,20 @@ public class ProductReviewRepository : IProductReviewRepository
     public void Remove(ProductReview review) => _db.ProductReviews.Remove(review);
 
     public Task<ProductReview?> GetByIdAsync(long id, CancellationToken ct)
-        => _db.ProductReviews.FirstOrDefaultAsync(x => x.Id == id, ct);
+        => _db.ProductReviews
+            .Include(x => x.Media)
+            .FirstOrDefaultAsync(x => x.Id == id, ct);
 
     public Task<ProductReview?> GetByProductAndUserAsync(long productId, long userId, CancellationToken ct)
         => _db.ProductReviews
             .Include(x => x.User)
+            .Include(x => x.Media)
             .FirstOrDefaultAsync(x => x.ProductId == productId && x.UserId == userId, ct);
 
     public async Task<IReadOnlyList<ProductReview>> GetByProductIdAsync(long productId, CancellationToken ct)
         => await _db.ProductReviews
             .Include(x => x.User)
+            .Include(x => x.Media)
             .Where(x => x.ProductId == productId)
             .OrderByDescending(x => x.CreatedAt)
             .ToListAsync(ct);
@@ -37,6 +41,7 @@ public class ProductReviewRepository : IProductReviewRepository
         => await _db.ProductReviews
             .Include(x => x.User)
             .Include(x => x.Product)
+            .Include(x => x.Media)
             .OrderByDescending(x => x.CreatedAt)
             .ToListAsync(ct);
 

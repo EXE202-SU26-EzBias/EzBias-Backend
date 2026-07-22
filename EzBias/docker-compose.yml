@@ -45,6 +45,7 @@ services:
       Cloudinary__ApiKey: ${CLOUDINARY_API_KEY}
       Cloudinary__ApiSecret: ${CLOUDINARY_API_SECRET}
       Cloudinary__Folder: ${CLOUDINARY_FOLDER}
+      Cloudinary__ReviewFolder: ${CLOUDINARY_REVIEW_FOLDER:-ezbias/reviews}
       SeedData__Enabled: ${SEED_DATA_ENABLED:-false}
       SeedData__Admin__FullName: ${ADMIN_FULL_NAME}
       SeedData__Admin__Username: ${ADMIN_USERNAME}

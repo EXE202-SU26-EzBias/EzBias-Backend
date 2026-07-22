@@ -8,6 +8,7 @@ public sealed class CloudinaryOptions
     public string ApiKey { get; set; } = string.Empty;
     public string ApiSecret { get; set; } = string.Empty;
     public string Folder { get; set; } = "ezbias/products";
+    public string ReviewFolder { get; set; } = "ezbias/reviews";
 
     public bool IsConfigured =>
         !string.IsNullOrWhiteSpace(CloudName)

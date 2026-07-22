@@ -67,6 +67,7 @@ builder.Services.AddHttpClient("Brevo", client =>
 });
 builder.Services.AddHttpClient("KeepAlive");
 builder.Services.AddScoped<IImageUploader, CloudinaryImageUploader>();
+builder.Services.AddScoped<IReviewMediaStorage, CloudinaryReviewMediaStorage>();
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen(options =>
 {
