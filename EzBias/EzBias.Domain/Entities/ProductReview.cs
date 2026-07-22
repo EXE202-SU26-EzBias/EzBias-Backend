@@ -12,4 +12,5 @@ public class ProductReview
 
     public Product Product { get; set; } = null!;
     public User User { get; set; } = null!;
+    public ICollection<ProductReviewMedia> Media { get; set; } = new List<ProductReviewMedia>();
 }

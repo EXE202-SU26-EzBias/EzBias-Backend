@@ -1,15 +1,23 @@
 using EzBias.Application.Features.Reviews.Dtos;
 using EzBias.Domain.Entities;
+using EzBias.Domain.Enums;
 using EzBias.Domain.Interfaces;
 
 namespace EzBias.Application.Features.Reviews;
 
 public class ProductReviewApplicationService : IProductReviewApplicationService
 {
+    private const int MaxMediaCount = 6;
+    private const int MaxImageCount = 5;
+    private const int MaxVideoCount = 1;
+    private const long MaxImageBytes = 5 * 1024 * 1024;
+    private const long MaxVideoBytes = 50 * 1024 * 1024;
+
     private readonly IProductReviewRepository _reviews;
     private readonly IOrderRepository _orders;
     private readonly IProductRepository _products;
     private readonly IUserRepository _users;
+    private readonly IReviewMediaStorage _mediaStorage;
     private readonly IUnitOfWork _uow;
 
     public ProductReviewApplicationService(
@@ -17,12 +25,14 @@ public class ProductReviewApplicationService : IProductReviewApplicationService
         IOrderRepository orders,
         IProductRepository products,
         IUserRepository users,
+        IReviewMediaStorage mediaStorage,
         IUnitOfWork uow)
     {
         _reviews = reviews;
         _orders = orders;
         _products = products;
         _users = users;
+        _mediaStorage = mediaStorage;
         _uow = uow;
     }
 
@@ -46,6 +56,8 @@ public class ProductReviewApplicationService : IProductReviewApplicationService
     {
         if (request.Stars < 1 || request.Stars > 5)
             return (false, "Stars must be between 1 and 5.", null);
+        if (NormalizeComment(request.Comment)?.Length > 1000)
+            return (false, "Comment must be 1000 characters or fewer.", null);
 
         var product = await _products.GetByIdAsync(productId, ct);
         if (product is null) return (false, "Product not found.", null);
@@ -56,39 +68,91 @@ public class ProductReviewApplicationService : IProductReviewApplicationService
         var existing = await _reviews.GetByProductAndUserAsync(productId, userId, ct);
         if (existing is not null) return (false, "Already reviewed.", null);
 
-        var review = new ProductReview
-        {
-            ProductId = productId,
-            UserId = userId,
-            Stars = request.Stars,
-            Comment = string.IsNullOrWhiteSpace(request.Comment) ? null : request.Comment.Trim(),
-            CreatedAt = DateTimeOffset.UtcNow
-        };
-
-        _reviews.Add(review);
-        await _uow.SaveChangesAsync(ct);
+        var mediaError = ValidateMediaSet(request.Media, []);
+        if (mediaError is not null) return (false, mediaError, null);
 
         var user = await _users.GetByIdAsync(userId, ct);
-        return (true, null, Map(review, user?.Username ?? string.Empty));
+        var uploaded = new List<StoredReviewMedia>();
+        try
+        {
+            foreach (var file in request.Media)
+                uploaded.Add(await _mediaStorage.UploadAsync(file, ct));
+
+            var review = new ProductReview
+            {
+                ProductId = productId,
+                UserId = userId,
+                Stars = request.Stars,
+                Comment = NormalizeComment(request.Comment),
+                CreatedAt = DateTimeOffset.UtcNow,
+                Media = uploaded.Select((media, index) => ToEntity(media, (short)(index + 1))).ToList()
+            };
+
+            _reviews.Add(review);
+            await _uow.SaveChangesAsync(ct);
+
+            return (true, null, Map(review, user?.Username ?? string.Empty));
+        }
+        catch
+        {
+            await CleanupAsync(uploaded, ct);
+            throw;
+        }
     }
 
     public async Task<(bool Success, string? Error, ProductReviewResponse? Data)> UpdateAsync(long userId, long reviewId, UpdateProductReviewRequest request, CancellationToken ct)
     {
         if (request.Stars < 1 || request.Stars > 5)
             return (false, "Stars must be between 1 and 5.", null);
+        if (NormalizeComment(request.Comment)?.Length > 1000)
+            return (false, "Comment must be 1000 characters or fewer.", null);
 
         var review = await _reviews.GetByIdAsync(reviewId, ct);
         if (review is null) return (false, "Review not found.", null);
         if (review.UserId != userId) return (false, "Forbidden.", null);
 
-        review.Stars = request.Stars;
-        review.Comment = string.IsNullOrWhiteSpace(request.Comment) ? null : request.Comment.Trim();
-        review.UpdatedAt = DateTimeOffset.UtcNow;
+        var existingMedia = review.Media.ToList();
+        var keepIds = request.KeepMediaIds.Distinct().ToHashSet();
+        if (keepIds.Any(id => existingMedia.All(media => media.Id != id)))
+            return (false, "Invalid media selection.", null);
 
-        await _uow.SaveChangesAsync(ct);
+        var keptMedia = existingMedia.Where(media => keepIds.Contains(media.Id)).ToList();
+        var removedMedia = existingMedia.Where(media => !keepIds.Contains(media.Id)).ToList();
+        var mediaError = ValidateMediaSet(request.NewMedia, keptMedia);
+        if (mediaError is not null) return (false, mediaError, null);
 
         var user = await _users.GetByIdAsync(userId, ct);
-        return (true, null, Map(review, user?.Username ?? string.Empty));
+        var uploaded = new List<StoredReviewMedia>();
+        try
+        {
+            foreach (var file in request.NewMedia)
+                uploaded.Add(await _mediaStorage.UploadAsync(file, ct));
+
+            foreach (var media in removedMedia)
+                review.Media.Remove(media);
+
+            var nextSortOrder = review.Media.Count == 0
+                ? (short)1
+                : (short)(review.Media.Max(media => media.SortOrder) + 1);
+
+            foreach (var media in uploaded)
+                review.Media.Add(ToEntity(media, nextSortOrder++));
+
+            review.Stars = request.Stars;
+            review.Comment = NormalizeComment(request.Comment);
+            review.UpdatedAt = DateTimeOffset.UtcNow;
+
+            await _uow.SaveChangesAsync(ct);
+
+            await CleanupAsync(removedMedia.Select(ToStoredMedia), ct);
+
+            return (true, null, Map(review, user?.Username ?? string.Empty));
+        }
+        catch
+        {
+            await CleanupAsync(uploaded, ct);
+            throw;
+        }
     }
 
     public async Task<(bool Success, string? Error)> DeleteAsync(long userId, long reviewId, CancellationToken ct)
@@ -97,8 +161,10 @@ public class ProductReviewApplicationService : IProductReviewApplicationService
         if (review is null) return (false, "Review not found.");
         if (review.UserId != userId) return (false, "Forbidden.");
 
+        var media = review.Media.Select(ToStoredMedia).ToList();
         _reviews.Remove(review);
         await _uow.SaveChangesAsync(ct);
+        await CleanupAsync(media, ct);
         return (true, null);
     }
 
@@ -113,6 +179,7 @@ public class ProductReviewApplicationService : IProductReviewApplicationService
             r.User?.Username ?? string.Empty,
             r.Stars,
             r.Comment,
+            MapMedia(r.Media),
             r.CreatedAt,
             r.UpdatedAt
         )).ToList();
@@ -123,11 +190,94 @@ public class ProductReviewApplicationService : IProductReviewApplicationService
         var review = await _reviews.GetByIdAsync(reviewId, ct);
         if (review is null) return (false, "Review not found.");
 
+        var media = review.Media.Select(ToStoredMedia).ToList();
         _reviews.Remove(review);
         await _uow.SaveChangesAsync(ct);
+        await CleanupAsync(media, ct);
         return (true, null);
     }
 
     private static ProductReviewResponse Map(ProductReview x, string username)
-        => new(x.Id, x.ProductId, x.UserId, username, x.Stars, x.Comment, x.CreatedAt, x.UpdatedAt);
+        => new(x.Id, x.ProductId, x.UserId, username, x.Stars, x.Comment, MapMedia(x.Media), x.CreatedAt, x.UpdatedAt);
+
+    private static IReadOnlyList<ProductReviewMediaResponse> MapMedia(IEnumerable<ProductReviewMedia> media)
+        => media
+            .OrderBy(x => x.SortOrder)
+            .Select(x => new ProductReviewMediaResponse(
+                x.Id,
+                x.MediaType.ToString().ToLowerInvariant(),
+                x.Url,
+                x.ThumbnailUrl,
+                x.SortOrder))
+            .ToList();
+
+    private static ProductReviewMedia ToEntity(StoredReviewMedia media, short sortOrder)
+        => new()
+        {
+            MediaType = media.MediaType,
+            Url = media.Url,
+            ThumbnailUrl = media.ThumbnailUrl,
+            CloudinaryPublicId = media.CloudinaryPublicId,
+            SortOrder = sortOrder,
+            CreatedAt = DateTimeOffset.UtcNow
+        };
+
+    private static StoredReviewMedia ToStoredMedia(ProductReviewMedia media)
+        => new(media.MediaType, media.Url, media.ThumbnailUrl, media.CloudinaryPublicId);
+
+    private static string? NormalizeComment(string? comment)
+        => string.IsNullOrWhiteSpace(comment) ? null : comment.Trim();
+
+    private static string? ValidateMediaSet(
+        IReadOnlyList<ReviewMediaFile> newMedia,
+        IReadOnlyList<ProductReviewMedia> existingMedia)
+    {
+        var types = existingMedia.Select(x => x.MediaType).ToList();
+        foreach (var file in newMedia)
+        {
+            var mediaType = GetMediaType(file.ContentType);
+            if (mediaType is null)
+                return "Only JPEG, PNG, WEBP, MP4, WEBM, or MOV files are allowed.";
+
+            var maxBytes = mediaType == ReviewMediaType.Image ? MaxImageBytes : MaxVideoBytes;
+            if (file.Length <= 0) return "Media file is empty.";
+            if (file.Length > maxBytes)
+                return mediaType == ReviewMediaType.Image
+                    ? "Image files must be 5MB or smaller."
+                    : "Video files must be 50MB or smaller.";
+
+            types.Add(mediaType.Value);
+        }
+
+        if (types.Count > MaxMediaCount) return "A maximum of 6 media files is allowed per review.";
+        if (types.Count(x => x == ReviewMediaType.Image) > MaxImageCount)
+            return "A maximum of 5 images is allowed per review.";
+        if (types.Count(x => x == ReviewMediaType.Video) > MaxVideoCount)
+            return "A maximum of 1 video is allowed per review.";
+
+        return null;
+    }
+
+    private static ReviewMediaType? GetMediaType(string? contentType)
+        => contentType?.ToLowerInvariant() switch
+        {
+            "image/jpeg" or "image/png" or "image/webp" => ReviewMediaType.Image,
+            "video/mp4" or "video/webm" or "video/quicktime" => ReviewMediaType.Video,
+            _ => null
+        };
+
+    private async Task CleanupAsync(IEnumerable<StoredReviewMedia> media, CancellationToken ct)
+    {
+        foreach (var item in media)
+        {
+            try
+            {
+                await _mediaStorage.DeleteAsync(item.CloudinaryPublicId, item.MediaType, CancellationToken.None);
+            }
+            catch
+            {
+                // Storage adapters log cleanup failures with the public ID. DB state remains authoritative.
+            }
+        }
+    }
 }
