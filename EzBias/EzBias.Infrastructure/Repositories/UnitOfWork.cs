@@ -44,6 +44,8 @@ public class UnitOfWork : IUnitOfWork
         return new EfUnitOfWorkTransaction(transaction);
     }
 
+    public void ClearTrackedChanges() => _db.ChangeTracker.Clear();
+
     private static bool IsFandomWriteConflict(DbUpdateException exception)
     {
         var postgresException = exception.InnerException as PostgresException;

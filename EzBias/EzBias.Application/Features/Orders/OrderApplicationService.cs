@@ -192,6 +192,35 @@ public class OrderApplicationService : IOrderApplicationService
         return items.Select(Map).ToList();
     }
 
+    public async Task<Result<FulfillmentActionResponse>> MarkShippedAsync(
+        long sellerId,
+        long orderId,
+        string? carrier,
+        CancellationToken ct)
+    {
+        var order = await _orders.GetByIdAsync(orderId, ct);
+        if (order is null) return (false, "Order not found.", null);
+        if (order.SellerId != sellerId) return (false, "Forbidden.", null);
+
+        var normalizedCarrier = carrier?.Trim();
+        var suffix = Random.Shared.Next(0, 1_000_000).ToString("D6");
+        var trackingNumber = string.IsNullOrEmpty(normalizedCarrier)
+            ? $"tracking - {suffix}"
+            : $"{normalizedCarrier} - {suffix}";
+        var now = DateTimeOffset.UtcNow;
+
+        if (order.MarkShipped(normalizedCarrier, trackingNumber, now) == TransitionOutcome.Invalid)
+            return (false, "Order cannot be marked shipped in current status.", null);
+
+        _notifications.Add(_notificationFactory.OrderShipped(
+            order.UserId,
+            order.Id,
+            trackingNumber));
+
+        await _uow.SaveChangesAsync(ct);
+        return (true, null, new FulfillmentActionResponse(order.Id, order.Status.ToString()));
+    }
+
     public async Task<Result<FulfillmentActionResponse>> ConfirmReceivedAsync(long userId, long orderId, CancellationToken ct)
     {
         var order = await _orders.GetByIdAsync(orderId, ct);
@@ -229,17 +258,21 @@ public class OrderApplicationService : IOrderApplicationService
         var commission = await _commissions.GetByOrderIdAsync(order.Id, ct);
         var amount = commission?.SellerNetAmount ?? order.Total;
 
-        _escrows.AddRange(new[]
+        var hasEscrowRelease = await _escrows.ExistsReleaseByOrderIdAsync(order.Id, ct);
+        if (!hasEscrowRelease)
         {
-            new EscrowTransaction
+            _escrows.AddRange(new[]
             {
-                OrderId = order.Id,
-                SellerId = order.SellerId,
-                Type = EscrowType.OUT,
-                Amount = amount,
-                CreatedAt = now
-            }
-        });
+                new EscrowTransaction
+                {
+                    OrderId = order.Id,
+                    SellerId = order.SellerId,
+                    Type = EscrowType.OUT,
+                    Amount = amount,
+                    CreatedAt = now
+                }
+            });
+        }
 
         var existing = await _payouts.GetByOrderIdAsync(order.Id, ct);
         if (existing is null)

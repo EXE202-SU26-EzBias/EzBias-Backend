@@ -17,11 +17,16 @@ public class AuctionsController : ControllerBase
 {
     private readonly IAuctionBiddingApplicationService _service;
     private readonly IHubContext<AuctionHub> _auctionHub;
+    private readonly ILogger<AuctionsController> _logger;
 
-    public AuctionsController(IAuctionBiddingApplicationService service, IHubContext<AuctionHub> auctionHub)
+    public AuctionsController(
+        IAuctionBiddingApplicationService service,
+        IHubContext<AuctionHub> auctionHub,
+        ILogger<AuctionsController> logger)
     {
         _service = service;
         _auctionHub = auctionHub;
+        _logger = logger;
     }
 
     [HttpGet]
@@ -58,17 +63,28 @@ public class AuctionsController : ControllerBase
         if (!typed.IsSuccess || typed.Value is null) return this.ToErrorActionResult(typed);
 
         // Push realtime event to all viewers of this auction
-        await _auctionHub.Clients
-            .Group(AuctionHub.AuctionGroup(auctionId))
-            .SendAsync("BidPlaced", new
-            {
-                auctionId,
-                bidId      = typed.Value.BidId,
-                amount     = typed.Value.Amount,
-                currentBid = typed.Value.CurrentBid,
-                status     = typed.Value.Status.ToString(),
-                placedAt   = DateTimeOffset.UtcNow
-            }, ct);
+        try
+        {
+            await _auctionHub.Clients
+                .Group(AuctionHub.AuctionGroup(auctionId))
+                .SendAsync("BidPlaced", new
+                {
+                    auctionId,
+                    bidId      = typed.Value.BidId,
+                    amount     = typed.Value.Amount,
+                    currentBid = typed.Value.CurrentBid,
+                    status     = typed.Value.Status.ToString(),
+                    placedAt   = DateTimeOffset.UtcNow
+                }, ct);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(
+                ex,
+                "Bid {BidId} committed but BidPlaced broadcast failed for auction {AuctionId}.",
+                typed.Value.BidId,
+                auctionId);
+        }
 
         return Ok(typed.Value);
     }

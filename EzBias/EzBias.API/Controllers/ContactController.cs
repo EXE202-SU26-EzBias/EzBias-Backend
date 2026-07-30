@@ -1,5 +1,6 @@
-using EzBias.Domain.Entities;
-using EzBias.Infrastructure.Persistence;
+using EzBias.API.Infrastructure;
+using EzBias.Application.Features.Contact;
+using EzBias.Application.Features.Contact.Dtos;
 using Microsoft.AspNetCore.Mvc;
 
 namespace EzBias.API.Controllers;
@@ -8,11 +9,11 @@ namespace EzBias.API.Controllers;
 [Route("api/contact")]
 public class ContactController : ControllerBase
 {
-    private readonly EzBiasDbContext _db;
+    private readonly IContactApplicationService _contacts;
 
-    public ContactController(EzBiasDbContext db)
+    public ContactController(IContactApplicationService contacts)
     {
-        _db = db;
+        _contacts = contacts;
     }
 
     public record ContactRequest(string Name, string Email, string Subject, string Message);
@@ -20,22 +21,14 @@ public class ContactController : ControllerBase
     [HttpPost]
     public async Task<IActionResult> Send([FromBody] ContactRequest request, CancellationToken ct)
     {
-        if (string.IsNullOrWhiteSpace(request.Name) || string.IsNullOrWhiteSpace(request.Email) || string.IsNullOrWhiteSpace(request.Subject) || string.IsNullOrWhiteSpace(request.Message))
-            return BadRequest(new { message = "All fields are required." });
-
-        var msg = new ContactMessage
-        {
-            Name = request.Name.Trim(),
-            Email = request.Email.Trim(),
-            Subject = request.Subject.Trim(),
-            Message = request.Message.Trim(),
-            CreatedAt = DateTimeOffset.UtcNow,
-            IsRead = false
-        };
-
-        _db.ContactMessages.Add(msg);
-        await _db.SaveChangesAsync(ct);
-
-        return Ok(new { msg.Id, Message = "Contact message submitted." });
+        var result = await _contacts.SubmitAsync(
+            new SubmitContactRequest(
+                request.Name,
+                request.Email,
+                request.Subject,
+                request.Message),
+            ct);
+        if (!result.IsSuccess || result.Value is null) return this.ToErrorActionResult(result);
+        return Ok(result.Value);
     }
 }

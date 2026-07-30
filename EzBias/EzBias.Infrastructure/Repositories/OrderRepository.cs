@@ -28,6 +28,18 @@ public class OrderRepository : IOrderRepository
     public Task<Order?> GetByIdAsync(long orderId, CancellationToken ct)
         => _db.Orders.FirstOrDefaultAsync(x => x.Id == orderId, ct);
 
+    public Task<Order?> GetByIdForUpdateAsync(long orderId, CancellationToken ct)
+        => _db.Orders
+            .FromSqlInterpolated($"""
+                SELECT *
+                FROM orders
+                WHERE id = {orderId}
+                FOR UPDATE
+                """)
+            .Include(x => x.Dispute)
+            .Include(x => x.Refunds)
+            .FirstOrDefaultAsync(ct);
+
     public Task<Order?> GetByIdWithItemsAsync(long orderId, CancellationToken ct)
         => _db.Orders
             .Include(x => x.User)
