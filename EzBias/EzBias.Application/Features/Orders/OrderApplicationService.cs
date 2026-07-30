@@ -1,4 +1,5 @@
 using System.Text.Json;
+using EzBias.Application.Common.Results;
 using EzBias.Application.Features.Notifications;
 using EzBias.Application.Features.Orders.Dtos;
 using EzBias.Domain.Entities;
@@ -41,7 +42,7 @@ public class OrderApplicationService : IOrderApplicationService
         _uow = uow;
     }
 
-    public async Task<(bool Success, string? Error, CreateOrderResponse? Data)> CreateAsync(long userId, CreateOrderRequest request, CancellationToken ct)
+    public async Task<Result<CreateOrderResponse>> CreateAsync(long userId, CreateOrderRequest request, CancellationToken ct)
     {
         if (request.Items is null || request.Items.Count == 0)
             return (false, "Please select at least one cart item.", null);
@@ -170,7 +171,7 @@ public class OrderApplicationService : IOrderApplicationService
         return items.Select(Map).ToList();
     }
 
-    public async Task<(bool Success, string? Error, OrderViewResponse? Data)> GetDetailAsync(long userId, long orderId, CancellationToken ct)
+    public async Task<Result<OrderViewResponse>> GetDetailAsync(long userId, long orderId, CancellationToken ct)
     {
         var order = await _orders.GetByIdWithItemsAsync(orderId, ct);
         if (order is null) return (false, "Order not found.", null);
@@ -178,7 +179,7 @@ public class OrderApplicationService : IOrderApplicationService
         return (true, null, Map(order));
     }
 
-    public async Task<(bool Success, string? Error, OrderViewResponse? Data)> GetDetailForAdminAsync(long orderId, CancellationToken ct)
+    public async Task<Result<OrderViewResponse>> GetDetailForAdminAsync(long orderId, CancellationToken ct)
     {
         var order = await _orders.GetByIdWithItemsAsync(orderId, ct);
         if (order is null) return (false, "Order not found.", null);
@@ -191,7 +192,7 @@ public class OrderApplicationService : IOrderApplicationService
         return items.Select(Map).ToList();
     }
 
-    public async Task<(bool Success, string? Error, FulfillmentActionResponse? Data)> ConfirmReceivedAsync(long userId, long orderId, CancellationToken ct)
+    public async Task<Result<FulfillmentActionResponse>> ConfirmReceivedAsync(long userId, long orderId, CancellationToken ct)
     {
         var order = await _orders.GetByIdAsync(orderId, ct);
         if (order is null) return (false, "Order not found.", null);
@@ -209,7 +210,7 @@ public class OrderApplicationService : IOrderApplicationService
         return (true, null, new FulfillmentActionResponse(order.Id, order.Status.ToString()));
     }
 
-    public async Task<(bool Success, string? Error)> DeleteAsync(long userId, long orderId, CancellationToken ct)
+    public async Task<Result> DeleteAsync(long userId, long orderId, CancellationToken ct)
     {
         var order = await _orders.GetByIdAsync(orderId, ct);
         if (order is null) return (false, "Order not found.");

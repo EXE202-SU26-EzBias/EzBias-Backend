@@ -1,4 +1,6 @@
 using System.Security.Claims;
+using EzBias.API.Infrastructure;
+using EzBias.Application.Common.Results;
 using EzBias.Application.Features.Disputes;
 using EzBias.Application.Features.Disputes.Dtos;
 using Microsoft.AspNetCore.Authorization;
@@ -23,14 +25,9 @@ public class DisputesController : ControllerBase
     {
         if (!TryGetUserId(out var userId)) return Unauthorized();
         var result = await _service.CreateAsync(userId, request, ct);
-        if (!result.Success || result.Data is null)
-        {
-            if (result.Error == "Forbidden.") return Forbid();
-            if (result.Error == "Order not found.") return NotFound(new { message = result.Error });
-            return BadRequest(new { message = result.Error });
-        }
-
-        return Ok(result.Data);
+        var typed = result.ToResult();
+        if (!typed.IsSuccess || typed.Value is null) return this.ToErrorActionResult(typed);
+        return Ok(typed.Value);
     }
 
     [HttpGet]
@@ -47,14 +44,9 @@ public class DisputesController : ControllerBase
     {
         if (!TryGetUserId(out var adminId)) return Unauthorized();
         var result = await _service.ApproveAsync(adminId, id, request, ct);
-        if (!result.Success || result.Data is null)
-        {
-            if (result.Error == "Dispute not found." || result.Error == "Order not found." || result.Error == "Payment not found for order.") return NotFound(new { message = result.Error });
-            if (result.Error == "Payout already paid. Manual recovery required.") return Conflict(new { message = result.Error });
-            return BadRequest(new { message = result.Error });
-        }
-
-        return Ok(result.Data);
+        var typed = result.ToResult();
+        if (!typed.IsSuccess || typed.Value is null) return this.ToErrorActionResult(typed);
+        return Ok(typed.Value);
     }
 
     [HttpPut("{id:long}/refund-payment")]
@@ -63,13 +55,9 @@ public class DisputesController : ControllerBase
     {
         if (!TryGetUserId(out var adminId)) return Unauthorized();
         var result = await _service.CompleteRefundPaymentAsync(adminId, id, new CompleteRefundPaymentRequest(), ct);
-        if (!result.Success || result.Data is null)
-        {
-            if (result.Error == "Dispute not found." || result.Error == "Refund not found for dispute." || result.Error == "Order not found." || result.Error == "Payment not found.") return NotFound(new { message = result.Error });
-            return BadRequest(new { message = result.Error });
-        }
-
-        return Ok(result.Data);
+        var typed = result.ToResult();
+        if (!typed.IsSuccess || typed.Value is null) return this.ToErrorActionResult(typed);
+        return Ok(typed.Value);
     }
 
     [HttpGet("{id:long}/items")]
@@ -88,13 +76,9 @@ public class DisputesController : ControllerBase
     {
         if (!TryGetUserId(out var adminId)) return Unauthorized();
         var result = await _service.RejectAsync(adminId, id, request, ct);
-        if (!result.Success || result.Data is null)
-        {
-            if (result.Error == "Dispute not found." || result.Error == "Order not found.") return NotFound(new { message = result.Error });
-            return BadRequest(new { message = result.Error });
-        }
-
-        return Ok(result.Data);
+        var typed = result.ToResult();
+        if (!typed.IsSuccess || typed.Value is null) return this.ToErrorActionResult(typed);
+        return Ok(typed.Value);
     }
 
     private bool TryGetUserId(out long userId)

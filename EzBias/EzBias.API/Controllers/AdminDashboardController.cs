@@ -1,3 +1,5 @@
+using EzBias.API.Infrastructure;
+using EzBias.Application.Common.Results;
 using EzBias.Application.Features.Admin;
 using EzBias.Application.Features.Orders;
 using Microsoft.AspNetCore.Authorization;
@@ -37,12 +39,8 @@ public class AdminDashboardController : ControllerBase
     public async Task<IActionResult> OrderDetail([FromRoute] long id, CancellationToken ct)
     {
         var result = await _orderService.GetDetailForAdminAsync(id, ct);
-        if (!result.Success || result.Data is null)
-        {
-            if (result.Error == "Order not found.") return NotFound(new { message = result.Error });
-            return BadRequest(new { message = result.Error });
-        }
+        if (!result.IsSuccess || result.Value is null) return this.ToErrorActionResult(result);
 
-        return Ok(result.Data);
+        return Ok(result.Value);
     }
 }

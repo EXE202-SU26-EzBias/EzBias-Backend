@@ -1,4 +1,6 @@
 using System.Security.Claims;
+using EzBias.API.Infrastructure;
+using EzBias.Application.Common.Results;
 using EzBias.Application.Features.Users;
 using EzBias.Application.Features.Users.Dtos;
 using Microsoft.AspNetCore.Authorization;
@@ -23,8 +25,8 @@ public class UsersController : ControllerBase
     {
         if (!TryGetUserId(out var userId)) return Unauthorized();
         var result = await _service.GetMeAsync(userId, ct);
-        if (!result.Success || result.Data is null) return NotFound(new { message = result.Error });
-        return Ok(result.Data);
+        if (!result.IsSuccess || result.Value is null) return this.ToErrorActionResult(result, forceKind: ErrorKind.NotFound);
+        return Ok(result.Value);
     }
 
     [HttpPut("me")]
@@ -32,8 +34,8 @@ public class UsersController : ControllerBase
     {
         if (!TryGetUserId(out var userId)) return Unauthorized();
         var result = await _service.UpdateMeAsync(userId, request, ct);
-        if (!result.Success || result.Data is null) return NotFound(new { message = result.Error });
-        return Ok(result.Data);
+        if (!result.IsSuccess || result.Value is null) return this.ToErrorActionResult(result, forceKind: ErrorKind.NotFound);
+        return Ok(result.Value);
     }
 
     [HttpDelete("by-email")]
@@ -41,11 +43,7 @@ public class UsersController : ControllerBase
     public async Task<IActionResult> DeleteUnverifiedByEmail([FromQuery] string email, CancellationToken ct)
     {
         var result = await _service.DeleteUnverifiedByEmailAsync(email, ct);
-        if (!result.Success)
-        {
-            if (result.Error == "User not found.") return NotFound(new { message = result.Error });
-            return BadRequest(new { message = result.Error });
-        }
+        if (!result.IsSuccess) return this.ToErrorActionResult(result);
 
         return NoContent();
     }

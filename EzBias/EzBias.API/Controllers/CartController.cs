@@ -1,4 +1,6 @@
 using System.Security.Claims;
+using EzBias.API.Infrastructure;
+using EzBias.Application.Common.Results;
 using EzBias.Application.Features.Cart;
 using EzBias.Application.Features.Cart.Dtos;
 using Microsoft.AspNetCore.Authorization;
@@ -32,7 +34,7 @@ public class CartController : ControllerBase
         if (!TryGetUserId(out var userId)) return Unauthorized();
 
         var result = await _cartService.UpsertItemAsync(userId, request, ct);
-        if (!result.Success) return BadRequest(new { message = result.Error });
+        if (!result.IsSuccess) return this.ToErrorActionResult(result, notFoundAsBadRequest: true);
 
         return Ok(new { message = "Cart updated." });
     }
@@ -43,7 +45,7 @@ public class CartController : ControllerBase
         if (!TryGetUserId(out var userId)) return Unauthorized();
 
         var result = await _cartService.AddAuctionItemToCartAsync(userId, auctionId, ct);
-        if (!result.Success) return BadRequest(new { message = result.Error });
+        if (!result.IsSuccess) return this.ToErrorActionResult(result, notFoundAsBadRequest: true);
 
         return Ok(new { message = "Auction item added to cart." });
     }
@@ -57,11 +59,7 @@ public class CartController : ControllerBase
         if (!TryGetUserId(out var userId)) return Unauthorized();
 
         var result = await _cartService.UpdateItemQuantityAsync(userId, cartItemId, request, ct);
-        if (!result.Success)
-        {
-            if (result.Error == "Cart item not found.") return NotFound(new { message = result.Error });
-            return BadRequest(new { message = result.Error });
-        }
+        if (!result.IsSuccess) return this.ToErrorActionResult(result);
 
         return Ok(new { message = "Cart item quantity updated." });
     }
@@ -72,7 +70,7 @@ public class CartController : ControllerBase
         if (!TryGetUserId(out var userId)) return Unauthorized();
 
         var result = await _cartService.RemoveItemAsync(userId, cartItemId, ct);
-        if (!result.Success) return NotFound(new { message = result.Error });
+        if (!result.IsSuccess) return this.ToErrorActionResult(result, forceKind: ErrorKind.NotFound);
 
         return NoContent();
     }

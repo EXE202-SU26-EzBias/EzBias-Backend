@@ -1,4 +1,6 @@
 using System.Security.Claims;
+using EzBias.API.Infrastructure;
+using EzBias.Application.Common.Results;
 using EzBias.Application.Features.Auctions;
 using EzBias.Application.Features.Auctions.Dtos;
 using EzBias.Domain.Enums;
@@ -32,8 +34,9 @@ public class SellerAuctionsController : ControllerBase
     {
         if (!TryGetUserId(out var userId)) return Unauthorized();
         var result = await _service.CreateAsync(userId, request, ct);
-        if (!result.Success || result.Data is null) return ToError(result.Error);
-        return Ok(result.Data);
+        var typed = result.ToResult();
+        if (!typed.IsSuccess || typed.Value is null) return this.ToErrorActionResult(typed);
+        return Ok(typed.Value);
     }
 
     [HttpPost("{auctionId:long}/publish")]
@@ -41,8 +44,9 @@ public class SellerAuctionsController : ControllerBase
     {
         if (!TryGetUserId(out var userId)) return Unauthorized();
         var result = await _service.PublishAsync(userId, auctionId, ct);
-        if (!result.Success || result.Data is null) return ToError(result.Error);
-        return Ok(result.Data);
+        var typed = result.ToResult();
+        if (!typed.IsSuccess || typed.Value is null) return this.ToErrorActionResult(typed);
+        return Ok(typed.Value);
     }
 
     [HttpPost("{auctionId:long}/cancel")]
@@ -50,8 +54,9 @@ public class SellerAuctionsController : ControllerBase
     {
         if (!TryGetUserId(out var userId)) return Unauthorized();
         var result = await _service.CancelAsync(userId, auctionId, ct);
-        if (!result.Success || result.Data is null) return ToError(result.Error);
-        return Ok(result.Data);
+        var typed = result.ToResult();
+        if (!typed.IsSuccess || typed.Value is null) return this.ToErrorActionResult(typed);
+        return Ok(typed.Value);
     }
 
     [HttpPost("{auctionId:long}/relist")]
@@ -59,15 +64,9 @@ public class SellerAuctionsController : ControllerBase
     {
         if (!TryGetUserId(out var userId)) return Unauthorized();
         var result = await _service.RelistAsync(userId, auctionId, request, ct);
-        if (!result.Success || result.Data is null) return ToError(result.Error);
-        return Ok(result.Data);
-    }
-
-    private IActionResult ToError(string? error)
-    {
-        if (error == "Forbidden.") return Forbid();
-        if (error is "Product not found." or "Auction not found.") return NotFound(new { message = error });
-        return BadRequest(new { message = error });
+        var typed = result.ToResult();
+        if (!typed.IsSuccess || typed.Value is null) return this.ToErrorActionResult(typed);
+        return Ok(typed.Value);
     }
 
     private bool TryGetUserId(out long userId)

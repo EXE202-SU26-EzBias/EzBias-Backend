@@ -1,5 +1,6 @@
 using System.Security.Cryptography;
 using System.Text;
+using EzBias.Application.Common.Results;
 using EzBias.Application.Features.Products.Dtos;
 using EzBias.Domain.Entities;
 using EzBias.Domain.Enums;
@@ -25,7 +26,7 @@ public class ProductManagementApplicationService : IProductManagementApplication
     public async Task<IReadOnlyList<ProductItemResponse>> GetMineAsync(long sellerId, CancellationToken ct)
         => (await _products.GetBySellerAsync(sellerId, ct)).Select(Map).ToList();
 
-    public async Task<(bool Success, string? Error, ProductItemResponse? Data)> GetMineByIdAsync(long sellerId, long productId, CancellationToken ct)
+    public async Task<Result<ProductItemResponse>> GetMineByIdAsync(long sellerId, long productId, CancellationToken ct)
     {
         var p = await _products.GetByIdAsync(productId, ct);
         if (p is null || p.DeletedAt is not null) return (false, "Product not found.", null);
@@ -33,7 +34,7 @@ public class ProductManagementApplicationService : IProductManagementApplication
         return (true, null, Map(p));
     }
 
-    public async Task<(bool Success, string? Error, ProductItemResponse? Data)> CreateAsync(long sellerId, CreateProductRequest request, CancellationToken ct)
+    public async Task<Result<ProductItemResponse>> CreateAsync(long sellerId, CreateProductRequest request, CancellationToken ct)
     {
         if (request.Price <= 0) return (false, "Price must be greater than zero.", null);
         if (request.Stock < 0) return (false, "Stock cannot be negative.", null);
@@ -93,7 +94,7 @@ public class ProductManagementApplicationService : IProductManagementApplication
         return (true, null, Map(p));
     }
 
-    public async Task<(bool Success, string? Error, ProductItemResponse? Data)> UpdateAsync(long sellerId, long productId, UpdateProductRequest request, CancellationToken ct)
+    public async Task<Result<ProductItemResponse>> UpdateAsync(long sellerId, long productId, UpdateProductRequest request, CancellationToken ct)
     {
         var p = await _products.GetByIdAsync(productId, ct);
         if (p is null || p.DeletedAt is not null) return (false, "Product not found.", null);
@@ -147,7 +148,7 @@ public class ProductManagementApplicationService : IProductManagementApplication
         return (true, null, Map(p));
     }
 
-    public async Task<(bool Success, string? Error)> DeleteAsync(long sellerId, long productId, CancellationToken ct)
+    public async Task<Result> DeleteAsync(long sellerId, long productId, CancellationToken ct)
     {
         var p = await _products.GetByIdAsync(productId, ct);
         if (p is null || p.DeletedAt is not null) return (false, "Product not found.");

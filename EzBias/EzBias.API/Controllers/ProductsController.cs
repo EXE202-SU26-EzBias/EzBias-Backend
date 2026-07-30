@@ -1,5 +1,7 @@
 using System.Security.Claims;
+using EzBias.API.Infrastructure;
 using EzBias.API.Integrations;
+using EzBias.Application.Common.Results;
 using EzBias.Application.Features.Products;
 using EzBias.Application.Features.Products.Dtos;
 using EzBias.Domain.Enums;
@@ -35,9 +37,8 @@ public class ProductsController : ControllerBase
     {
         if (!TryGetUserId(out var userId)) return Unauthorized();
         var result = await _service.GetMineByIdAsync(userId, id, ct);
-        if (!result.Success || result.Data is null)
-            return result.Error == "Forbidden." ? Forbid() : NotFound(new { message = result.Error });
-        return Ok(result.Data);
+        if (!result.IsSuccess || result.Value is null) return this.ToErrorActionResult(result);
+        return Ok(result.Value);
     }
 
     [HttpPost]
@@ -85,8 +86,9 @@ public class ProductsController : ControllerBase
             uploadedUrls);
 
         var result = await _service.CreateAsync(userId, createRequest, ct);
-        if (!result.Success || result.Data is null) return BadRequest(new { message = result.Error });
-        return CreatedAtAction(nameof(GetById), new { id = result.Data.Id }, result.Data);
+        if (!result.IsSuccess || result.Value is null)
+            return this.ToErrorActionResult(result, notFoundAsBadRequest: true);
+        return CreatedAtAction(nameof(GetById), new { id = result.Value.Id }, result.Value);
     }
 
     [HttpPut("{id:long}")]
@@ -119,13 +121,8 @@ public class ProductsController : ControllerBase
             request.ReplaceImages ? (request.KeepImageUrls ?? []) : null);
 
         var result = await _service.UpdateAsync(userId, id, updateRequest, ct);
-        if (!result.Success || result.Data is null)
-        {
-            if (result.Error == "Forbidden.") return Forbid();
-            if (result.Error == "Product not found.") return NotFound(new { message = result.Error });
-            return BadRequest(new { message = result.Error });
-        }
-        return Ok(result.Data);
+        if (!result.IsSuccess || result.Value is null) return this.ToErrorActionResult(result);
+        return Ok(result.Value);
     }
 
     [HttpDelete("{id:long}")]
@@ -133,8 +130,10 @@ public class ProductsController : ControllerBase
     {
         if (!TryGetUserId(out var userId)) return Unauthorized();
         var result = await _service.DeleteAsync(userId, id, ct);
-        if (!result.Success)
-            return result.Error == "Forbidden." ? Forbid() : NotFound(new { message = result.Error });
+        if (!result.IsSuccess)
+            return result.Failure?.Kind == ErrorKind.Forbidden
+                ? this.ToErrorActionResult(result)
+                : this.ToErrorActionResult(result, forceKind: ErrorKind.NotFound);
         return NoContent();
     }
 

@@ -1,4 +1,5 @@
 using EzBias.Application.Features.Deposits;
+using EzBias.Application.Common.Results;
 using EzBias.Application.Features.Notifications;
 using EzBias.Application.Features.Payments.Dtos;
 using EzBias.Domain.Entities;
@@ -53,7 +54,7 @@ public class PaymentApplicationService : IPaymentApplicationService
         _deposits = deposits;
     }
 
-    public async Task<(bool Success, string? Error, CreatePaymentResponse? Data)> CreateAsync(long userId, CreatePaymentRequest request, CancellationToken ct)
+    public async Task<Result<CreatePaymentResponse>> CreateAsync(long userId, CreatePaymentRequest request, CancellationToken ct)
     {
         if (request.OrderIds is null || request.OrderIds.Count == 0) return (false, "OrderIds is required.", null);
 
@@ -105,7 +106,7 @@ public class PaymentApplicationService : IPaymentApplicationService
         return (true, null, new CreatePaymentResponse(payment.Id, payment.Reference, payment.Amount, payment.Status.ToString()));
     }
 
-    public async Task<(bool Success, string? Error, PaymentStatusResponse? Data)> GetStatusAsync(long userId, long paymentId, CancellationToken ct)
+    public async Task<Result<PaymentStatusResponse>> GetStatusAsync(long userId, long paymentId, CancellationToken ct)
     {
         var payment = await _payments.GetByIdAsync(paymentId, ct);
         if (payment is null) return (false, "Payment not found.", null);
@@ -119,7 +120,7 @@ public class PaymentApplicationService : IPaymentApplicationService
         return (true, null, new PaymentStatusResponse(payment.Id, payment.Reference, payment.Amount, payment.Status.ToString(), payment.CreatedAt, payment.PaidAt, orderIds, orders));
     }
 
-    public async Task<(bool Success, string? Error)> ConfirmManualAsync(long adminId, long paymentId, CancellationToken ct)
+    public async Task<Result> ConfirmManualAsync(long adminId, long paymentId, CancellationToken ct)
     {
         var payment = await _payments.GetByIdAsync(paymentId, ct);
         if (payment is null) return (false, "Payment not found.");
@@ -131,7 +132,7 @@ public class PaymentApplicationService : IPaymentApplicationService
         return await ConfirmInternalAsync(payment.UserId, payment.Id, ct);
     }
 
-    public async Task<(bool Success, string? Error)> HandleWebhookAsync(PaymentWebhookRequest request, string rawBody, string? signature, string? timestamp, CancellationToken ct)
+    public async Task<Result> HandleWebhookAsync(PaymentWebhookRequest request, string rawBody, string? signature, string? timestamp, CancellationToken ct)
     {
         if (!_webhookVerifier.Verify(rawBody, signature, timestamp))
             return (false, "Invalid webhook signature.");
@@ -143,7 +144,7 @@ public class PaymentApplicationService : IPaymentApplicationService
         return await ConfirmBySePayPullAsync(payment, ct);
     }
 
-    public async Task<(bool Success, string? Error)> HandleSePayWebhookAsync(SePayWebhookPayload payload, string rawBody, string? signature, string? timestamp, CancellationToken ct)
+    public async Task<Result> HandleSePayWebhookAsync(SePayWebhookPayload payload, string rawBody, string? signature, string? timestamp, CancellationToken ct)
     {
         if (!_webhookVerifier.Verify(rawBody, signature, timestamp))
             return (false, "Invalid webhook signature.");

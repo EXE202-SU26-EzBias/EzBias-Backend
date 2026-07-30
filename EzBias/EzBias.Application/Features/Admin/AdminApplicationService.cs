@@ -1,3 +1,4 @@
+using EzBias.Application.Common.Results;
 using EzBias.Application.Features.Admin.Dtos;
 using EzBias.Application.Features.Auth.Services;
 using EzBias.Domain.Entities;
@@ -76,7 +77,7 @@ public class AdminApplicationService : IAdminApplicationService
         return new AdminUserListResponse(mapped, safePage, safePageSize, totalItems, totalPages);
     }
 
-    public async Task<(bool Success, string? Error, AdminUserDetailResponse? Data)> GetUserDetailAsync(long userId, CancellationToken ct)
+    public async Task<Result<AdminUserDetailResponse>> GetUserDetailAsync(long userId, CancellationToken ct)
     {
         var user = await _adminRepository.GetUserDetailAsync(userId, ct);
         if (user is null) return (false, "User not found.", null);
@@ -84,7 +85,7 @@ public class AdminApplicationService : IAdminApplicationService
         return (true, null, data);
     }
 
-    public async Task<(bool Success, string? Error, AdminUserDetailResponse? Data)> CreateUserAsync(AdminCreateUserRequest request, CancellationToken ct)
+    public async Task<Result<AdminUserDetailResponse>> CreateUserAsync(AdminCreateUserRequest request, CancellationToken ct)
     {
         if (string.IsNullOrWhiteSpace(request.FullName) || string.IsNullOrWhiteSpace(request.Username) || string.IsNullOrWhiteSpace(request.Email) || string.IsNullOrWhiteSpace(request.Password))
             return (false, "FullName, Username, Email, Password are required.", null);
@@ -118,7 +119,7 @@ public class AdminApplicationService : IAdminApplicationService
         return await GetUserDetailAsync(user.Id, ct);
     }
 
-    public async Task<(bool Success, string? Error, AdminUserDetailResponse? Data)> UpdateUserAsync(long userId, AdminUpdateUserRequest request, CancellationToken ct)
+    public async Task<Result<AdminUserDetailResponse>> UpdateUserAsync(long userId, AdminUpdateUserRequest request, CancellationToken ct)
     {
         var user = await _adminRepository.GetUserByIdAsync(userId, ct);
         if (user is null) return (false, "User not found.", null);
@@ -144,7 +145,7 @@ public class AdminApplicationService : IAdminApplicationService
         return detail;
     }
 
-    public async Task<(bool Success, string? Error)> SoftDeleteUserAsync(long userId, long adminId, CancellationToken ct)
+    public async Task<Result> SoftDeleteUserAsync(long userId, long adminId, CancellationToken ct)
     {
         if (userId == adminId) return (false, "You cannot delete your own account.");
 
@@ -158,7 +159,7 @@ public class AdminApplicationService : IAdminApplicationService
         return (true, null);
     }
 
-    public async Task<(bool Success, string? Error, AdminUserDetailResponse? Data)> RestoreUserAsync(long userId, CancellationToken ct)
+    public async Task<Result<AdminUserDetailResponse>> RestoreUserAsync(long userId, CancellationToken ct)
     {
         var user = await _adminRepository.GetUserByIdAsync(userId, ct);
         if (user is null) return (false, "User not found.", null);

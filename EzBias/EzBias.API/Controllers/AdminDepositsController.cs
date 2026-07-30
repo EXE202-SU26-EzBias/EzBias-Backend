@@ -1,3 +1,5 @@
+using EzBias.API.Infrastructure;
+using EzBias.Application.Common.Results;
 using EzBias.Application.Features.Deposits;
 using EzBias.Application.Features.Deposits.Dtos;
 using Microsoft.AspNetCore.Authorization;
@@ -25,12 +27,10 @@ public class AdminDepositsController : ControllerBase
     public async Task<IActionResult> GetPendingRefunds(CancellationToken ct)
     {
         var result = await _depositService.GetPendingRefundsAsync(ct);
-        if (!result.Success || result.Data is null)
-        {
-            return BadRequest(new { message = result.Error });
-        }
+        if (!result.IsSuccess || result.Value is null)
+            return this.ToErrorActionResult(result, notFoundAsBadRequest: true);
 
-        return Ok(result.Data);
+        return Ok(result.Value);
     }
 
     /// <summary>
@@ -41,17 +41,10 @@ public class AdminDepositsController : ControllerBase
     public async Task<IActionResult> GetDepositDetail([FromRoute] long id, CancellationToken ct)
     {
         var result = await _depositService.GetDepositDetailAsync(id, ct);
-        if (!result.Success || result.Data is null)
-        {
-            if (result.Error == "Deposit not found.")
-            {
-                return NotFound(new { message = result.Error });
-            }
+        if (!result.IsSuccess || result.Value is null)
+            return this.ToErrorActionResult(result);
 
-            return BadRequest(new { message = result.Error });
-        }
-
-        return Ok(result.Data);
+        return Ok(result.Value);
     }
 
     /// <summary>
@@ -66,15 +59,8 @@ public class AdminDepositsController : ControllerBase
         CancellationToken ct)
     {
         var result = await _depositService.ProcessManualRefundAsync(id, request.Reason, ct);
-        if (!result.Success)
-        {
-            if (result.Error == "Deposit not found.")
-            {
-                return NotFound(new { message = result.Error });
-            }
-
-            return BadRequest(new { message = result.Error });
-        }
+        if (!result.IsSuccess)
+            return this.ToErrorActionResult(result);
 
         return Ok(new { message = "Refund processed successfully." });
     }

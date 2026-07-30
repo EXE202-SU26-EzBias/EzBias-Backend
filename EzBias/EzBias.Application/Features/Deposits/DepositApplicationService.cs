@@ -1,3 +1,4 @@
+using EzBias.Application.Common.Results;
 using EzBias.Application.Features.Deposits.Dtos;
 using EzBias.Application.Features.Notifications;
 using EzBias.Domain.Entities;
@@ -136,7 +137,7 @@ public class DepositApplicationService : IDepositApplicationService
     // ---------------------------------------------------------------------
 
     // Req 2 — implemented in task 5.6
-    public async Task<(bool Success, string? Error, InitiateDepositResponse? Data)> InitiateDepositAsync(
+    public async Task<Result<InitiateDepositResponse>> InitiateDepositAsync(
         long userId, long auctionId, CancellationToken ct)
     {
         await using var transaction = await _uow.BeginTransactionAsync(ct);
@@ -247,7 +248,7 @@ public class DepositApplicationService : IDepositApplicationService
     // Req 9 — implemented in task 5.29
     // Returns the caller's OWN latest deposit for the auction (amount, state, linked payment
     // reference) plus the auction's RequiredDepositAmount. Never exposes another user's deposit.
-    public async Task<(bool Success, string? Error, DepositStatusResponse? Data)> GetMyDepositStatusAsync(
+    public async Task<Result<DepositStatusResponse>> GetMyDepositStatusAsync(
         long userId, long auctionId, CancellationToken ct)
     {
         // (1) Auction must exist (Req 9.4 — controller maps to 404).
@@ -295,7 +296,7 @@ public class DepositApplicationService : IDepositApplicationService
     // Called from PaymentApplicationService.ConfirmInternalAsync AFTER an AuctionDeposit payment is
     // set to Paid. Transitions the linked deposit PendingPayment -> Held, records the held amount and
     // timestamp, and queues a single confirmation notification.
-    public async Task<(bool Success, string? Error)> ConfirmDepositAsync(long paymentId, CancellationToken ct)
+    public async Task<Result> ConfirmDepositAsync(long paymentId, CancellationToken ct)
     {
         await using var transaction = await _uow.BeginTransactionAsync(ct);
 
@@ -380,7 +381,7 @@ public class DepositApplicationService : IDepositApplicationService
     // Closing an auction that assigned a winner: refund every NON-winner Held deposit and keep the
     // winner's deposit Held (Req 5.1, 6.1). When winnerId is null the auction ended with no winner, so
     // every Held deposit is refunded (Req 5.4).
-    public async Task<(bool Success, string? Error)> RefundNonWinnerDepositsAsync(
+    public async Task<Result> RefundNonWinnerDepositsAsync(
         long auctionId, long? winnerId, CancellationToken ct)
         => await RefundHeldDepositsAsync(auctionId, winnerId, ct);
 
@@ -474,7 +475,7 @@ public class DepositApplicationService : IDepositApplicationService
     // Req 6.3/6.5 — implemented in task 5.16
     // Called either when the winner's remaining-balance payment is confirmed, or when a zero-due order
     // is finalized. Transitions the winner's Held deposit -> Applied and records AppliedAt.
-    public async Task<(bool Success, string? Error)> ApplyWinnerDepositAsync(
+    public async Task<Result> ApplyWinnerDepositAsync(
         long auctionId, long winnerId, CancellationToken ct)
     {
         await using var transaction = await _uow.BeginTransactionAsync(ct);
@@ -510,7 +511,7 @@ public class DepositApplicationService : IDepositApplicationService
     // Req 6.2/6.4/6.6 — implemented in task 5.16
     // Pure computation/query: never mutates deposit state or saves. Returns the remaining balance the
     // winner must pay after crediting their held deposit toward the final price.
-    public async Task<(bool Success, string? Error, decimal AmountDue)> ComputeWinnerAmountDueAsync(
+    public async Task<Result<decimal>> ComputeWinnerAmountDueAsync(
         long auctionId, long winnerId, decimal finalPrice, CancellationToken ct)
     {
         // (1) Load the winner's Held deposit for this auction.
@@ -541,7 +542,7 @@ public class DepositApplicationService : IDepositApplicationService
     // records ForfeitedAt and the auction reference, queues one DepositForfeited notification, and
     // retries the persist up to 3 times tracking ForfeitRetryCount. A non-Held winner deposit is left
     // unchanged and treated as a non-error (Req 7.5) so the scheduler does not fail.
-    public async Task<(bool Success, string? Error)> ForfeitWinnerDepositAsync(
+    public async Task<Result> ForfeitWinnerDepositAsync(
         long auctionId, long winnerId, CancellationToken ct)
     {
         await using var transaction = await _uow.BeginTransactionAsync(ct);
@@ -601,7 +602,7 @@ public class DepositApplicationService : IDepositApplicationService
 
     // Req 8 — implemented in task 5.20
     // Auction canceled: refund every Held deposit for the auction (no exclusions) — Req 8.1.
-    public async Task<(bool Success, string? Error)> ReleaseDepositsOnCancelAsync(long auctionId, CancellationToken ct)
+    public async Task<Result> ReleaseDepositsOnCancelAsync(long auctionId, CancellationToken ct)
         => await RefundHeldDepositsAsync(auctionId, null, ct);
 
     // -------------------------------------------------------------------------
@@ -612,7 +613,7 @@ public class DepositApplicationService : IDepositApplicationService
     /// Returns all Held deposits across all auctions for admin review. These are deposits that may need
     /// manual refund processing when bidders lose auctions.
     /// </summary>
-    public async Task<(bool Success, string? Error, IReadOnlyList<AdminDepositListItem>? Data)> GetPendingRefundsAsync(
+    public async Task<Result<IReadOnlyList<AdminDepositListItem>>> GetPendingRefundsAsync(
         CancellationToken ct)
     {
         var deposits = await _deposits.GetAllHeldDepositsForAdminAsync(ct);
@@ -636,7 +637,7 @@ public class DepositApplicationService : IDepositApplicationService
     /// <summary>
     /// Returns detailed information about a specific deposit for admin review.
     /// </summary>
-    public async Task<(bool Success, string? Error, AdminDepositDetailResponse? Data)> GetDepositDetailAsync(
+    public async Task<Result<AdminDepositDetailResponse>> GetDepositDetailAsync(
         long depositId, CancellationToken ct)
     {
         var deposit = await _deposits.GetByIdAsync(depositId, ct);
@@ -681,7 +682,7 @@ public class DepositApplicationService : IDepositApplicationService
     /// whose deposits need to be refunded after an auction closes. Transitions the deposit from Held to
     /// Refunded, creates a Refund record, and sends a notification to the user.
     /// </summary>
-    public async Task<(bool Success, string? Error)> ProcessManualRefundAsync(
+    public async Task<Result> ProcessManualRefundAsync(
         long depositId, string reason, CancellationToken ct)
     {
         await using var transaction = await _uow.BeginTransactionAsync(ct);

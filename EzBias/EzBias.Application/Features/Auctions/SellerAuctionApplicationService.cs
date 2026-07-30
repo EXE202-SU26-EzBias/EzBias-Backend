@@ -1,3 +1,4 @@
+using EzBias.Application.Common.Results;
 using EzBias.Application.Features.Auctions.Dtos;
 using EzBias.Application.Features.Deposits;
 using EzBias.Domain.Entities;
@@ -37,7 +38,7 @@ public class SellerAuctionApplicationService : ISellerAuctionApplicationService
         return (true, null, rounded);
     }
 
-    public async Task<(bool Success, string? Error, AuctionActionResponse? Data)> CreateAsync(long sellerId, CreateAuctionRequest request, CancellationToken ct)
+    public async Task<Result<AuctionActionResponse>> CreateAsync(long sellerId, CreateAuctionRequest request, CancellationToken ct)
     {
         var product = await _products.GetByIdAsync(request.ProductId, ct);
         if (product is null) return (false, "Product not found.", null);
@@ -80,7 +81,7 @@ public class SellerAuctionApplicationService : ISellerAuctionApplicationService
         return (true, null, new AuctionActionResponse(auction.Id, auction.Status.ToString()));
     }
 
-    public async Task<(bool Success, string? Error, AuctionActionResponse? Data)> PublishAsync(long sellerId, long auctionId, CancellationToken ct)
+    public async Task<Result<AuctionActionResponse>> PublishAsync(long sellerId, long auctionId, CancellationToken ct)
     {
         var auction = await _auctions.GetByIdAsync(auctionId, ct);
         if (auction is null) return (false, "Auction not found.", null);
@@ -95,7 +96,7 @@ public class SellerAuctionApplicationService : ISellerAuctionApplicationService
         return (true, null, new AuctionActionResponse(auction.Id, auction.Status.ToString()));
     }
 
-    public async Task<(bool Success, string? Error, AuctionActionResponse? Data)> CancelAsync(long sellerId, long auctionId, CancellationToken ct)
+    public async Task<Result<AuctionActionResponse>> CancelAsync(long sellerId, long auctionId, CancellationToken ct)
     {
         await using var transaction = await _uow.BeginTransactionAsync(ct);
 
@@ -130,7 +131,7 @@ public class SellerAuctionApplicationService : ISellerAuctionApplicationService
         return (true, null, new AuctionActionResponse(auction.Id, auction.Status.ToString()));
     }
 
-    public async Task<(bool Success, string? Error, AuctionActionResponse? Data)> RelistAsync(long sellerId, long auctionId, RelistAuctionRequest request, CancellationToken ct)
+    public async Task<Result<AuctionActionResponse>> RelistAsync(long sellerId, long auctionId, RelistAuctionRequest request, CancellationToken ct)
     {
         await using var transaction = await _uow.BeginTransactionAsync(ct);
 

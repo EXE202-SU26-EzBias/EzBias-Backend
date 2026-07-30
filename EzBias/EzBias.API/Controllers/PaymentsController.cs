@@ -1,6 +1,8 @@
 using System.Security.Claims;
 using System.Text;
 using System.Text.Json;
+using EzBias.API.Infrastructure;
+using EzBias.Application.Common.Results;
 using EzBias.Application.Features.Payments;
 using EzBias.Application.Features.Payments.Dtos;
 using Microsoft.AspNetCore.Authorization;
@@ -25,12 +27,9 @@ public class PaymentsController : ControllerBase
     {
         if (!TryGetUserId(out var userId)) return Unauthorized();
         var result = await _paymentService.CreateAsync(userId, request, ct);
-        if (!result.Success || result.Data is null)
-        {
-            if (result.Error == "Forbidden.") return Forbid();
-            return BadRequest(new { message = result.Error });
-        }
-        return Ok(result.Data);
+        var typed = result.ToResult();
+        if (!typed.IsSuccess || typed.Value is null) return this.ToErrorActionResult(typed, notFoundAsBadRequest: true);
+        return Ok(typed.Value);
     }
 
     [HttpGet("{paymentId:long}")]
@@ -38,13 +37,9 @@ public class PaymentsController : ControllerBase
     {
         if (!TryGetUserId(out var userId)) return Unauthorized();
         var result = await _paymentService.GetStatusAsync(userId, paymentId, ct);
-        if (!result.Success || result.Data is null)
-        {
-            if (result.Error == "Forbidden.") return Forbid();
-            if (result.Error == "Payment not found.") return NotFound(new { message = result.Error });
-            return BadRequest(new { message = result.Error });
-        }
-        return Ok(result.Data);
+        var typed = result.ToResult();
+        if (!typed.IsSuccess || typed.Value is null) return this.ToErrorActionResult(typed);
+        return Ok(typed.Value);
     }
 
     [HttpPost("{paymentId:long}/manual-confirm")]
@@ -54,12 +49,8 @@ public class PaymentsController : ControllerBase
         if (!TryGetUserId(out var adminId)) return Unauthorized();
 
         var result = await _paymentService.ConfirmManualAsync(adminId, paymentId, ct);
-        if (!result.Success)
-        {
-            if (result.Error == "Payment not found.") return NotFound(new { message = result.Error });
-            if (result.Error == "Forbidden.") return Forbid();
-            return BadRequest(new { message = result.Error });
-        }
+        var typed = result.ToResult();
+        if (!typed.IsSuccess) return this.ToErrorActionResult(typed);
 
         return Ok(new { ok = true, paymentId, message = "Payment confirmed manually." });
     }
@@ -94,11 +85,8 @@ public class PaymentsController : ControllerBase
         var timestamp = Request.Headers["X-SePay-Timestamp"].FirstOrDefault();
 
         var result = await _paymentService.HandleSePayWebhookAsync(request, rawBody, signature, timestamp, ct);
-        if (!result.Success)
-        {
-            if (result.Error == "Invalid webhook signature.") return Unauthorized(new { message = result.Error });
-            return BadRequest(new { message = result.Error });
-        }
+        var typed = result.ToResult();
+        if (!typed.IsSuccess) return this.ToErrorActionResult(typed, notFoundAsBadRequest: true);
 
         return Ok(new { ok = true });
     }

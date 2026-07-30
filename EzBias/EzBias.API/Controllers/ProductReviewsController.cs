@@ -1,4 +1,6 @@
 using System.Security.Claims;
+using EzBias.API.Infrastructure;
+using EzBias.Application.Common.Results;
 using EzBias.Application.Features.Reviews;
 using EzBias.Application.Features.Reviews.Dtos;
 using Microsoft.AspNetCore.Authorization;
@@ -45,13 +47,8 @@ public class ProductReviewsController : ControllerBase
                 productId,
                 new CreateProductReviewRequest(request.Stars, request.Comment, media),
                 ct);
-            if (!result.Success || result.Data is null)
-            {
-                if (result.Error == "Forbidden.") return Forbid();
-                if (result.Error == "Product not found.") return NotFound(new { message = result.Error });
-                return BadRequest(new { message = result.Error });
-            }
-            return Ok(result.Data);
+            if (!result.IsSuccess || result.Value is null) return this.ToErrorActionResult(result);
+            return Ok(result.Value);
         }
         catch (InvalidOperationException ex)
         {
@@ -79,13 +76,8 @@ public class ProductReviewsController : ControllerBase
                 id,
                 new UpdateProductReviewRequest(request.Stars, request.Comment, request.KeepMediaIds, media),
                 ct);
-            if (!result.Success || result.Data is null)
-            {
-                if (result.Error == "Forbidden.") return Forbid();
-                if (result.Error == "Review not found.") return NotFound(new { message = result.Error });
-                return BadRequest(new { message = result.Error });
-            }
-            return Ok(result.Data);
+            if (!result.IsSuccess || result.Value is null) return this.ToErrorActionResult(result);
+            return Ok(result.Value);
         }
         catch (InvalidOperationException ex)
         {
@@ -103,12 +95,7 @@ public class ProductReviewsController : ControllerBase
     {
         if (!TryGetUserId(out var userId)) return Unauthorized();
         var result = await _reviews.DeleteAsync(userId, id, ct);
-        if (!result.Success)
-        {
-            if (result.Error == "Forbidden.") return Forbid();
-            if (result.Error == "Review not found.") return NotFound(new { message = result.Error });
-            return BadRequest(new { message = result.Error });
-        }
+        if (!result.IsSuccess) return this.ToErrorActionResult(result);
         return NoContent();
     }
 
@@ -125,11 +112,7 @@ public class ProductReviewsController : ControllerBase
     public async Task<IActionResult> AdminDelete([FromRoute] long id, CancellationToken ct)
     {
         var result = await _reviews.AdminDeleteAsync(id, ct);
-        if (!result.Success)
-        {
-            if (result.Error == "Review not found.") return NotFound(new { message = result.Error });
-            return BadRequest(new { message = result.Error });
-        }
+        if (!result.IsSuccess) return this.ToErrorActionResult(result);
         return NoContent();
     }
 

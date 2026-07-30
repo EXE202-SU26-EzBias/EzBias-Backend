@@ -1,3 +1,4 @@
+using EzBias.Application.Common.Results;
 using EzBias.Application.Features.VideoCalls.Dtos;
 using EzBias.Domain.Entities;
 using EzBias.Domain.Enums;
@@ -24,7 +25,7 @@ public class VideoCallApplicationService : IVideoCallApplicationService
         _realtime = realtime;
     }
 
-    public async Task<(bool Success, string? Error, CallSessionResponse? Data)> StartCallAsync(long callerId, long conversationId, CancellationToken ct)
+    public async Task<Result<CallSessionResponse>> StartCallAsync(long callerId, long conversationId, CancellationToken ct)
     {
         var conversation = await _conversations.GetByIdAsync(conversationId, ct);
         if (conversation is null) return (false, "Conversation not found.", null);
@@ -51,7 +52,7 @@ public class VideoCallApplicationService : IVideoCallApplicationService
         return (true, null, response);
     }
 
-    public async Task<(bool Success, string? Error, CallSessionResponse? Data)> AcceptCallAsync(long userId, long callId, CancellationToken ct)
+    public async Task<Result<CallSessionResponse>> AcceptCallAsync(long userId, long callId, CancellationToken ct)
     {
         var call = await _calls.GetByIdAsync(callId, ct);
         if (call is null) return (false, "Call not found.", null);
@@ -68,7 +69,7 @@ public class VideoCallApplicationService : IVideoCallApplicationService
         return (true, null, response);
     }
 
-    public async Task<(bool Success, string? Error, CallSessionResponse? Data)> RejectCallAsync(long userId, long callId, CancellationToken ct)
+    public async Task<Result<CallSessionResponse>> RejectCallAsync(long userId, long callId, CancellationToken ct)
     {
         var call = await _calls.GetByIdAsync(callId, ct);
         if (call is null) return (false, "Call not found.", null);
@@ -85,7 +86,7 @@ public class VideoCallApplicationService : IVideoCallApplicationService
         return (true, null, response);
     }
 
-    public async Task<(bool Success, string? Error, CallSessionResponse? Data)> EndCallAsync(long userId, long callId, CancellationToken ct)
+    public async Task<Result<CallSessionResponse>> EndCallAsync(long userId, long callId, CancellationToken ct)
     {
         var call = await _calls.GetByIdAsync(callId, ct);
         if (call is null) return (false, "Call not found.", null);
@@ -104,7 +105,7 @@ public class VideoCallApplicationService : IVideoCallApplicationService
         return (true, null, response);
     }
 
-    public async Task<(bool Success, string? Error, IReadOnlyList<CallSessionResponse>? Data)> GetConversationCallsAsync(long userId, long conversationId, CancellationToken ct)
+    public async Task<Result<IReadOnlyList<CallSessionResponse>>> GetConversationCallsAsync(long userId, long conversationId, CancellationToken ct)
     {
         var conversation = await _conversations.GetByIdAsync(conversationId, ct);
         if (conversation is null) return (false, "Conversation not found.", null);

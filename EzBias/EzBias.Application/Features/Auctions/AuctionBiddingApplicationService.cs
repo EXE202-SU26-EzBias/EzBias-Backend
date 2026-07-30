@@ -1,3 +1,4 @@
+using EzBias.Application.Common.Results;
 using EzBias.Application.Features.Auctions.Dtos;
 using EzBias.Application.Features.Notifications;
 using EzBias.Domain.Entities;
@@ -47,7 +48,7 @@ public class AuctionBiddingApplicationService : IAuctionBiddingApplicationServic
         )).ToList();
     }
 
-    public async Task<(bool Success, string? Error, AuctionDetailItem? Data)> GetDetailAsync(long auctionId, CancellationToken ct)
+    public async Task<Result<AuctionDetailItem>> GetDetailAsync(long auctionId, CancellationToken ct)
     {
         var item = await _auctions.GetByIdWithRelationsAsync(auctionId, ct);
         if (item is null) return (false, "Auction not found.", null);
@@ -82,7 +83,7 @@ public class AuctionBiddingApplicationService : IAuctionBiddingApplicationServic
         )).ToList();
     }
 
-    public async Task<(bool Success, string? Error, PlaceBidResponse? Data)> PlaceBidAsync(long bidderId, long auctionId, PlaceBidRequest request, CancellationToken ct)
+    public async Task<Result<PlaceBidResponse>> PlaceBidAsync(long bidderId, long auctionId, PlaceBidRequest request, CancellationToken ct)
     {
         await using var transaction = await _uow.BeginTransactionAsync(ct);
         var now = DateTimeOffset.UtcNow;

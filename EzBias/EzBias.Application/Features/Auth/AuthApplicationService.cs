@@ -1,3 +1,4 @@
+using EzBias.Application.Common.Results;
 using EzBias.Application.Features.Auth.Dtos;
 using EzBias.Application.Features.Auth.Services;
 using EzBias.Application.Features.Notifications;
@@ -43,7 +44,7 @@ public class AuthApplicationService : IAuthApplicationService
         _emailSender = emailSender;
     }
 
-    public async Task<(bool Success, string? Error, AuthResult? Data)> RegisterAsync(RegisterRequest req, CancellationToken ct)
+    public async Task<Result<AuthResult>> RegisterAsync(RegisterRequest req, CancellationToken ct)
     {
         if (string.IsNullOrWhiteSpace(req.Password) || req.Password.Length < 6)
             return (false, "Password must be at least 6 chars.", null);
@@ -74,7 +75,7 @@ public class AuthApplicationService : IAuthApplicationService
         return (true, null, auth);
     }
 
-    public async Task<(bool Success, string? Error, AuthResult? Data)> LoginAsync(LoginRequest req, CancellationToken ct)
+    public async Task<Result<AuthResult>> LoginAsync(LoginRequest req, CancellationToken ct)
     {
         var key = req.EmailOrUsername.Trim().ToLowerInvariant();
         var user = await _users.GetByLoginKeyAsync(key, ct);
@@ -92,7 +93,7 @@ public class AuthApplicationService : IAuthApplicationService
         return (true, null, auth);
     }
 
-    public async Task<(bool Success, string? Error, AuthResult? Data)> RefreshAsync(RefreshRequest req, CancellationToken ct)
+    public async Task<Result<AuthResult>> RefreshAsync(RefreshRequest req, CancellationToken ct)
     {
         if (string.IsNullOrWhiteSpace(req.RefreshToken))
             return (false, "Refresh token is required.", null);
@@ -147,7 +148,7 @@ public class AuthApplicationService : IAuthApplicationService
         await _uow.SaveChangesAsync(ct);
     }
 
-    public async Task<(bool Success, string? Error)> ForgotPasswordAsync(ForgotPasswordRequest req, CancellationToken ct)
+    public async Task<Result> ForgotPasswordAsync(ForgotPasswordRequest req, CancellationToken ct)
     {
         var normalizedEmail = NormalizeEmail(req.Email);
         if (string.IsNullOrWhiteSpace(normalizedEmail))
@@ -161,7 +162,7 @@ public class AuthApplicationService : IAuthApplicationService
         return (true, null);
     }
 
-    public async Task<(bool Success, string? Error)> ResetPasswordAsync(ResetPasswordRequest req, CancellationToken ct)
+    public async Task<Result> ResetPasswordAsync(ResetPasswordRequest req, CancellationToken ct)
     {
         if (string.IsNullOrWhiteSpace(req.NewPassword) || req.NewPassword.Length < 6)
             return (false, "Password must be at least 6 chars.");
@@ -184,7 +185,7 @@ public class AuthApplicationService : IAuthApplicationService
         return (true, null);
     }
 
-    public async Task<(bool Success, string? Error)> RequestEmailVerificationAsync(RequestEmailVerificationRequest req, CancellationToken ct)
+    public async Task<Result> RequestEmailVerificationAsync(RequestEmailVerificationRequest req, CancellationToken ct)
     {
         var normalizedEmail = NormalizeEmail(req.Email);
         if (string.IsNullOrWhiteSpace(normalizedEmail))
@@ -198,7 +199,7 @@ public class AuthApplicationService : IAuthApplicationService
         return (true, null);
     }
 
-    public async Task<(bool Success, string? Error)> VerifyEmailAsync(VerifyEmailRequest req, CancellationToken ct)
+    public async Task<Result> VerifyEmailAsync(VerifyEmailRequest req, CancellationToken ct)
     {
         var normalizedEmail = NormalizeEmail(req.Email);
         var user = await _users.GetByEmailAsync(normalizedEmail, ct);
@@ -220,12 +221,12 @@ public class AuthApplicationService : IAuthApplicationService
         return (true, null);
     }
 
-    public async Task<(bool Success, MeResponse? Data)> MeAsync(long userId, CancellationToken ct)
+    public async Task<Result<MeResponse>> MeAsync(long userId, CancellationToken ct)
     {
         var user = await _users.GetByIdAsync(userId, ct);
-        if (user is null) return (false, null);
+        if (user is null) return Result<MeResponse>.Fail("Unauthorized.", ApplicationErrorCode.Unauthorized);
 
-        return (true, new MeResponse(user.Id, user.Username, user.Email, user.FullName, user.Role.ToString()));
+        return Result<MeResponse>.Ok(new MeResponse(user.Id, user.Username, user.Email, user.FullName, user.Role.ToString()));
     }
 
     private async Task<AuthResult> BuildAuthResponseAsync(User user, CancellationToken ct)

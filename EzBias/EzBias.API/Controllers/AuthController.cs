@@ -1,4 +1,6 @@
 using System.Security.Claims;
+using EzBias.API.Infrastructure;
+using EzBias.Application.Common.Results;
 using EzBias.Application.Features.Auth;
 using EzBias.Application.Features.Auth.Dtos;
 using Microsoft.AspNetCore.Authorization;
@@ -24,20 +26,22 @@ public class AuthController : ControllerBase
     public async Task<IActionResult> Register(RegisterRequest req, CancellationToken ct)
     {
         var result = await _authService.RegisterAsync(req, ct);
-        if (!result.Success || result.Data is null) return Conflict(ToMessage(result.Error));
+        if (!result.IsSuccess || result.Value is null)
+            return this.ToErrorActionResult(result, forceKind: ErrorKind.Conflict);
 
-        SetRefreshCookie(result.Data.RefreshToken);
-        return Ok(ToAuthResponse(result.Data));
+        SetRefreshCookie(result.Value.RefreshToken);
+        return Ok(ToAuthResponse(result.Value));
     }
 
     [HttpPost("login")]
     public async Task<IActionResult> Login(LoginRequest req, CancellationToken ct)
     {
         var result = await _authService.LoginAsync(req, ct);
-        if (!result.Success || result.Data is null) return Unauthorized(ToMessage(result.Error));
+        if (!result.IsSuccess || result.Value is null)
+            return this.ToErrorActionResult(result, forceKind: ErrorKind.Unauthorized);
 
-        SetRefreshCookie(result.Data.RefreshToken);
-        return Ok(ToAuthResponse(result.Data));
+        SetRefreshCookie(result.Value.RefreshToken);
+        return Ok(ToAuthResponse(result.Value));
     }
 
     [HttpPost("refresh")]
@@ -47,10 +51,11 @@ public class AuthController : ControllerBase
         var token = !string.IsNullOrWhiteSpace(tokenFromCookie) ? tokenFromCookie : req?.RefreshToken;
 
         var result = await _authService.RefreshAsync(new RefreshRequest(token), ct);
-        if (!result.Success || result.Data is null) return Unauthorized(ToMessage(result.Error));
+        if (!result.IsSuccess || result.Value is null)
+            return this.ToErrorActionResult(result, forceKind: ErrorKind.Unauthorized);
 
-        SetRefreshCookie(result.Data.RefreshToken);
-        return Ok(ToAuthResponse(result.Data));
+        SetRefreshCookie(result.Value.RefreshToken);
+        return Ok(ToAuthResponse(result.Value));
     }
 
     [Authorize]
@@ -69,7 +74,7 @@ public class AuthController : ControllerBase
     public async Task<IActionResult> ForgotPassword(ForgotPasswordRequest req, CancellationToken ct)
     {
         var result = await _authService.ForgotPasswordAsync(req, ct);
-        if (!result.Success) return BadRequest(ToMessage(result.Error));
+        if (!result.IsSuccess) return this.ToErrorActionResult(result, forceKind: ErrorKind.Validation);
 
         return Ok(new SimpleMessageResponse("If the email exists, a password reset code has been sent."));
     }
@@ -78,7 +83,7 @@ public class AuthController : ControllerBase
     public async Task<IActionResult> ResetPassword(ResetPasswordRequest req, CancellationToken ct)
     {
         var result = await _authService.ResetPasswordAsync(req, ct);
-        if (!result.Success) return BadRequest(ToMessage(result.Error));
+        if (!result.IsSuccess) return this.ToErrorActionResult(result, forceKind: ErrorKind.Validation);
 
         return Ok(new SimpleMessageResponse("Password has been reset."));
     }
@@ -87,7 +92,7 @@ public class AuthController : ControllerBase
     public async Task<IActionResult> RequestEmailVerification(RequestEmailVerificationRequest req, CancellationToken ct)
     {
         var result = await _authService.RequestEmailVerificationAsync(req, ct);
-        if (!result.Success) return BadRequest(ToMessage(result.Error));
+        if (!result.IsSuccess) return this.ToErrorActionResult(result, forceKind: ErrorKind.Validation);
 
         return Ok(new SimpleMessageResponse("If the email exists and is not verified, a verification code has been sent."));
     }
@@ -96,7 +101,7 @@ public class AuthController : ControllerBase
     public async Task<IActionResult> VerifyEmail(VerifyEmailRequest req, CancellationToken ct)
     {
         var result = await _authService.VerifyEmailAsync(req, ct);
-        if (!result.Success) return BadRequest(ToMessage(result.Error));
+        if (!result.IsSuccess) return this.ToErrorActionResult(result, forceKind: ErrorKind.Validation);
 
         return Ok(new SimpleMessageResponse("Email has been verified."));
     }
@@ -113,9 +118,10 @@ public class AuthController : ControllerBase
             return Unauthorized(ToMessage("Unauthorized."));
 
         var result = await _authService.MeAsync(userId, ct);
-        if (!result.Success || result.Data is null) return Unauthorized(ToMessage("Unauthorized."));
+        if (!result.IsSuccess || result.Value is null)
+            return this.ToErrorActionResult(result, forceKind: ErrorKind.Unauthorized);
 
-        return Ok(result.Data);
+        return Ok(result.Value);
     }
 
     private void SetRefreshCookie(string refreshToken)

@@ -1,4 +1,6 @@
 using System.Security.Claims;
+using EzBias.API.Infrastructure;
+using EzBias.Application.Common.Results;
 using EzBias.Application.Features.Payments;
 using EzBias.Application.Features.Payments.Dtos;
 using EzBias.Domain.Interfaces;
@@ -40,11 +42,13 @@ public class AuctionPaymentController : ControllerBase
             payment.ProviderTxnId,
             payment.TransferContent,
             payment.Payload), "{}", null, null, ct);
-        if (!hook.Success) return BadRequest(new { message = hook.Error });
+        if (!hook.IsSuccess)
+            return this.ToErrorActionResult(hook, notFoundAsBadRequest: true);
 
         var status = await _paymentService.GetStatusAsync(userId, payment.Id, ct);
-        if (!status.Success || status.Data is null) return BadRequest(new { message = status.Error });
-        return Ok(status.Data);
+        if (!status.IsSuccess || status.Value is null)
+            return this.ToErrorActionResult(status, notFoundAsBadRequest: true);
+        return Ok(status.Value);
     }
 
     private bool TryGetUserId(out long userId)

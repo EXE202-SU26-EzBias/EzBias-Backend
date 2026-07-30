@@ -1,4 +1,6 @@
 using System.Security.Claims;
+using EzBias.API.Infrastructure;
+using EzBias.Application.Common.Results;
 using EzBias.Application.Features.Admin;
 using EzBias.Application.Features.Admin.Dtos;
 using Microsoft.AspNetCore.Authorization;
@@ -29,29 +31,25 @@ public class AdminUsersController : ControllerBase
     public async Task<IActionResult> GetById([FromRoute] long id, CancellationToken ct)
     {
         var result = await _adminService.GetUserDetailAsync(id, ct);
-        if (!result.Success || result.Data is null) return NotFound(new { message = result.Error });
-        return Ok(result.Data);
+        if (!result.IsSuccess || result.Value is null) return this.ToErrorActionResult(result, forceKind: ErrorKind.NotFound);
+        return Ok(result.Value);
     }
 
     [HttpPost]
     public async Task<IActionResult> Create([FromBody] AdminCreateUserRequest request, CancellationToken ct)
     {
         var result = await _adminService.CreateUserAsync(request, ct);
-        if (!result.Success || result.Data is null) return BadRequest(new { message = result.Error });
-        return Ok(result.Data);
+        if (!result.IsSuccess || result.Value is null) return this.ToErrorActionResult(result, notFoundAsBadRequest: true);
+        return Ok(result.Value);
     }
 
     [HttpPut("{id:long}")]
     public async Task<IActionResult> Update([FromRoute] long id, [FromBody] AdminUpdateUserRequest request, CancellationToken ct)
     {
         var result = await _adminService.UpdateUserAsync(id, request, ct);
-        if (!result.Success || result.Data is null)
-        {
-            if (result.Error == "User not found.") return NotFound(new { message = result.Error });
-            return BadRequest(new { message = result.Error });
-        }
+        if (!result.IsSuccess || result.Value is null) return this.ToErrorActionResult(result);
 
-        return Ok(result.Data);
+        return Ok(result.Value);
     }
 
     [HttpDelete("{id:long}")]
@@ -60,11 +58,7 @@ public class AdminUsersController : ControllerBase
         if (!TryGetUserId(out var adminId)) return Unauthorized();
 
         var result = await _adminService.SoftDeleteUserAsync(id, adminId, ct);
-        if (!result.Success)
-        {
-            if (result.Error == "User not found.") return NotFound(new { message = result.Error });
-            return BadRequest(new { message = result.Error });
-        }
+        if (!result.IsSuccess) return this.ToErrorActionResult(result);
 
         return NoContent();
     }
@@ -73,13 +67,9 @@ public class AdminUsersController : ControllerBase
     public async Task<IActionResult> Restore([FromRoute] long id, CancellationToken ct)
     {
         var result = await _adminService.RestoreUserAsync(id, ct);
-        if (!result.Success || result.Data is null)
-        {
-            if (result.Error == "User not found.") return NotFound(new { message = result.Error });
-            return BadRequest(new { message = result.Error });
-        }
+        if (!result.IsSuccess || result.Value is null) return this.ToErrorActionResult(result);
 
-        return Ok(result.Data);
+        return Ok(result.Value);
     }
 
     private bool TryGetUserId(out long userId)

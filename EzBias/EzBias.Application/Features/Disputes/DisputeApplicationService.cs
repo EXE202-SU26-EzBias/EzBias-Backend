@@ -1,3 +1,4 @@
+using EzBias.Application.Common.Results;
 using EzBias.Application.Features.Disputes.Dtos;
 using EzBias.Application.Features.Notifications;
 using EzBias.Application.Features.Orders;
@@ -44,7 +45,7 @@ public class DisputeApplicationService : IDisputeApplicationService
         _uow = uow;
     }
 
-    public async Task<(bool Success, string? Error, DisputeResponse? Data)> CreateAsync(long buyerId, CreateDisputeRequest request, CancellationToken ct)
+    public async Task<Result<DisputeResponse>> CreateAsync(long buyerId, CreateDisputeRequest request, CancellationToken ct)
     {
         await using var transaction = await _uow.BeginTransactionAsync(ct);
 
@@ -125,7 +126,7 @@ public class DisputeApplicationService : IDisputeApplicationService
         return (true, null, Map(dispute));
     }
 
-    public async Task<(bool Success, string? Error, DisputeResponse? Data)> ApproveAsync(long adminId, long disputeId, ResolveDisputeRequest request, CancellationToken ct)
+    public async Task<Result<DisputeResponse>> ApproveAsync(long adminId, long disputeId, ResolveDisputeRequest request, CancellationToken ct)
     {
         await using var transaction = await _uow.BeginTransactionAsync(ct);
 
@@ -194,7 +195,7 @@ public class DisputeApplicationService : IDisputeApplicationService
         return (true, null, Map(dispute));
     }
 
-    public async Task<(bool Success, string? Error, DisputeResponse? Data)> RejectAsync(long adminId, long disputeId, RejectDisputeRequest request, CancellationToken ct)
+    public async Task<Result<DisputeResponse>> RejectAsync(long adminId, long disputeId, RejectDisputeRequest request, CancellationToken ct)
     {
         await using var transaction = await _uow.BeginTransactionAsync(ct);
 
@@ -222,7 +223,7 @@ public class DisputeApplicationService : IDisputeApplicationService
         return (true, null, Map(dispute));
     }
 
-    public async Task<(bool Success, string? Error, DisputeResponse? Data)> CompleteRefundPaymentAsync(long adminId, long disputeId, CompleteRefundPaymentRequest request, CancellationToken ct)
+    public async Task<Result<DisputeResponse>> CompleteRefundPaymentAsync(long adminId, long disputeId, CompleteRefundPaymentRequest request, CancellationToken ct)
     {
         await using var transaction = await _uow.BeginTransactionAsync(ct);
 

@@ -1,4 +1,6 @@
 using System.Security.Claims;
+using EzBias.API.Infrastructure;
+using EzBias.Application.Common.Results;
 using EzBias.Application.Features.Notifications;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -29,8 +31,10 @@ public class NotificationsController : ControllerBase
     {
         if (!TryGetUserId(out var userId)) return Unauthorized();
         var result = await _notifications.MarkReadAsync(userId, id, ct);
-        if (!result.Success)
-            return result.Error == "Forbidden." ? Forbid() : NotFound(new { message = result.Error });
+        if (!result.IsSuccess)
+            return result.Failure?.Kind == ErrorKind.Forbidden
+                ? this.ToErrorActionResult(result)
+                : this.ToErrorActionResult(result, forceKind: ErrorKind.NotFound);
         return NoContent();
     }
 

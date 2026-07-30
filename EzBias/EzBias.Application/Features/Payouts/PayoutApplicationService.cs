@@ -1,3 +1,4 @@
+using EzBias.Application.Common.Results;
 using EzBias.Application.Features.Notifications;
 using EzBias.Application.Features.Payouts.Dtos;
 using EzBias.Domain.Enums;
@@ -47,7 +48,7 @@ public class PayoutApplicationService : IPayoutApplicationService
         )).ToList();
     }
 
-    public async Task<(bool Success, string? Error, MarkPayoutPaidResponse? Data)> MarkPaidAsync(long payoutId, MarkPayoutPaidRequest request, CancellationToken ct)
+    public async Task<Result<MarkPayoutPaidResponse>> MarkPaidAsync(long payoutId, MarkPayoutPaidRequest request, CancellationToken ct)
     {
         var payout = await _payouts.GetByIdAsync(payoutId, ct);
         if (payout is null) return (false, "Payout not found.", null);
@@ -69,7 +70,7 @@ public class PayoutApplicationService : IPayoutApplicationService
         return (true, null, new MarkPayoutPaidResponse(payout.Id, payout.Status, payout.PaidAt ?? now, payout.BankTransferRef));
     }
 
-    public async Task<(bool Success, string? Error, RejectPayoutResponse? Data)> RejectAsync(long payoutId, RejectPayoutRequest request, CancellationToken ct)
+    public async Task<Result<RejectPayoutResponse>> RejectAsync(long payoutId, RejectPayoutRequest request, CancellationToken ct)
     {
         var payout = await _payouts.GetByIdAsync(payoutId, ct);
         if (payout is null) return (false, "Payout not found.", null);

@@ -1,3 +1,4 @@
+using EzBias.Application.Common.Results;
 using EzBias.Application.Features.Notifications.Dtos;
 using EzBias.Domain.Interfaces;
 
@@ -19,7 +20,7 @@ public class NotificationApplicationService : INotificationApplicationService
             .Select(x => new NotificationItem(x.Id, x.Type, x.Title, x.Body, x.Meta, x.IsRead, x.CreatedAt, x.ReadAt))
             .ToList();
 
-    public async Task<(bool Success, string? Error)> MarkReadAsync(long userId, long id, CancellationToken ct)
+    public async Task<Result> MarkReadAsync(long userId, long id, CancellationToken ct)
     {
         var n = await _notifications.GetByIdAsync(id, ct);
         if (n is null) return (false, "Notification not found.");

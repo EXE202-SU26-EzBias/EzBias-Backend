@@ -1,3 +1,4 @@
+using EzBias.Application.Common.Results;
 using EzBias.Application.Features.Chat.Dtos;
 using EzBias.Application.Features.Notifications;
 using EzBias.Domain.Entities;
@@ -33,7 +34,7 @@ public class ChatApplicationService : IChatApplicationService
         _chatRealtime = chatRealtime;
     }
 
-    public async Task<(bool Success, string? Error, ConversationSummary? Data)>
+    public async Task<Result<ConversationSummary>>
         StartOrGetConversationAsync(long callerId, StartConversationRequest request, CancellationToken ct)
     {
         if (callerId == request.CounterpartId)
@@ -81,7 +82,7 @@ public class ChatApplicationService : IChatApplicationService
         return summaries;
     }
 
-    public async Task<(bool Success, string? Error, MessageResponse? Data)>
+    public async Task<Result<MessageResponse>>
         SendMessageAsync(long senderId, long conversationId, SendMessageRequest request, CancellationToken ct)
     {
         var trimmed = (request.Content ?? string.Empty).Trim();
@@ -126,7 +127,7 @@ public class ChatApplicationService : IChatApplicationService
         return (true, null, response);
     }
 
-    public async Task<(bool Success, string? Error, MessagePageResponse? Data)>
+    public async Task<Result<MessagePageResponse>>
         GetMessagesAsync(long userId, long conversationId, long? before, int pageSize, CancellationToken ct)
     {
         var conversation = await _conversations.GetByIdAsync(conversationId, ct);
@@ -158,7 +159,7 @@ public class ChatApplicationService : IChatApplicationService
         return (true, null, new MessagePageResponse(responses, hasMore, nextCursor));
     }
 
-    public async Task<(bool Success, string? Error)>
+    public async Task<Result>
         MarkAsReadAsync(long userId, long conversationId, CancellationToken ct)
     {
         var conversation = await _conversations.GetByIdAsync(conversationId, ct);

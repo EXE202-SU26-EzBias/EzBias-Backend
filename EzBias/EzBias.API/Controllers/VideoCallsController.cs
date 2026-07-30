@@ -1,4 +1,6 @@
 using System.Security.Claims;
+using EzBias.API.Infrastructure;
+using EzBias.Application.Common.Results;
 using EzBias.Application.Features.VideoCalls;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -20,9 +22,9 @@ public class VideoCallsController : ControllerBase
         if (!TryGetUserId(out var userId)) return Unauthorized();
 
         var result = await _videoCalls.StartCallAsync(userId, conversationId, ct);
-        if (!result.Success || result.Data is null) return ToErrorResult(result.Error);
+        if (!result.IsSuccess || result.Value is null) return this.ToErrorActionResult(result);
 
-        return Ok(result.Data);
+        return Ok(result.Value);
     }
 
     [HttpGet("conversations/{conversationId:long}/calls")]
@@ -31,9 +33,9 @@ public class VideoCallsController : ControllerBase
         if (!TryGetUserId(out var userId)) return Unauthorized();
 
         var result = await _videoCalls.GetConversationCallsAsync(userId, conversationId, ct);
-        if (!result.Success || result.Data is null) return ToErrorResult(result.Error);
+        if (!result.IsSuccess || result.Value is null) return this.ToErrorActionResult(result);
 
-        return Ok(result.Data);
+        return Ok(result.Value);
     }
 
     [HttpPost("calls/{callId:long}/accept")]
@@ -42,9 +44,9 @@ public class VideoCallsController : ControllerBase
         if (!TryGetUserId(out var userId)) return Unauthorized();
 
         var result = await _videoCalls.AcceptCallAsync(userId, callId, ct);
-        if (!result.Success || result.Data is null) return ToErrorResult(result.Error);
+        if (!result.IsSuccess || result.Value is null) return this.ToErrorActionResult(result);
 
-        return Ok(result.Data);
+        return Ok(result.Value);
     }
 
     [HttpPost("calls/{callId:long}/reject")]
@@ -53,9 +55,9 @@ public class VideoCallsController : ControllerBase
         if (!TryGetUserId(out var userId)) return Unauthorized();
 
         var result = await _videoCalls.RejectCallAsync(userId, callId, ct);
-        if (!result.Success || result.Data is null) return ToErrorResult(result.Error);
+        if (!result.IsSuccess || result.Value is null) return this.ToErrorActionResult(result);
 
-        return Ok(result.Data);
+        return Ok(result.Value);
     }
 
     [HttpPost("calls/{callId:long}/end")]
@@ -64,19 +66,10 @@ public class VideoCallsController : ControllerBase
         if (!TryGetUserId(out var userId)) return Unauthorized();
 
         var result = await _videoCalls.EndCallAsync(userId, callId, ct);
-        if (!result.Success || result.Data is null) return ToErrorResult(result.Error);
+        if (!result.IsSuccess || result.Value is null) return this.ToErrorActionResult(result);
 
-        return Ok(result.Data);
+        return Ok(result.Value);
     }
-
-    private ObjectResult ToErrorResult(string? error)
-        => error switch
-        {
-            "Forbidden." => StatusCode(StatusCodes.Status403Forbidden, new { message = error }),
-            "Conversation not found." => NotFound(new { message = error }),
-            "Call not found." => NotFound(new { message = error }),
-            _ => BadRequest(new { message = error })
-        };
 
     private bool TryGetUserId(out long userId)
     {

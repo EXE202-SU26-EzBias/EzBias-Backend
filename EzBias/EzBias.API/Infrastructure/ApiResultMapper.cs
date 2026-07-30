@@ -1,0 +1,31 @@
+using EzBias.Application.Common.Results;
+using Microsoft.AspNetCore.Mvc;
+
+namespace EzBias.API.Infrastructure;
+
+public static class ApiResultMapper
+{
+    public static IActionResult ToErrorActionResult(
+        this ControllerBase controller,
+        Result result,
+        bool notFoundAsBadRequest = false,
+        ErrorKind? forceKind = null)
+    {
+        if (result.IsSuccess)
+            throw new InvalidOperationException("Only failed results can be mapped to an error response.");
+
+        var error = result.Failure ?? ApplicationErrorCatalog.FromMessage(null);
+        var kind = forceKind ?? error.Kind;
+        if (notFoundAsBadRequest && kind == ErrorKind.NotFound)
+            return controller.BadRequest(new { message = error.Message });
+
+        return kind switch
+        {
+            ErrorKind.Forbidden => controller.Forbid(),
+            ErrorKind.Unauthorized => controller.Unauthorized(new { message = error.Message }),
+            ErrorKind.NotFound => controller.NotFound(new { message = error.Message }),
+            ErrorKind.Conflict => controller.Conflict(new { message = error.Message }),
+            _ => controller.BadRequest(new { message = error.Message })
+        };
+    }
+}

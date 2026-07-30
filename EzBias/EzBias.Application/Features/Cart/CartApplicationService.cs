@@ -1,3 +1,4 @@
+using EzBias.Application.Common.Results;
 using EzBias.Application.Features.Cart.Dtos;
 using EzBias.Domain.Entities;
 using EzBias.Domain.Enums;
@@ -20,7 +21,7 @@ public class CartApplicationService : ICartApplicationService
         _unitOfWork = unitOfWork;
     }
 
-    public async Task<(bool Success, string? Error)> UpsertItemAsync(long userId, UpsertCartItemRequest request, CancellationToken ct)
+    public async Task<Result> UpsertItemAsync(long userId, UpsertCartItemRequest request, CancellationToken ct)
     {
         if (request.Quantity <= 0)
             return (false, "Quantity must be greater than 0.");
@@ -93,7 +94,7 @@ public class CartApplicationService : ICartApplicationService
         return new CartResponse(mapped, mapped.Sum(x => x.Subtotal));
     }
 
-    public async Task<(bool Success, string? Error)> UpdateItemQuantityAsync(
+    public async Task<Result> UpdateItemQuantityAsync(
         long userId,
         long cartItemId,
         UpdateCartItemQuantityRequest request,
@@ -123,7 +124,7 @@ public class CartApplicationService : ICartApplicationService
         return (true, null);
     }
 
-    public async Task<(bool Success, string? Error)> RemoveItemAsync(long userId, long cartItemId, CancellationToken ct)
+    public async Task<Result> RemoveItemAsync(long userId, long cartItemId, CancellationToken ct)
     {
         var item = await _cartRepository.GetByIdAsync(cartItemId, ct);
         if (item is null || item.UserId != userId)
@@ -134,7 +135,7 @@ public class CartApplicationService : ICartApplicationService
         return (true, null);
     }
 
-    public async Task<(bool Success, string? Error)> AddAuctionItemToCartAsync(long userId, long auctionId, CancellationToken ct)
+    public async Task<Result> AddAuctionItemToCartAsync(long userId, long auctionId, CancellationToken ct)
     {
         var auction = await _auctionRepository.GetByIdAsync(auctionId, ct);
         if (auction is null)

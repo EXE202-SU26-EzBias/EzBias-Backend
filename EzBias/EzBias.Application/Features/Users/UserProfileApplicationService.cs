@@ -1,3 +1,4 @@
+using EzBias.Application.Common.Results;
 using EzBias.Application.Features.Users.Dtos;
 using EzBias.Domain.Enums;
 using EzBias.Domain.Interfaces;
@@ -32,14 +33,14 @@ public class UserProfileApplicationService : IUserProfileApplicationService
         _uow = uow;
     }
 
-    public async Task<(bool Success, string? Error, UserProfileResponse? Data)> GetMeAsync(long userId, CancellationToken ct)
+    public async Task<Result<UserProfileResponse>> GetMeAsync(long userId, CancellationToken ct)
     {
         var user = await _users.GetByIdAsync(userId, ct);
         if (user is null) return (false, "User not found.", null);
         return (true, null, Map(user));
     }
 
-    public async Task<(bool Success, string? Error, UserProfileResponse? Data)> UpdateMeAsync(long userId, UpdateUserProfileRequest request, CancellationToken ct)
+    public async Task<Result<UserProfileResponse>> UpdateMeAsync(long userId, UpdateUserProfileRequest request, CancellationToken ct)
     {
         var user = await _users.GetByIdAsync(userId, ct);
         if (user is null) return (false, "User not found.", null);
@@ -58,7 +59,7 @@ public class UserProfileApplicationService : IUserProfileApplicationService
         return (true, null, Map(user));
     }
 
-    public async Task<(bool Success, string? Error)> DeleteUnverifiedByEmailAsync(string email, CancellationToken ct)
+    public async Task<Result> DeleteUnverifiedByEmailAsync(string email, CancellationToken ct)
     {
         var normalizedEmail = (email ?? string.Empty).Trim().ToLowerInvariant();
         if (string.IsNullOrWhiteSpace(normalizedEmail))

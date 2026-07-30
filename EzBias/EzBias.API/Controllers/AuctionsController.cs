@@ -1,5 +1,7 @@
 using System.Security.Claims;
 using EzBias.API.Hubs;
+using EzBias.API.Infrastructure;
+using EzBias.Application.Common.Results;
 using EzBias.Application.Features.Auctions;
 using EzBias.Application.Features.Auctions.Dtos;
 using EzBias.Domain.Enums;
@@ -33,8 +35,9 @@ public class AuctionsController : ControllerBase
     public async Task<IActionResult> GetById([FromRoute] long auctionId, CancellationToken ct)
     {
         var result = await _service.GetDetailAsync(auctionId, ct);
-        if (!result.Success || result.Data is null) return NotFound(new { message = result.Error });
-        return Ok(result.Data);
+        var typed = result.ToResult();
+        if (!typed.IsSuccess || typed.Value is null) return this.ToErrorActionResult(typed);
+        return Ok(typed.Value);
     }
 
     [HttpGet("{auctionId:long}/bids/history")]
@@ -51,11 +54,8 @@ public class AuctionsController : ControllerBase
         if (!TryGetUserId(out var userId)) return Unauthorized();
 
         var result = await _service.PlaceBidAsync(userId, auctionId, request, ct);
-        if (!result.Success || result.Data is null)
-        {
-            if (result.Error == "Auction not found.") return NotFound(new { message = result.Error });
-            return BadRequest(new { message = result.Error });
-        }
+        var typed = result.ToResult();
+        if (!typed.IsSuccess || typed.Value is null) return this.ToErrorActionResult(typed);
 
         // Push realtime event to all viewers of this auction
         await _auctionHub.Clients
@@ -63,14 +63,14 @@ public class AuctionsController : ControllerBase
             .SendAsync("BidPlaced", new
             {
                 auctionId,
-                bidId      = result.Data.BidId,
-                amount     = result.Data.Amount,
-                currentBid = result.Data.CurrentBid,
-                status     = result.Data.Status.ToString(),
+                bidId      = typed.Value.BidId,
+                amount     = typed.Value.Amount,
+                currentBid = typed.Value.CurrentBid,
+                status     = typed.Value.Status.ToString(),
                 placedAt   = DateTimeOffset.UtcNow
             }, ct);
 
-        return Ok(result.Data);
+        return Ok(typed.Value);
     }
 
     private bool TryGetUserId(out long userId)

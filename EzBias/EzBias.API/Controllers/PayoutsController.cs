@@ -1,5 +1,7 @@
 using EzBias.Application.Features.Payouts;
 using EzBias.Application.Features.Payouts.Dtos;
+using EzBias.API.Infrastructure;
+using EzBias.Application.Common.Results;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
@@ -28,15 +30,17 @@ public class PayoutsController : ControllerBase
     public async Task<IActionResult> Approve([FromRoute] long payoutId, [FromBody] MarkPayoutPaidRequest request, CancellationToken ct)
     {
         var result = await _service.MarkPaidAsync(payoutId, request, ct);
-        if (!result.Success || result.Data is null) return BadRequest(new { message = result.Error });
-        return Ok(result.Data);
+        var typed = result.ToResult();
+        if (!typed.IsSuccess || typed.Value is null) return this.ToErrorActionResult(typed, notFoundAsBadRequest: true);
+        return Ok(typed.Value);
     }
 
     [HttpPut("{payoutId:long}/reject")]
     public async Task<IActionResult> Reject([FromRoute] long payoutId, [FromBody] RejectPayoutRequest request, CancellationToken ct)
     {
         var result = await _service.RejectAsync(payoutId, request, ct);
-        if (!result.Success || result.Data is null) return BadRequest(new { message = result.Error });
-        return Ok(result.Data);
+        var typed = result.ToResult();
+        if (!typed.IsSuccess || typed.Value is null) return this.ToErrorActionResult(typed, notFoundAsBadRequest: true);
+        return Ok(typed.Value);
     }
 }

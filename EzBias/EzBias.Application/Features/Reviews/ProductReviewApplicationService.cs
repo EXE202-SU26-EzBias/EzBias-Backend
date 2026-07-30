@@ -1,3 +1,4 @@
+using EzBias.Application.Common.Results;
 using EzBias.Application.Features.Reviews.Dtos;
 using EzBias.Domain.Entities;
 using EzBias.Domain.Enums;
@@ -52,7 +53,7 @@ public class ProductReviewApplicationService : IProductReviewApplicationService
         return new ReviewEligibility(hasPurchased, mapped);
     }
 
-    public async Task<(bool Success, string? Error, ProductReviewResponse? Data)> CreateAsync(long userId, long productId, CreateProductReviewRequest request, CancellationToken ct)
+    public async Task<Result<ProductReviewResponse>> CreateAsync(long userId, long productId, CreateProductReviewRequest request, CancellationToken ct)
     {
         if (request.Stars < 1 || request.Stars > 5)
             return (false, "Stars must be between 1 and 5.", null);
@@ -100,7 +101,7 @@ public class ProductReviewApplicationService : IProductReviewApplicationService
         }
     }
 
-    public async Task<(bool Success, string? Error, ProductReviewResponse? Data)> UpdateAsync(long userId, long reviewId, UpdateProductReviewRequest request, CancellationToken ct)
+    public async Task<Result<ProductReviewResponse>> UpdateAsync(long userId, long reviewId, UpdateProductReviewRequest request, CancellationToken ct)
     {
         if (request.Stars < 1 || request.Stars > 5)
             return (false, "Stars must be between 1 and 5.", null);
@@ -155,7 +156,7 @@ public class ProductReviewApplicationService : IProductReviewApplicationService
         }
     }
 
-    public async Task<(bool Success, string? Error)> DeleteAsync(long userId, long reviewId, CancellationToken ct)
+    public async Task<Result> DeleteAsync(long userId, long reviewId, CancellationToken ct)
     {
         var review = await _reviews.GetByIdAsync(reviewId, ct);
         if (review is null) return (false, "Review not found.");
@@ -185,7 +186,7 @@ public class ProductReviewApplicationService : IProductReviewApplicationService
         )).ToList();
     }
 
-    public async Task<(bool Success, string? Error)> AdminDeleteAsync(long reviewId, CancellationToken ct)
+    public async Task<Result> AdminDeleteAsync(long reviewId, CancellationToken ct)
     {
         var review = await _reviews.GetByIdAsync(reviewId, ct);
         if (review is null) return (false, "Review not found.");

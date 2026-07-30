@@ -1,4 +1,6 @@
 using System.Security.Claims;
+using EzBias.API.Infrastructure;
+using EzBias.Application.Common.Results;
 using EzBias.Application.Features.Chat;
 using EzBias.Application.Features.Chat.Dtos;
 using EzBias.API.Integrations;
@@ -27,8 +29,9 @@ public class ConversationsController : ControllerBase
     {
         if (!TryGetUserId(out var userId)) return Unauthorized();
         var result = await _chat.StartOrGetConversationAsync(userId, request, ct);
-        if (!result.Success || result.Data is null) return BadRequest(new { message = result.Error });
-        return Ok(result.Data);
+        if (!result.IsSuccess || result.Value is null)
+            return this.ToErrorActionResult(result, notFoundAsBadRequest: true);
+        return Ok(result.Value);
     }
 
     /// <summary>GET /api/conversations — list my conversations</summary>
@@ -49,13 +52,8 @@ public class ConversationsController : ControllerBase
     {
         if (!TryGetUserId(out var userId)) return Unauthorized();
         var result = await _chat.SendMessageAsync(userId, id, request, ct);
-        if (!result.Success || result.Data is null)
-        {
-            if (result.Error == "Forbidden.") return Forbid();
-            if (result.Error == "Conversation not found.") return NotFound(new { message = result.Error });
-            return BadRequest(new { message = result.Error });
-        }
-        return CreatedAtAction(nameof(GetMessages), new { id }, result.Data);
+        if (!result.IsSuccess || result.Value is null) return this.ToErrorActionResult(result);
+        return CreatedAtAction(nameof(GetMessages), new { id }, result.Value);
     }
 
     /// <summary>GET /api/conversations/{id}/messages — load message history</summary>
@@ -68,13 +66,8 @@ public class ConversationsController : ControllerBase
     {
         if (!TryGetUserId(out var userId)) return Unauthorized();
         var result = await _chat.GetMessagesAsync(userId, id, before, pageSize, ct);
-        if (!result.Success || result.Data is null)
-        {
-            if (result.Error == "Forbidden.") return Forbid();
-            if (result.Error == "Conversation not found.") return NotFound(new { message = result.Error });
-            return BadRequest(new { message = result.Error });
-        }
-        return Ok(result.Data);
+        if (!result.IsSuccess || result.Value is null) return this.ToErrorActionResult(result);
+        return Ok(result.Value);
     }
 
     /// <summary>PUT /api/conversations/{id}/read — mark messages as read</summary>
@@ -83,12 +76,7 @@ public class ConversationsController : ControllerBase
     {
         if (!TryGetUserId(out var userId)) return Unauthorized();
         var result = await _chat.MarkAsReadAsync(userId, id, ct);
-        if (!result.Success)
-        {
-            if (result.Error == "Forbidden.") return Forbid();
-            if (result.Error == "Conversation not found.") return NotFound(new { message = result.Error });
-            return BadRequest(new { message = result.Error });
-        }
+        if (!result.IsSuccess) return this.ToErrorActionResult(result);
         return NoContent();
     }
 

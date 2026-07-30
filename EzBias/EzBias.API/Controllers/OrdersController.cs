@@ -1,4 +1,6 @@
 using System.Security.Claims;
+using EzBias.API.Infrastructure;
+using EzBias.Application.Common.Results;
 using EzBias.Application.Features.Orders;
 using EzBias.Application.Features.Orders.Dtos;
 using Microsoft.AspNetCore.Authorization;
@@ -23,8 +25,9 @@ public class OrdersController : ControllerBase
     {
         if (!TryGetUserId(out var userId)) return Unauthorized();
         var result = await _orderService.CreateAsync(userId, request, ct);
-        if (!result.Success || result.Data is null) return BadRequest(new { message = result.Error });
-        return Ok(result.Data);
+        var typed = result.ToResult();
+        if (!typed.IsSuccess || typed.Value is null) return this.ToErrorActionResult(typed, notFoundAsBadRequest: true);
+        return Ok(typed.Value);
     }
 
     [HttpGet]
@@ -40,14 +43,9 @@ public class OrdersController : ControllerBase
     {
         if (!TryGetUserId(out var userId)) return Unauthorized();
         var result = await _orderService.GetDetailAsync(userId, id, ct);
-        if (!result.Success || result.Data is null)
-        {
-            if (result.Error == "Forbidden.") return Forbid();
-            if (result.Error == "Order not found.") return NotFound(new { message = result.Error });
-            return BadRequest(new { message = result.Error });
-        }
-
-        return Ok(result.Data);
+        var typed = result.ToResult();
+        if (!typed.IsSuccess || typed.Value is null) return this.ToErrorActionResult(typed);
+        return Ok(typed.Value);
     }
 
     [HttpPut("{id:long}/confirm")]
@@ -55,14 +53,9 @@ public class OrdersController : ControllerBase
     {
         if (!TryGetUserId(out var userId)) return Unauthorized();
         var result = await _orderService.ConfirmReceivedAsync(userId, id, ct);
-        if (!result.Success || result.Data is null)
-        {
-            if (result.Error == "Forbidden.") return Forbid();
-            if (result.Error == "Order not found.") return NotFound(new { message = result.Error });
-            return BadRequest(new { message = result.Error });
-        }
-
-        return Ok(result.Data);
+        var typed = result.ToResult();
+        if (!typed.IsSuccess || typed.Value is null) return this.ToErrorActionResult(typed);
+        return Ok(typed.Value);
     }
 
     [HttpDelete("{id:long}")]
@@ -70,12 +63,8 @@ public class OrdersController : ControllerBase
     {
         if (!TryGetUserId(out var userId)) return Unauthorized();
         var result = await _orderService.DeleteAsync(userId, id, ct);
-        if (!result.Success)
-        {
-            if (result.Error == "Forbidden.") return Forbid();
-            if (result.Error == "Order not found.") return NotFound(new { message = result.Error });
-            return BadRequest(new { message = result.Error });
-        }
+        var typed = result.ToResult();
+        if (!typed.IsSuccess) return this.ToErrorActionResult(typed);
 
         return NoContent();
     }
