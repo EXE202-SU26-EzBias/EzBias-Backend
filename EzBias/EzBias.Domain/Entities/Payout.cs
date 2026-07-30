@@ -17,4 +17,27 @@ public class Payout
     public Order Order { get; set; } = null!;
     public User Seller { get; set; } = null!;
     public ICollection<EscrowTransaction> EscrowTransactions { get; set; } = new List<EscrowTransaction>();
+
+    public TransitionOutcome Approve(DateTimeOffset now)
+    {
+        if (Status == PayoutStatus.Approved)
+            return TransitionOutcome.NoOp;
+        if (Status != PayoutStatus.Pending)
+            return TransitionOutcome.Invalid;
+        Status = PayoutStatus.Approved;
+        PaidAt ??= now;
+        UpdatedAt = now;
+        return TransitionOutcome.Applied;
+    }
+
+    public TransitionOutcome Reject(DateTimeOffset now)
+    {
+        if (Status == PayoutStatus.Rejected)
+            return TransitionOutcome.NoOp;
+        if (Status != PayoutStatus.Pending)
+            return TransitionOutcome.Invalid;
+        Status = PayoutStatus.Rejected;
+        UpdatedAt = now;
+        return TransitionOutcome.Applied;
+    }
 }

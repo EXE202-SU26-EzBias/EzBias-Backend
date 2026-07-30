@@ -25,4 +25,27 @@ public class Payment
     public ICollection<CommissionTransaction> CommissionTransactions { get; set; } = new List<CommissionTransaction>();
     public ICollection<Refund> Refunds { get; set; } = new List<Refund>();
     public ICollection<AuctionDeposit> AuctionDeposits { get; set; } = new List<AuctionDeposit>();
+
+    public TransitionOutcome MarkPaid(DateTimeOffset now)
+    {
+        if (Status == PaymentStatus.Paid)
+            return TransitionOutcome.NoOp;
+        if (Status != PaymentStatus.Pending)
+            return TransitionOutcome.Invalid;
+        Status = PaymentStatus.Paid;
+        PaidAt = now;
+        UpdatedAt = now;
+        return TransitionOutcome.Applied;
+    }
+
+    public TransitionOutcome MarkRefunded(DateTimeOffset now)
+    {
+        if (Status == PaymentStatus.Refunded)
+            return TransitionOutcome.NoOp;
+        if (Status != PaymentStatus.Paid)
+            return TransitionOutcome.Invalid;
+        Status = PaymentStatus.Refunded;
+        UpdatedAt = now;
+        return TransitionOutcome.Applied;
+    }
 }

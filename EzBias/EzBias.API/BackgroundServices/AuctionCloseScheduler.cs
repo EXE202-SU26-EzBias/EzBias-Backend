@@ -76,7 +76,8 @@ public class AuctionCloseScheduler : BackgroundService
                     var topBid = await bids.GetTopBidAsync(auction.Id, stoppingToken);
                     if (topBid is null || (auction.ReservePrice.HasValue && topBid.Amount < auction.ReservePrice.Value))
                     {
-                        auction.Status = AuctionStatus.EndedNoWinner;
+                        if (auction.MarkEndedNoWinner(now) == TransitionOutcome.Invalid)
+                            continue;
                         // Free up the product since auction ended with no winner
                         auction.Product.IsAuction = false;
                         auction.Product.UpdatedAt = now;
@@ -87,10 +88,8 @@ public class AuctionCloseScheduler : BackgroundService
                     }
                     else
                     {
-                        auction.Status = AuctionStatus.EndedPendingPayment;
-                        auction.WinnerId = topBid.UserId;
-                        auction.FinalPrice = topBid.Amount;
-                        auction.WinnerPaymentDeadline = now.AddHours(24);
+                        if (auction.AssignWinner(topBid.UserId, topBid.Amount, now.AddHours(24), now) == TransitionOutcome.Invalid)
+                            continue;
 
                         notifications.Add(notificationFactory.AuctionWon(
                             topBid.UserId, auction.Id, auction.Product.Name, topBid.Amount));
@@ -143,7 +142,8 @@ public class AuctionCloseScheduler : BackgroundService
                 var winnerFailed = 0;
                 foreach (var auction in winnerExpired)
                 {
-                    auction.Status = AuctionStatus.WinnerFailed;
+                    if (auction.MarkWinnerFailed(now) == TransitionOutcome.Invalid)
+                        continue;
                     // Free up the product since winner failed to pay
                     auction.Product.IsAuction = false;
                     auction.Product.UpdatedAt = now;
@@ -155,8 +155,7 @@ public class AuctionCloseScheduler : BackgroundService
                     var auctionOrder = await orders.GetByAuctionIdAsync(auction.Id, stoppingToken);
                     if (auctionOrder is not null && auctionOrder.Status == OrderStatus.Pending)
                     {
-                        auctionOrder.Status = OrderStatus.Canceled;
-                        auctionOrder.UpdatedAt = now;
+                        auctionOrder.MarkCanceled(now);
                     }
 
                     winnerFailed++;

@@ -219,6 +219,7 @@ public class PaymentApplicationService : IPaymentApplicationService
     private async Task<(bool Success, string? Error)> ConfirmInternalAsync(long userId, long paymentId, CancellationToken ct)
     {
         await using var transaction = await _uow.BeginTransactionAsync(ct);
+        var now = DateTimeOffset.UtcNow;
 
         var payment = await _payments.GetByIdWithOrdersForUpdateAsync(paymentId, ct);
         if (payment is null)
@@ -232,9 +233,8 @@ public class PaymentApplicationService : IPaymentApplicationService
             return (true, null);
         }
 
-        payment.Status = PaymentStatus.Paid;
-        payment.PaidAt = DateTimeOffset.UtcNow;
-        payment.UpdatedAt = DateTimeOffset.UtcNow;
+        if (payment.MarkPaid(now) == TransitionOutcome.Invalid)
+            return (false, "Payment cannot be confirmed in current status.");
 
         if (payment.Type == PaymentType.AuctionDeposit)
         {
@@ -249,8 +249,8 @@ public class PaymentApplicationService : IPaymentApplicationService
 
         foreach (var po in payment.PaymentOrders)
         {
-            po.Order.Status = OrderStatus.Paid;
-            po.Order.UpdatedAt = DateTimeOffset.UtcNow;
+            if (po.Order.MarkPaid(now) == TransitionOutcome.Invalid)
+                return (false, "Order cannot be marked paid in current status.");
 
             // Notify seller of new order
             var productNames = string.Join(", ", po.Order.Items.Select(i => i.ProductName));
@@ -261,8 +261,8 @@ public class PaymentApplicationService : IPaymentApplicationService
                 var auction = await _auctions.GetByIdAsync(po.Order.AuctionId.Value, ct);
                 if (auction is not null && auction.Status == AuctionStatus.EndedPendingPayment)
                 {
-                    auction.Status = AuctionStatus.Sold;
-                    auction.UpdatedAt = DateTimeOffset.UtcNow;
+                    if (auction.MarkSold(now) == TransitionOutcome.Invalid)
+                        return (false, "Auction cannot be marked sold in current status.");
                     
                     // Product was successfully sold in auction, free it up
                     var product = await _products.GetByIdAsync(auction.ProductId, ct);

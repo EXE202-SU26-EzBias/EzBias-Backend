@@ -55,18 +55,18 @@ public class PayoutApplicationService : IPayoutApplicationService
         if (payout.Status == PayoutStatus.Approved)
             return (true, null, new MarkPayoutPaidResponse(payout.Id, payout.Status, payout.PaidAt ?? DateTimeOffset.UtcNow, payout.BankTransferRef));
 
-        payout.Status = PayoutStatus.Approved;
-        payout.PaidAt = DateTimeOffset.UtcNow;
+        var now = DateTimeOffset.UtcNow;
+        if (payout.Approve(now) == TransitionOutcome.Invalid)
+            return (false, "Payout cannot be marked paid in current status.", null);
         payout.BankTransferRef = !string.IsNullOrWhiteSpace(request.BankTransferRef)
             ? request.BankTransferRef.Trim()
-            : $"PO-{DateTimeOffset.UtcNow:yyyyMMddHHmmss}-{payout.Id}";
-        payout.UpdatedAt = DateTimeOffset.UtcNow;
+            : $"PO-{now:yyyyMMddHHmmss}-{payout.Id}";
 
         _notifications.Add(_notificationFactory.PayoutPaid(payout.SellerId, payout.Id, payout.Amount));
 
         await _uow.SaveChangesAsync(ct);
 
-        return (true, null, new MarkPayoutPaidResponse(payout.Id, payout.Status, payout.PaidAt.Value, payout.BankTransferRef));
+        return (true, null, new MarkPayoutPaidResponse(payout.Id, payout.Status, payout.PaidAt ?? now, payout.BankTransferRef));
     }
 
     public async Task<(bool Success, string? Error, RejectPayoutResponse? Data)> RejectAsync(long payoutId, RejectPayoutRequest request, CancellationToken ct)
@@ -80,8 +80,8 @@ public class PayoutApplicationService : IPayoutApplicationService
         if (payout.Status == PayoutStatus.Approved)
             return (false, "Approved payout cannot be rejected.", null);
 
-        payout.Status = PayoutStatus.Rejected;
-        payout.UpdatedAt = DateTimeOffset.UtcNow;
+        if (payout.Reject(DateTimeOffset.UtcNow) == TransitionOutcome.Invalid)
+            return (false, "Approved payout cannot be rejected.", null);
         await _uow.SaveChangesAsync(ct);
 
         return (true, null, new RejectPayoutResponse(payout.Id, payout.Status, request.Reason));

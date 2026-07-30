@@ -88,8 +88,8 @@ public class SellerAuctionApplicationService : ISellerAuctionApplicationService
         if (auction.Status == AuctionStatus.Canceled || auction.Status == AuctionStatus.Sold || auction.Status == AuctionStatus.EndedNoWinner || auction.Status == AuctionStatus.EndedPendingPayment)
             return (false, "Auction cannot be published in current status.", null);
 
-        auction.Status = AuctionStatus.Live;
-        auction.UpdatedAt = DateTimeOffset.UtcNow;
+        if (auction.Publish(DateTimeOffset.UtcNow) == TransitionOutcome.Invalid)
+            return (false, "Auction cannot be published in current status.", null);
         await _uow.SaveChangesAsync(ct);
 
         return (true, null, new AuctionActionResponse(auction.Id, auction.Status.ToString()));
@@ -112,8 +112,8 @@ public class SellerAuctionApplicationService : ISellerAuctionApplicationService
         if (auction.Status is AuctionStatus.Sold or AuctionStatus.EndedPendingPayment or AuctionStatus.EndedNoWinner or AuctionStatus.WinnerFailed or AuctionStatus.Canceled)
             return (false, "Auction cannot be canceled in current status.", null);
 
-        auction.Status = AuctionStatus.Canceled;
-        auction.UpdatedAt = DateTimeOffset.UtcNow;
+        if (auction.Cancel(DateTimeOffset.UtcNow) == TransitionOutcome.Invalid)
+            return (false, "Auction cannot be canceled in current status.", null);
         
         // Free up the product so seller can create a new auction or relist
         var product = await _products.GetByIdAsync(auction.ProductId, ct);

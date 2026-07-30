@@ -76,7 +76,8 @@ public class DisputeApplicationService : IDisputeApplicationService
         };
 
         dispute.Reason = request.Reason.Trim();
-        dispute.Status = DisputeStatus.Open;
+        if (dispute.Open(DateTimeOffset.UtcNow) == TransitionOutcome.Invalid)
+            return (false, "Dispute cannot be reopened.", null);
         dispute.InitiatorId = buyerId;
         dispute.AdminNote = null;
         dispute.ResolvedAt = null;
@@ -101,8 +102,8 @@ public class DisputeApplicationService : IDisputeApplicationService
             });
         }
 
-        order.Status = OrderStatus.ReturnRequested;
-        order.UpdatedAt = DateTimeOffset.UtcNow;
+        if (order.MarkReturnRequested(DateTimeOffset.UtcNow) == TransitionOutcome.Invalid)
+            return (false, "Refund request is only allowed within Delivered grace period.", null);
 
         if (prior is null)
             _disputes.Add(dispute);
@@ -181,9 +182,9 @@ public class DisputeApplicationService : IDisputeApplicationService
 
         _refunds.Add(refund);
 
-        dispute.Status = DisputeStatus.ResolvedBuyer;
+        if (dispute.ResolveForBuyer(DateTimeOffset.UtcNow) == TransitionOutcome.Invalid)
+            return (false, "Dispute already resolved.", null);
         dispute.AdminNote = request.AdminNote?.Trim();
-        dispute.ResolvedAt = DateTimeOffset.UtcNow;
 
         // Notify buyer (won)
         _notifications.Add(_notificationFactory.DisputeResolved(dispute.InitiatorId, dispute.Id, resolvedForBuyer: true));
@@ -206,12 +207,12 @@ public class DisputeApplicationService : IDisputeApplicationService
         var order = await _orders.GetByIdAsync(dispute.OrderId, ct);
         if (order is null) return (false, "Order not found.", null);
 
-        dispute.Status = DisputeStatus.ResolvedSeller;
+        if (dispute.ResolveForSeller(DateTimeOffset.UtcNow) == TransitionOutcome.Invalid)
+            return (false, "Dispute already resolved.", null);
         dispute.AdminNote = request.Reason.Trim();
-        dispute.ResolvedAt = DateTimeOffset.UtcNow;
 
-        order.Status = OrderStatus.Delivered;
-        order.UpdatedAt = DateTimeOffset.UtcNow;
+        if (order.MarkDelivered(DateTimeOffset.UtcNow) == TransitionOutcome.Invalid)
+            return (false, "Order cannot be marked delivered in current status.", null);
 
         // Notify buyer (lost)
         _notifications.Add(_notificationFactory.DisputeResolved(dispute.InitiatorId, dispute.Id, resolvedForBuyer: false));
@@ -244,12 +245,11 @@ public class DisputeApplicationService : IDisputeApplicationService
 
         var now = DateTimeOffset.UtcNow;
         var fullRefund = refund.Amount >= order.Total;
-        order.Status = fullRefund ? OrderStatus.Refunded : OrderStatus.Completed;
-        order.UpdatedAt = now;
+        if (order.MarkRefunded(fullRefund, now) == TransitionOutcome.Invalid)
+            return (false, "Order cannot be refunded in current status.", null);
 
         if (!fullRefund)
         {
-            order.CompletedAt = now;
             await _orderService.FinalizeOrderPayoutAsync(order, now, ct);
         }
 
@@ -257,8 +257,8 @@ public class DisputeApplicationService : IDisputeApplicationService
         var totalAfterThisRefund = processedTotal + refund.Amount;
         if (Math.Abs(totalAfterThisRefund - EffectiveAmountPaid(order, payment)) < 0.01m)
         {
-            payment.Status = PaymentStatus.Refunded;
-            payment.UpdatedAt = DateTimeOffset.UtcNow;
+            if (payment.MarkRefunded(now) == TransitionOutcome.Invalid)
+                return (false, "Payment cannot be refunded in current status.", null);
         }
 
         // Notify buyer that the refund has been paid out

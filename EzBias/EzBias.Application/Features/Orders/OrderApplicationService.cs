@@ -199,9 +199,9 @@ public class OrderApplicationService : IOrderApplicationService
         if (order.Status != OrderStatus.Shipped && order.Status != OrderStatus.Delivered)
             return (false, "Order cannot be confirmed in current status.", null);
 
-        order.DeliveredAt = DateTimeOffset.UtcNow;
-        order.Status = OrderStatus.Delivered;
-        order.UpdatedAt = DateTimeOffset.UtcNow;
+        var transition = order.MarkDelivered(DateTimeOffset.UtcNow);
+        if (transition == TransitionOutcome.Invalid)
+            return (false, "Order cannot be confirmed in current status.", null);
 
         _notifications.Add(_notificationFactory.OrderConfirmed(order.SellerId, order.Id));
 

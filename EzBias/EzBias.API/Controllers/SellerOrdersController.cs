@@ -53,16 +53,15 @@ public class SellerOrdersController : ControllerBase
             return BadRequest(new { message = "Order cannot be marked shipped in current status." });
 
         var carrier = request.Carrier?.Trim();
-        order.Carrier = carrier;
         var suffix = Random.Shared.Next(0, 1_000_000).ToString("D6");
-        order.TrackingNumber = string.IsNullOrEmpty(carrier)
+        var trackingNumber = string.IsNullOrEmpty(carrier)
             ? $"tracking - {suffix}"
             : $"{carrier} - {suffix}";
-        order.ShippedAt = DateTimeOffset.UtcNow;
-        order.Status = OrderStatus.Shipped;
-        order.UpdatedAt = DateTimeOffset.UtcNow;
+        var now = DateTimeOffset.UtcNow;
+        if (order.MarkShipped(carrier, trackingNumber, now) == TransitionOutcome.Invalid)
+            return BadRequest(new { message = "Order cannot be marked shipped in current status." });
 
-        _notifications.Add(_notificationFactory.OrderShipped(order.UserId, order.Id, order.TrackingNumber));
+        _notifications.Add(_notificationFactory.OrderShipped(order.UserId, order.Id, trackingNumber));
 
         await _uow.SaveChangesAsync(ct);
         return Ok(new FulfillmentActionResponse(order.Id, order.Status.ToString()));

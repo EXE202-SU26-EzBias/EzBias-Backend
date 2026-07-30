@@ -38,4 +38,100 @@ public class Auction
     public ICollection<Bid> Bids { get; set; } = new List<Bid>();
     public ICollection<Order> Orders { get; set; } = new List<Order>();
     public ICollection<AuctionDeposit> Deposits { get; set; } = new List<AuctionDeposit>();
+
+    public TransitionOutcome Publish(DateTimeOffset now)
+    {
+        if (Status == AuctionStatus.Live)
+            return TransitionOutcome.NoOp;
+        if (Status is AuctionStatus.Canceled
+            or AuctionStatus.Sold
+            or AuctionStatus.EndedNoWinner
+            or AuctionStatus.EndedPendingPayment)
+            return TransitionOutcome.Invalid;
+
+        Status = AuctionStatus.Live;
+        UpdatedAt = now;
+        return TransitionOutcome.Applied;
+    }
+
+    public TransitionOutcome Cancel(DateTimeOffset now)
+    {
+        if (Status == AuctionStatus.Canceled)
+            return TransitionOutcome.NoOp;
+        if (Status is AuctionStatus.Sold
+            or AuctionStatus.EndedNoWinner
+            or AuctionStatus.EndedPendingPayment
+            or AuctionStatus.WinnerFailed)
+            return TransitionOutcome.Invalid;
+
+        Status = AuctionStatus.Canceled;
+        UpdatedAt = now;
+        return TransitionOutcome.Applied;
+    }
+
+    public TransitionOutcome MarkEndedNoWinner(DateTimeOffset now)
+    {
+        if (Status == AuctionStatus.EndedNoWinner)
+            return TransitionOutcome.NoOp;
+        if (Status is not (AuctionStatus.Live or AuctionStatus.Extended))
+            return TransitionOutcome.Invalid;
+
+        Status = AuctionStatus.EndedNoWinner;
+        EndedAt = now;
+        UpdatedAt = now;
+        return TransitionOutcome.Applied;
+    }
+
+    public TransitionOutcome AssignWinner(long winnerId, decimal finalPrice, DateTimeOffset paymentDeadline, DateTimeOffset now)
+    {
+        if (Status == AuctionStatus.EndedPendingPayment
+            && WinnerId == winnerId
+            && FinalPrice == finalPrice)
+            return TransitionOutcome.NoOp;
+        if (Status is not (AuctionStatus.Live or AuctionStatus.Extended))
+            return TransitionOutcome.Invalid;
+
+        Status = AuctionStatus.EndedPendingPayment;
+        WinnerId = winnerId;
+        FinalPrice = finalPrice;
+        WinnerPaymentDeadline = paymentDeadline;
+        EndedAt = now;
+        UpdatedAt = now;
+        return TransitionOutcome.Applied;
+    }
+
+    public TransitionOutcome MarkWinnerFailed(DateTimeOffset now)
+    {
+        if (Status == AuctionStatus.WinnerFailed)
+            return TransitionOutcome.NoOp;
+        if (Status != AuctionStatus.EndedPendingPayment)
+            return TransitionOutcome.Invalid;
+
+        Status = AuctionStatus.WinnerFailed;
+        UpdatedAt = now;
+        return TransitionOutcome.Applied;
+    }
+
+    public TransitionOutcome MarkSold(DateTimeOffset now)
+    {
+        if (Status == AuctionStatus.Sold)
+            return TransitionOutcome.NoOp;
+        if (Status != AuctionStatus.EndedPendingPayment)
+            return TransitionOutcome.Invalid;
+
+        Status = AuctionStatus.Sold;
+        UpdatedAt = now;
+        return TransitionOutcome.Applied;
+    }
+
+    public TransitionOutcome RecordBid(decimal amount, DateTimeOffset now)
+    {
+        if (Status is not (AuctionStatus.Live or AuctionStatus.Extended))
+            return TransitionOutcome.Invalid;
+
+        CurrentBid = amount;
+        Status = AuctionStatus.Live;
+        UpdatedAt = now;
+        return TransitionOutcome.Applied;
+    }
 }

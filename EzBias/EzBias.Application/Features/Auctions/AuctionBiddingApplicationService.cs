@@ -85,6 +85,7 @@ public class AuctionBiddingApplicationService : IAuctionBiddingApplicationServic
     public async Task<(bool Success, string? Error, PlaceBidResponse? Data)> PlaceBidAsync(long bidderId, long auctionId, PlaceBidRequest request, CancellationToken ct)
     {
         await using var transaction = await _uow.BeginTransactionAsync(ct);
+        var now = DateTimeOffset.UtcNow;
 
         var auction = await _auctions.GetByIdWithProductForUpdateAsync(auctionId, ct);
         if (auction is null) return (false, "Auction not found.", null);
@@ -140,8 +141,6 @@ public class AuctionBiddingApplicationService : IAuctionBiddingApplicationServic
         await _bids.ClearWinningFlagsAsync(auction.Id, ct);
         _bids.Add(bid);
 
-        auction.CurrentBid = request.Amount;
-
         // TEMPORARILY DISABLED: Auction extension for testing
         // var remaining = auction.EndsAt - DateTimeOffset.UtcNow;
         // if (remaining.TotalSeconds <= auction.TriggerBeforeEnd)
@@ -157,10 +156,9 @@ public class AuctionBiddingApplicationService : IAuctionBiddingApplicationServic
         //     auction.Status = AuctionStatus.Live;
         // }
         
-        // Keep auction in Live status
-        auction.Status = AuctionStatus.Live;
-
-        auction.UpdatedAt = DateTimeOffset.UtcNow;
+        var transition = auction.RecordBid(request.Amount, now);
+        if (transition == TransitionOutcome.Invalid)
+            return (false, "Auction is not live.", null);
 
         await _uow.SaveChangesAsync(ct);
         await transaction.CommitAsync(ct);

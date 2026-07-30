@@ -57,42 +57,9 @@ public class DepositApplicationService : IDepositApplicationService
     // Transition guard (Req 10.1, 10.2, 10.4)
     // ---------------------------------------------------------------------
 
-    /// <summary>Classifies the outcome of a requested deposit-state transition.</summary>
-    private enum TransitionOutcome
-    {
-        Applied,   // transition was legal and has been applied to the deposit
-        Terminal,  // the deposit is in a terminal state; transition rejected
-        Illegal    // the transition is not part of the legal transition table; rejected
-    }
-
     /// <summary>
-    /// Terminal states from which no further transition is permitted (Req 10.2).
-    /// <c>Failed</c> is also treated as terminal.
-    /// </summary>
-    private static bool IsTerminal(DepositState state) =>
-        state is DepositState.Applied
-              or DepositState.Forfeited
-              or DepositState.Refunded
-              or DepositState.Failed;
-
-    /// <summary>
-    /// The legal transition table:
-    /// <c>PendingPayment -> {Held, Failed}</c>; <c>Held -> {Refunded, Applied, Forfeited}</c>.
-    /// Every other (from, to) pair is illegal.
-    /// </summary>
-    private static bool IsLegalTransition(DepositState from, DepositState to) => from switch
-    {
-        DepositState.PendingPayment => to is DepositState.Held or DepositState.Failed,
-        DepositState.Held => to is DepositState.Refunded or DepositState.Applied or DepositState.Forfeited,
-        _ => false
-    };
-
-    /// <summary>
-    /// Applies <paramref name="to"/> to <paramref name="deposit"/> only when the transition is legal
-    /// and the deposit is not already terminal. On success the deposit's <see cref="AuctionDeposit.State"/>
-    /// and <see cref="AuctionDeposit.UpdatedAt"/> are updated; on rejection the deposit's state and
-    /// recorded amount are left unchanged (Req 10.1, 10.2). Convenience overload that discards the
-    /// detailed outcome classification.
+    /// Delegates transition rules to the domain entity and maps the typed outcome
+    /// back to the existing API messages.
     /// </summary>
     private static (bool Success, string? Error) TryTransition(AuctionDeposit deposit, DepositState to)
         => TryTransition(deposit, to, out _);
@@ -105,25 +72,13 @@ public class DepositApplicationService : IDepositApplicationService
     private static (bool Success, string? Error) TryTransition(
         AuctionDeposit deposit, DepositState to, out TransitionOutcome outcome)
     {
-        var from = deposit.State;
-
-        // Reject any transition requested FROM a terminal state, leaving state/amount unchanged.
-        if (IsTerminal(from))
+        outcome = deposit.TryTransitionTo(to, DateTimeOffset.UtcNow);
+        return outcome switch
         {
-            outcome = TransitionOutcome.Terminal;
-            return (false, TerminalStateError);
-        }
-
-        if (!IsLegalTransition(from, to))
-        {
-            outcome = TransitionOutcome.Illegal;
-            return (false, IllegalTransitionError);
-        }
-
-        deposit.State = to;
-        deposit.UpdatedAt = DateTimeOffset.UtcNow;
-        outcome = TransitionOutcome.Applied;
-        return (true, null);
+            TransitionOutcome.Applied => (true, null),
+            TransitionOutcome.Terminal => (false, TerminalStateError),
+            _ => (false, IllegalTransitionError)
+        };
     }
 
     /// <summary>

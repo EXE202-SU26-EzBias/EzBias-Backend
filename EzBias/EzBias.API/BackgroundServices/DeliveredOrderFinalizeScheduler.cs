@@ -45,9 +45,8 @@ public class DeliveredOrderFinalizeScheduler : BackgroundService
                 {
                     await using var transaction = await uow.BeginTransactionAsync(stoppingToken);
 
-                    order.CompletedAt = now;
-                    order.Status = OrderStatus.Completed;
-                    order.UpdatedAt = now;
+                    if (order.MarkCompleted(now) == TransitionOutcome.Invalid)
+                        continue;
 
                     await orderService.FinalizeOrderPayoutAsync(order, now, stoppingToken);
                     await uow.SaveChangesAsync(stoppingToken);
