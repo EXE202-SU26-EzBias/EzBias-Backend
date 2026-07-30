@@ -18,7 +18,6 @@ public class AuctionDeposit
     public DateTimeOffset? ForfeitedAt { get; set; }
     public DateTimeOffset? RefundedAt { get; set; }
 
-    public bool ConfirmationNotificationDelivered { get; set; } = false; // Req 3.4
     public string? LastError { get; set; }                               // Req 3.6, 7.6
     public int ForfeitRetryCount { get; set; } = 0;                      // Req 7.6
 

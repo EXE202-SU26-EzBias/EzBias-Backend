@@ -3,20 +3,6 @@ using EzBias.Domain.Enums;
 
 namespace EzBias.Infrastructure.Persistence.SeedData;
 
-/// <summary>
-/// Seeds the <c>product_reviews</c> table so every product detail page shows star ratings
-/// and written comments in the UI.
-///
-/// Two flavours of review are produced:
-///  - <b>Purchase-backed</b>: where a demo buyer has a Delivered/Completed order containing the
-///    product, the review is attributed to that buyer — so logging in as them shows the editable
-///    form (the same purchase gate as <c>IOrderRepository.HasUserPurchasedProductAsync</c>).
-///  - <b>Display-only</b>: products without qualifying orders (most hero catalog items) still get
-///    reviews from the buyer pool so their pages aren't empty.
-///
-/// Tone is mostly positive with a few critical reviews (avg ~4.2). Idempotent: a no-op once any
-/// review exists. Runs AFTER SalesSeedData (relies on the *.sales@ezbias.local buyer pool).
-/// </summary>
 public static class ProductReviewSeedData
 {
     private static readonly Random Rng = new(20260606);

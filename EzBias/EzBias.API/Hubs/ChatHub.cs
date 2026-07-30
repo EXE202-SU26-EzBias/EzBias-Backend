@@ -4,10 +4,6 @@ using Microsoft.AspNetCore.SignalR;
 
 namespace EzBias.API.Hubs;
 
-/// <summary>
-/// Authenticated hub — each user joins their personal group "chat-user-{userId}".
-/// Server pushes "ReceiveMessage" and "ConversationRead" events to these groups.
-/// </summary>
 [Authorize]
 public class ChatHub : Hub
 {

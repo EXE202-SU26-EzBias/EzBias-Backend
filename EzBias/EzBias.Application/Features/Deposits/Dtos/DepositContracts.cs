@@ -8,7 +8,6 @@ public record DepositStatusResponse(
     long AuctionId, decimal RequiredDepositAmount,
     bool HasDeposit, long? DepositId, decimal? Amount, string? State, string? PaymentReference);
 
-// Admin deposit management DTOs
 public record AdminDepositListItem(
     long DepositId,
     long AuctionId,

@@ -26,7 +26,6 @@ public sealed class AuctionDepositConfiguration : IEntityTypeConfiguration<Aucti
         builder.Property(x => x.ForfeitedAt).HasColumnName("forfeited_at").HasColumnType("timestamptz");
         builder.Property(x => x.RefundedAt).HasColumnName("refunded_at").HasColumnType("timestamptz");
 
-        builder.Property(x => x.ConfirmationNotificationDelivered).HasColumnName("confirmation_notification_delivered").HasDefaultValue(false).IsRequired();
         builder.Property(x => x.LastError).HasColumnName("last_error").HasColumnType("text");
         builder.Property(x => x.ForfeitRetryCount).HasColumnName("forfeit_retry_count").HasDefaultValue(0).IsRequired();
 

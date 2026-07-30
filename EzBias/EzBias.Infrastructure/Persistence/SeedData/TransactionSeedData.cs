@@ -3,16 +3,6 @@ using EzBias.Domain.Enums;
 
 namespace EzBias.Infrastructure.Persistence.SeedData;
 
-/// <summary>
-/// Seeds realistic AuctionDeposit (cọc đấu giá) and Refund (hoàn tiền) records so the
-/// Admin → Orders / Transaction History tab has data for all 4 transaction types.
-///
-/// Deposits: some Held (active), some Applied (winner paid), some Refunded (losers refunded).
-/// Refunds:  Pending ones (approved but not yet transferred) and Completed ones (with ProviderRef).
-///
-/// Idempotent: guarded by a marker payment reference, runs once.
-/// Runs AFTER AuctionSeedData (needs auctions) and SalesSeedData (needs buyers).
-/// </summary>
 public static class TransactionSeedData
 {
     private static readonly Random Rng = new(20260612);

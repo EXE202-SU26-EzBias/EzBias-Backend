@@ -8,14 +8,6 @@ using EzBias.Domain.Interfaces;
 
 namespace EzBias.Application.Features.Deposits;
 
-/// <summary>
-/// Deposit_Service: creates, confirms, applies, forfeits, and refunds <see cref="AuctionDeposit"/>
-/// records. All state changes flow through the private transition guard
-/// (<see cref="TryTransition(AuctionDeposit, DepositState, out TransitionOutcome)"/>) which enforces
-/// the legal <see cref="DepositState"/> transition table and rejects transitions out of terminal
-/// states (Req 10.1, 10.2). Concurrency (Req 10.6) is enforced by the optimistic concurrency token
-/// on the persisted row (see the note in <see cref="ApplyTransitionAndSaveAsync"/>).
-/// </summary>
 public class DepositApplicationService : IDepositApplicationService
 {
     private const string TerminalStateError = "Deposit is in a terminal state.";
@@ -353,11 +345,6 @@ public class DepositApplicationService : IDepositApplicationService
         var productName = await ResolveProductNameAsync(deposit.AuctionId, ct);
         _notifications.Add(_notificationFactory.DepositConfirmed(
             deposit.UserId, deposit.AuctionId, productName, deposit.Amount));
-
-        // Req 3.4: the realtime push is best-effort and dispatched by NotificationDispatchingUnitOfWork
-        // AFTER save; delivery failures there are swallowed and never roll back the Held state. We cannot
-        // observe delivery here, so this flag stays false (it reflects confirmed realtime delivery only).
-        deposit.ConfirmationNotificationDelivered = false;
 
         // (7) Persist. A concurrency conflict (Req 10.6) is surfaced as an error; the deposit row stays
         //     in exactly one committed state.

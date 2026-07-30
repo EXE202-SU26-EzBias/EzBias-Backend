@@ -2,10 +2,6 @@ using EzBias.Domain.Entities;
 
 namespace EzBias.Application.Features.Notifications;
 
-/// <summary>
-/// Creates Notification entities for common domain events.
-/// Caller is responsible for persisting via INotificationRepository.
-/// </summary>
 public interface INotificationFactory
 {
     Notification Outbid(long userId, long auctionId, string productName, decimal newBid);

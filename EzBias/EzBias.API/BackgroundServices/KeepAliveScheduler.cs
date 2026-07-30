@@ -1,9 +1,5 @@
 namespace EzBias.API.BackgroundServices;
 
-/// <summary>
-/// Background service that pings a configured API endpoint every 4 minutes
-/// to prevent Render free tier from spinning down due to inactivity.
-/// </summary>
 public class KeepAliveScheduler : BackgroundService
 {
     private readonly IHttpClientFactory _httpClientFactory;

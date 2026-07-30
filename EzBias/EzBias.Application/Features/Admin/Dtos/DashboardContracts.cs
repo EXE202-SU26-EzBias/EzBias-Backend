@@ -113,9 +113,6 @@ public record AdminUpdateUserRequest(
     string? City
 );
 
-// ==================== Transaction History ====================
-
-/// <summary>Unified money-movement record shown in the Admin Orders / Transactions tab.</summary>
 public record AdminTransactionItem(
     long Id,
     string Kind,           // "payment" | "payout"

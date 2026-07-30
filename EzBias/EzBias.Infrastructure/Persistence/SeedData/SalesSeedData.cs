@@ -3,16 +3,6 @@ using EzBias.Domain.Enums;
 
 namespace EzBias.Infrastructure.Persistence.SeedData;
 
-/// <summary>
-/// Generates a rich, realistic sales history so the Seller and Admin dashboard charts
-/// have data to render. Writes a consistent object graph per order
-/// (Order → OrderItems, Payment + PaymentOrder, CommissionTransaction, EscrowTransaction,
-/// Payout, Rating, Dispute/Refund) exactly as the live payment/escrow/payout flows would,
-/// distributed across the last 12 calendar months with natural peaks and valleys.
-///
-/// Idempotent: guarded on a marker buyer email, so it runs once and is a no-op thereafter.
-/// Runs AFTER ProductSeedData + AuctionSeedData (it relies on the 3 demo sellers existing).
-/// </summary>
 public static class SalesSeedData
 {
     private const decimal CommissionRatePercent = 8m; // matches Commission:RatePercent default
