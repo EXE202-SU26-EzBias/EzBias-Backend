@@ -1,6 +1,7 @@
 using System.Security.Claims;
 using EzBias.API.Infrastructure;
 using EzBias.Application.Common.Results;
+using EzBias.Application.Features.Media;
 using EzBias.Application.Features.Reviews;
 using EzBias.Application.Features.Reviews.Dtos;
 using Microsoft.AspNetCore.Authorization;
@@ -124,10 +125,10 @@ public class ProductReviewsController : ControllerBase
         return long.TryParse(sub, out userId);
     }
 
-    private static (List<ReviewMediaFile> Media, List<Stream> Streams) OpenMediaStreams(IReadOnlyList<IFormFile> files)
+    private static (List<UploadFile> Media, List<Stream> Streams) OpenMediaStreams(IReadOnlyList<IFormFile> files)
     {
         var streams = files.Select(file => file.OpenReadStream()).ToList();
-        var media = files.Select((file, index) => new ReviewMediaFile(
+        var media = files.Select((file, index) => new UploadFile(
             streams[index],
             file.FileName,
             file.ContentType,

@@ -1,8 +1,9 @@
 using CloudinaryDotNet;
 using CloudinaryDotNet.Actions;
+using EzBias.Application.Features.Media;
 using Microsoft.Extensions.Options;
 
-namespace EzBias.API.Integrations;
+namespace EzBias.Infrastructure.Integrations;
 
 public sealed class CloudinaryImageUploader : IImageUploader
 {
@@ -23,7 +24,7 @@ public sealed class CloudinaryImageUploader : IImageUploader
         _cloudinary = new Cloudinary(account) { Api = { Secure = true } };
     }
 
-    public async Task<string> UploadProductImageAsync(IFormFile file, CancellationToken ct)
+    public async Task<string> UploadProductImageAsync(UploadFile file, CancellationToken ct)
     {
         if (!_options.IsConfigured)
             throw new InvalidOperationException("Cloudinary is not configured.");
@@ -37,11 +38,9 @@ public sealed class CloudinaryImageUploader : IImageUploader
         if (!AllowedContentTypes.Contains(file.ContentType))
             throw new InvalidOperationException("Only JPEG, PNG, or WEBP images are allowed.");
 
-        await using var stream = file.OpenReadStream();
-
         var uploadParams = new ImageUploadParams
         {
-            File = new FileDescription(file.FileName, stream),
+            File = new FileDescription(file.FileName, file.Content),
             Folder = _options.Folder,
             UseFilename = false,
             UniqueFilename = true,

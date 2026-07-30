@@ -1,7 +1,7 @@
 using System.Security.Claims;
 using EzBias.API.Infrastructure;
-using EzBias.API.Integrations;
 using EzBias.Application.Common.Results;
+using EzBias.Application.Features.Media;
 using EzBias.Application.Features.Products;
 using EzBias.Application.Features.Products.Dtos;
 using EzBias.Domain.Enums;
@@ -64,7 +64,7 @@ public class ProductsController : ControllerBase
         List<string> uploadedUrls;
         try
         {
-            var uploads = request.Images.Select(img => _imageUploader.UploadProductImageAsync(img, ct));
+            var uploads = request.Images.Select(img => UploadImageAsync(img, ct));
             uploadedUrls = [.. await Task.WhenAll(uploads)];
         }
         catch (InvalidOperationException ex)
@@ -103,7 +103,7 @@ public class ProductsController : ControllerBase
         {
             try
             {
-                var uploads = request.Images.Select(img => _imageUploader.UploadProductImageAsync(img, ct));
+                var uploads = request.Images.Select(img => UploadImageAsync(img, ct));
                 newImageUrls = [.. await Task.WhenAll(uploads)];
             }
             catch (InvalidOperationException ex)
@@ -137,6 +137,17 @@ public class ProductsController : ControllerBase
         return NoContent();
     }
 
+    private async Task<string> UploadImageAsync(IFormFile file, CancellationToken ct)
+    {
+        await using var stream = file.OpenReadStream();
+        return await _imageUploader.UploadProductImageAsync(
+            new UploadFile(
+                stream,
+                file.FileName,
+                file.ContentType,
+                file.Length),
+            ct);
+    }
 
     private bool TryGetUserId(out long userId)
     {

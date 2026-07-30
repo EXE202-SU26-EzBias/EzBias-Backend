@@ -1,4 +1,5 @@
 using EzBias.Application.Common.Results;
+using EzBias.Application.Features.Media;
 using EzBias.Application.Features.Reviews.Dtos;
 using EzBias.Domain.Entities;
 using EzBias.Domain.Enums;
@@ -230,7 +231,7 @@ public class ProductReviewApplicationService : IProductReviewApplicationService
         => string.IsNullOrWhiteSpace(comment) ? null : comment.Trim();
 
     private static string? ValidateMediaSet(
-        IReadOnlyList<ReviewMediaFile> newMedia,
+        IReadOnlyList<UploadFile> newMedia,
         IReadOnlyList<ProductReviewMedia> existingMedia)
     {
         var types = existingMedia.Select(x => x.MediaType).ToList();

@@ -3,7 +3,7 @@ using EzBias.API.Infrastructure;
 using EzBias.Application.Common.Results;
 using EzBias.Application.Features.Chat;
 using EzBias.Application.Features.Chat.Dtos;
-using EzBias.API.Integrations;
+using EzBias.Application.Features.Media;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
@@ -113,7 +113,14 @@ public class ConversationsController : ControllerBase
 
         try
         {
-            var imageUrl = await _imageUploader.UploadProductImageAsync(image, ct);
+            await using var stream = image.OpenReadStream();
+            var imageUrl = await _imageUploader.UploadProductImageAsync(
+                new UploadFile(
+                    stream,
+                    image.FileName,
+                    image.ContentType,
+                    image.Length),
+                ct);
             return Ok(new { imageUrl });
         }
         catch (Exception ex)

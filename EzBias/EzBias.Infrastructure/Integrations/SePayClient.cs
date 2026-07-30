@@ -5,7 +5,7 @@ using System.Text.Json;
 using EzBias.Application.Features.Payments;
 using Microsoft.Extensions.Options;
 
-namespace EzBias.API.Integrations;
+namespace EzBias.Infrastructure.Integrations;
 
 public class SePayClient : ISePayClient
 {

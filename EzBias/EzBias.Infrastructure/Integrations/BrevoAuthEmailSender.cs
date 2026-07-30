@@ -1,9 +1,10 @@
 using System.Text;
 using System.Text.Json;
 using EzBias.Application.Features.Auth.Services;
+using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 
-namespace EzBias.API.Integrations;
+namespace EzBias.Infrastructure.Integrations;
 
 public sealed class BrevoAuthEmailSender : IAuthEmailSender
 {

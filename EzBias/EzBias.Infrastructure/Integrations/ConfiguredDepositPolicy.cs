@@ -1,7 +1,7 @@
 using EzBias.Application.Features.Deposits;
 using Microsoft.Extensions.Options;
 
-namespace EzBias.API.Integrations;
+namespace EzBias.Infrastructure.Integrations;
 
 public sealed class ConfiguredDepositPolicy : IDepositPolicy
 {

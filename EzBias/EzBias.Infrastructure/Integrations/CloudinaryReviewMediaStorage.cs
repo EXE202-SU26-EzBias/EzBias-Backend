@@ -2,10 +2,12 @@ using CloudinaryDotNet;
 using CloudinaryDotNet.Actions;
 using EzBias.Application.Features.Reviews;
 using EzBias.Application.Features.Reviews.Dtos;
+using EzBias.Application.Features.Media;
 using EzBias.Domain.Enums;
+using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 
-namespace EzBias.API.Integrations;
+namespace EzBias.Infrastructure.Integrations;
 
 public sealed class CloudinaryReviewMediaStorage : IReviewMediaStorage
 {
@@ -41,7 +43,7 @@ public sealed class CloudinaryReviewMediaStorage : IReviewMediaStorage
         _cloudinary = new Cloudinary(account) { Api = { Secure = true } };
     }
 
-    public async Task<StoredReviewMedia> UploadAsync(ReviewMediaFile file, CancellationToken ct)
+    public async Task<StoredReviewMedia> UploadAsync(UploadFile file, CancellationToken ct)
     {
         if (!_options.IsConfigured)
             throw new InvalidOperationException("Cloudinary is not configured.");
@@ -58,7 +60,7 @@ public sealed class CloudinaryReviewMediaStorage : IReviewMediaStorage
                 ? "Image files must be 5MB or smaller."
                 : "Video files must be 50MB or smaller.");
 
-        await using var stream = file.Content;
+        var stream = file.Content;
         UploadResult result;
 
         if (mediaType == ReviewMediaType.Image)

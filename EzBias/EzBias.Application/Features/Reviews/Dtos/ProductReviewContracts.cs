@@ -1,8 +1,7 @@
+using EzBias.Application.Features.Media;
 using EzBias.Domain.Enums;
 
 namespace EzBias.Application.Features.Reviews.Dtos;
-
-public record ReviewMediaFile(Stream Content, string FileName, string ContentType, long Length);
 
 public record StoredReviewMedia(
     ReviewMediaType MediaType,
@@ -10,13 +9,13 @@ public record StoredReviewMedia(
     string? ThumbnailUrl,
     string CloudinaryPublicId);
 
-public record CreateProductReviewRequest(short Stars, string? Comment, IReadOnlyList<ReviewMediaFile> Media);
+public record CreateProductReviewRequest(short Stars, string? Comment, IReadOnlyList<UploadFile> Media);
 
 public record UpdateProductReviewRequest(
     short Stars,
     string? Comment,
     IReadOnlyList<long> KeepMediaIds,
-    IReadOnlyList<ReviewMediaFile> NewMedia);
+    IReadOnlyList<UploadFile> NewMedia);
 
 public record ProductReviewMediaResponse(
     long Id,
