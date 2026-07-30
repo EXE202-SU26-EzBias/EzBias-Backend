@@ -97,6 +97,8 @@ public class SellerAuctionApplicationService : ISellerAuctionApplicationService
 
     public async Task<(bool Success, string? Error, AuctionActionResponse? Data)> CancelAsync(long sellerId, long auctionId, CancellationToken ct)
     {
+        await using var transaction = await _uow.BeginTransactionAsync(ct);
+
         var auction = await _auctions.GetByIdAsync(auctionId, ct);
         if (auction is null) return (false, "Auction not found.", null);
         if (auction.SellerId != sellerId) return (false, "Forbidden.", null);
@@ -124,11 +126,14 @@ public class SellerAuctionApplicationService : ISellerAuctionApplicationService
         await _deposits.ReleaseDepositsOnCancelAsync(auction.Id, ct);
         await _uow.SaveChangesAsync(ct);
 
+        await transaction.CommitAsync(ct);
         return (true, null, new AuctionActionResponse(auction.Id, auction.Status.ToString()));
     }
 
     public async Task<(bool Success, string? Error, AuctionActionResponse? Data)> RelistAsync(long sellerId, long auctionId, RelistAuctionRequest request, CancellationToken ct)
     {
+        await using var transaction = await _uow.BeginTransactionAsync(ct);
+
         var source = await _auctions.GetByIdAsync(auctionId, ct);
         if (source is null) return (false, "Auction not found.", null);
         if (source.SellerId != sellerId) return (false, "Forbidden.", null);
@@ -184,6 +189,7 @@ public class SellerAuctionApplicationService : ISellerAuctionApplicationService
         
         await _uow.SaveChangesAsync(ct);
 
+        await transaction.CommitAsync(ct);
         return (true, null, new AuctionActionResponse(newAuction.Id, newAuction.Status.ToString()));
     }
 

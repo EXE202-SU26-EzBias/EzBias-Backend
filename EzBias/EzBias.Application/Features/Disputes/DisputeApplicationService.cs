@@ -46,6 +46,8 @@ public class DisputeApplicationService : IDisputeApplicationService
 
     public async Task<(bool Success, string? Error, DisputeResponse? Data)> CreateAsync(long buyerId, CreateDisputeRequest request, CancellationToken ct)
     {
+        await using var transaction = await _uow.BeginTransactionAsync(ct);
+
         if (string.IsNullOrWhiteSpace(request.Reason)) return (false, "Reason is required.", null);
         if (request.Items is null || request.Items.Count == 0) return (false, "At least one disputed item is required.", null);
 
@@ -117,12 +119,15 @@ public class DisputeApplicationService : IDisputeApplicationService
             await _uow.SaveChangesAsync(ct);
         }
 
+        await transaction.CommitAsync(ct);
         dispute.Items = disputeItems;
         return (true, null, Map(dispute));
     }
 
     public async Task<(bool Success, string? Error, DisputeResponse? Data)> ApproveAsync(long adminId, long disputeId, ResolveDisputeRequest request, CancellationToken ct)
     {
+        await using var transaction = await _uow.BeginTransactionAsync(ct);
+
         if (request.ApprovedItems is null || request.ApprovedItems.Count == 0) return (false, "At least one approved item is required.", null);
 
         var dispute = await _disputes.GetByIdAsync(disputeId, ct);
@@ -184,11 +189,14 @@ public class DisputeApplicationService : IDisputeApplicationService
         _notifications.Add(_notificationFactory.DisputeResolved(dispute.InitiatorId, dispute.Id, resolvedForBuyer: true));
 
         await _uow.SaveChangesAsync(ct);
+        await transaction.CommitAsync(ct);
         return (true, null, Map(dispute));
     }
 
     public async Task<(bool Success, string? Error, DisputeResponse? Data)> RejectAsync(long adminId, long disputeId, RejectDisputeRequest request, CancellationToken ct)
     {
+        await using var transaction = await _uow.BeginTransactionAsync(ct);
+
         if (string.IsNullOrWhiteSpace(request.Reason)) return (false, "Reject reason is required.", null);
 
         var dispute = await _disputes.GetByIdAsync(disputeId, ct);
@@ -209,11 +217,14 @@ public class DisputeApplicationService : IDisputeApplicationService
         _notifications.Add(_notificationFactory.DisputeResolved(dispute.InitiatorId, dispute.Id, resolvedForBuyer: false));
 
         await _uow.SaveChangesAsync(ct);
+        await transaction.CommitAsync(ct);
         return (true, null, Map(dispute));
     }
 
     public async Task<(bool Success, string? Error, DisputeResponse? Data)> CompleteRefundPaymentAsync(long adminId, long disputeId, CompleteRefundPaymentRequest request, CancellationToken ct)
     {
+        await using var transaction = await _uow.BeginTransactionAsync(ct);
+
         var dispute = await _disputes.GetByIdAsync(disputeId, ct);
         if (dispute is null) return (false, "Dispute not found.", null);
 
@@ -254,6 +265,7 @@ public class DisputeApplicationService : IDisputeApplicationService
         _notifications.Add(_notificationFactory.DisputeRefundCompleted(dispute.InitiatorId, dispute.Id, refund.Amount));
 
         await _uow.SaveChangesAsync(ct);
+        await transaction.CommitAsync(ct);
         return (true, null, Map(dispute));
     }
 

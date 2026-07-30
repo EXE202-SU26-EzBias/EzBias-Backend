@@ -218,6 +218,8 @@ public class PaymentApplicationService : IPaymentApplicationService
 
     private async Task<(bool Success, string? Error)> ConfirmInternalAsync(long userId, long paymentId, CancellationToken ct)
     {
+        await using var transaction = await _uow.BeginTransactionAsync(ct);
+
         var payment = await _payments.GetByIdWithOrdersAsync(paymentId, ct);
         if (payment is null)
             return (false, "Payment not found.");
@@ -241,6 +243,7 @@ public class PaymentApplicationService : IPaymentApplicationService
             await _uow.SaveChangesAsync(ct);
             var hold = await _deposits.ConfirmDepositAsync(payment.Id, ct);
             if (!hold.Success) return (false, hold.Error);
+            await transaction.CommitAsync(ct);
             return (true, null);
         }
 
@@ -333,6 +336,7 @@ public class PaymentApplicationService : IPaymentApplicationService
 
         await _uow.SaveChangesAsync(ct);
 
+        await transaction.CommitAsync(ct);
         return (true, null);
     }
 }

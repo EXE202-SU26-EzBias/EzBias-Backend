@@ -43,18 +43,21 @@ public class DeliveredOrderFinalizeScheduler : BackgroundService
                 var finalizedCount = 0;
                 foreach (var order in candidates)
                 {
+                    await using var transaction = await uow.BeginTransactionAsync(stoppingToken);
+
                     order.CompletedAt = now;
                     order.Status = OrderStatus.Completed;
                     order.UpdatedAt = now;
 
                     await orderService.FinalizeOrderPayoutAsync(order, now, stoppingToken);
+                    await uow.SaveChangesAsync(stoppingToken);
+                    await transaction.CommitAsync(stoppingToken);
 
                     finalizedCount++;
                 }
 
                 if (finalizedCount > 0)
                 {
-                    await uow.SaveChangesAsync(stoppingToken);
                     _logger.LogInformation("Delivered order finalizer completed {Count} orders.", finalizedCount);
                 }
             }

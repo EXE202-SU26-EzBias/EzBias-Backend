@@ -2,8 +2,8 @@ using EzBias.Application.Features.Deposits.Dtos;
 using EzBias.Application.Features.Notifications;
 using EzBias.Domain.Entities;
 using EzBias.Domain.Enums;
+using EzBias.Domain.Exceptions;
 using EzBias.Domain.Interfaces;
-using Microsoft.EntityFrameworkCore;
 
 namespace EzBias.Application.Features.Deposits;
 
@@ -134,7 +134,7 @@ public class DepositApplicationService : IDepositApplicationService
     /// <remarks>
     /// Concurrency (Req 10.6): optimistic concurrency via the <c>xmin</c> token is enforced at the
     /// DbContext level; <see cref="IUnitOfWork.SaveChangesAsync"/> throws
-    /// <see cref="DbUpdateConcurrencyException"/> on conflict, which <see cref="SaveAsync"/> maps to a
+    /// <see cref="ConcurrencyConflictException"/> on conflict, which <see cref="SaveAsync"/> maps to a
     /// concurrency-rejected error so that two racing transitions result in at most one committed change.
     /// </remarks>
     private async Task<(bool Success, string? Error, TransitionOutcome Outcome)> ApplyTransitionAndSaveAsync(
@@ -168,7 +168,7 @@ public class DepositApplicationService : IDepositApplicationService
             await _uow.SaveChangesAsync(ct);
             return (true, null);
         }
-        catch (DbUpdateConcurrencyException)
+        catch (ConcurrencyConflictException)
         {
             return (false, ConcurrencyError);
         }
@@ -184,6 +184,8 @@ public class DepositApplicationService : IDepositApplicationService
     public async Task<(bool Success, string? Error, InitiateDepositResponse? Data)> InitiateDepositAsync(
         long userId, long auctionId, CancellationToken ct)
     {
+        await using var transaction = await _uow.BeginTransactionAsync(ct);
+
         // (1) Auction must exist (supports controller 404).
         var auction = await _auctions.GetByIdAsync(auctionId, ct);
         if (auction is null)
@@ -273,6 +275,8 @@ public class DepositApplicationService : IDepositApplicationService
             await _uow.SaveChangesAsync(ct);
         }
 
+        await transaction.CommitAsync(ct);
+
         var response = new InitiateDepositResponse(
             deposit.Id,
             auctionId,
@@ -338,6 +342,8 @@ public class DepositApplicationService : IDepositApplicationService
     // timestamp, and queues a single confirmation notification.
     public async Task<(bool Success, string? Error)> ConfirmDepositAsync(long paymentId, CancellationToken ct)
     {
+        await using var transaction = await _uow.BeginTransactionAsync(ct);
+
         // (1) Locate the deposit by its linked payment.
         var deposit = await _deposits.GetByPaymentIdAsync(paymentId, ct);
         if (deposit is null)
@@ -400,6 +406,7 @@ public class DepositApplicationService : IDepositApplicationService
             return (false, saveError);
         }
 
+        await transaction.CommitAsync(ct);
         return (true, null);
     }
 
@@ -441,6 +448,8 @@ public class DepositApplicationService : IDepositApplicationService
     private async Task<(bool Success, string? Error)> RefundHeldDepositsAsync(
         long auctionId, long? excludeUserId, CancellationToken ct)
     {
+        await using var transaction = await _uow.BeginTransactionAsync(ct);
+
         // (1) Only Held deposits are candidates (the winner is excluded when excludeUserId is set).
         var held = await _deposits.GetHeldByAuctionAsync(auctionId, excludeUserId, ct);
 
@@ -500,7 +509,11 @@ public class DepositApplicationService : IDepositApplicationService
 
         // (5) Persist all refunds/transitions together. Notification delivery is best-effort after save
         //     and must not roll back the Refunded state (Req 5.7/8.5).
-        return await SaveAsync(ct);
+        var saved = await SaveAsync(ct);
+        if (saved.Ok)
+            await transaction.CommitAsync(ct);
+
+        return saved;
     }
 
     // Req 6.3/6.5 — implemented in task 5.16
@@ -509,6 +522,8 @@ public class DepositApplicationService : IDepositApplicationService
     public async Task<(bool Success, string? Error)> ApplyWinnerDepositAsync(
         long auctionId, long winnerId, CancellationToken ct)
     {
+        await using var transaction = await _uow.BeginTransactionAsync(ct);
+
         // (1) Load the winner's Held deposit for this auction.
         var deposit = await _deposits.GetHeldByUserAndAuctionAsync(winnerId, auctionId, ct);
 
@@ -533,6 +548,7 @@ public class DepositApplicationService : IDepositApplicationService
             return (false, saveError);
         }
 
+        await transaction.CommitAsync(ct);
         return (true, null);
     }
 
@@ -573,6 +589,8 @@ public class DepositApplicationService : IDepositApplicationService
     public async Task<(bool Success, string? Error)> ForfeitWinnerDepositAsync(
         long auctionId, long winnerId, CancellationToken ct)
     {
+        await using var transaction = await _uow.BeginTransactionAsync(ct);
+
         // (1) Load the winner's Held deposit for this auction.
         var deposit = await _deposits.GetHeldByUserAndAuctionAsync(winnerId, auctionId, ct);
 
@@ -612,6 +630,7 @@ public class DepositApplicationService : IDepositApplicationService
             var (saved, saveError) = await SaveAsync(ct);
             if (saved)
             {
+                await transaction.CommitAsync(ct);
                 return (true, null);
             }
 
@@ -710,6 +729,8 @@ public class DepositApplicationService : IDepositApplicationService
     public async Task<(bool Success, string? Error)> ProcessManualRefundAsync(
         long depositId, string reason, CancellationToken ct)
     {
+        await using var transaction = await _uow.BeginTransactionAsync(ct);
+
         // (1) Load the deposit by ID
         var deposit = await _deposits.GetByIdAsync(depositId, ct);
         if (deposit is null)
@@ -767,6 +788,7 @@ public class DepositApplicationService : IDepositApplicationService
             return (false, saveError);
         }
 
+        await transaction.CommitAsync(ct);
         return (true, null);
     }
 }
