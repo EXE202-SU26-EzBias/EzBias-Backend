@@ -117,8 +117,20 @@ builder.Services.AddScoped<ICommissionRepository, CommissionRepository>();
 builder.Services.AddScoped<IAuctionRepository, AuctionRepository>();
 builder.Services.AddScoped<IBidRepository, BidRepository>();
 builder.Services.AddScoped<IAuctionDepositRepository, AuctionDepositRepository>();
-builder.Services.AddScoped<IUnitOfWork, NotificationDispatchingUnitOfWork>();
+builder.Services.AddScoped<IUnitOfWork, UnitOfWork>();
 builder.Services.AddScoped<IRealtimeNotifier, SignalRRealtimeNotifier>();
+var notificationDispatchOptions = new NotificationDispatchOptions
+{
+    IntervalSeconds = builder.Configuration.GetValue<int?>("Notification:Dispatch:IntervalSeconds") ?? 2,
+    BatchSize = builder.Configuration.GetValue<int?>("Notification:Dispatch:BatchSize") ?? 50,
+    LeaseSeconds = builder.Configuration.GetValue<int?>("Notification:Dispatch:LeaseSeconds") ?? 30,
+    MaxAttempts = builder.Configuration.GetValue<int?>("Notification:Dispatch:MaxAttempts") ?? 10,
+    BaseBackoffSeconds = builder.Configuration.GetValue<int?>("Notification:Dispatch:BaseBackoffSeconds") ?? 5,
+    MaxBackoffSeconds = builder.Configuration.GetValue<int?>("Notification:Dispatch:MaxBackoffSeconds") ?? 300
+};
+notificationDispatchOptions.Normalize();
+builder.Services.AddSingleton(notificationDispatchOptions);
+builder.Services.AddScoped<INotificationDispatchProcessor, NotificationDispatchProcessor>();
 builder.Services.AddScoped<IAuthApplicationService, AuthApplicationService>();
 builder.Services.AddScoped<IAdminRepository, AdminRepository>();
 builder.Services.AddScoped<IAdminApplicationService, AdminApplicationService>();
@@ -153,6 +165,7 @@ builder.Services.AddScoped<IVideoCallApplicationService, VideoCallApplicationSer
 builder.Services.AddHostedService<AuctionCloseScheduler>();
 builder.Services.AddHostedService<DeliveredOrderFinalizeScheduler>();
 builder.Services.AddHostedService<KeepAliveScheduler>();
+builder.Services.AddHostedService<NotificationDispatchScheduler>();
 
 builder.Services
     .AddAuthentication(JwtBearerDefaults.AuthenticationScheme)

@@ -21,6 +21,13 @@ public sealed class NotificationConfiguration : IEntityTypeConfiguration<Notific
         builder.Property(x => x.IsRead).HasColumnName("is_read").HasDefaultValue(false).IsRequired();
         builder.Property(x => x.CreatedAt).HasColumnName("created_at").HasColumnType("timestamptz").HasDefaultValueSql("now()").IsRequired();
         builder.Property(x => x.ReadAt).HasColumnName("read_at").HasColumnType("timestamptz");
+        builder.Property(x => x.DispatchedAt).HasColumnName("dispatched_at").HasColumnType("timestamptz");
+        builder.Property(x => x.DispatchAttempts).HasColumnName("dispatch_attempts").HasDefaultValue(0).IsRequired();
+        builder.Property(x => x.NextDispatchAt).HasColumnName("next_dispatch_at").HasColumnType("timestamptz");
+        builder.Property(x => x.DispatchLeaseId).HasColumnName("dispatch_lease_id").HasColumnType("uuid");
+        builder.Property(x => x.DispatchLockedUntil).HasColumnName("dispatch_locked_until").HasColumnType("timestamptz");
+        builder.Property(x => x.LastDispatchError).HasColumnName("last_dispatch_error").HasColumnType("text");
+        builder.Property(x => x.DispatchFailedAt).HasColumnName("dispatch_failed_at").HasColumnType("timestamptz");
 
         builder.HasOne(x => x.User)
             .WithMany(x => x.Notifications)
@@ -28,5 +35,8 @@ public sealed class NotificationConfiguration : IEntityTypeConfiguration<Notific
             .OnDelete(DeleteBehavior.Cascade);
 
         builder.HasIndex(x => new { x.UserId, x.IsRead, x.CreatedAt }).HasDatabaseName("idx_notifications_unread");
+        builder.HasIndex(x => new { x.NextDispatchAt, x.CreatedAt })
+            .HasDatabaseName("idx_notifications_dispatch_pending")
+            .HasFilter("dispatched_at IS NULL AND dispatch_failed_at IS NULL");
     }
 }
