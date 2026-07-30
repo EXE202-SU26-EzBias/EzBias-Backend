@@ -23,15 +23,16 @@ public class BidRepository : IBidRepository
             .Select(x => (decimal?)x.Amount)
             .FirstOrDefaultAsync(ct);
 
-    public async Task ClearWinningFlagsAsync(long auctionId, CancellationToken ct)
-    {
-        var winning = await _db.Bids.Where(x => x.AuctionId == auctionId && x.IsWinning).ToListAsync(ct);
-        foreach (var item in winning)
-            item.IsWinning = false;
-    }
+    public Task ClearWinningFlagsAsync(long auctionId, CancellationToken ct)
+        => _db.Bids
+            .Where(x => x.AuctionId == auctionId && x.IsWinning)
+            .ExecuteUpdateAsync(
+                setters => setters.SetProperty(x => x.IsWinning, false),
+                ct);
 
     public Task<Bid?> GetTopBidAsync(long auctionId, CancellationToken ct)
         => _db.Bids
+            .AsNoTracking()
             .Where(x => x.AuctionId == auctionId)
             .OrderByDescending(x => x.Amount)
             .ThenBy(x => x.PlacedAt)

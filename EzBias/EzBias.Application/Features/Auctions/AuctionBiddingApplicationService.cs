@@ -84,7 +84,9 @@ public class AuctionBiddingApplicationService : IAuctionBiddingApplicationServic
 
     public async Task<(bool Success, string? Error, PlaceBidResponse? Data)> PlaceBidAsync(long bidderId, long auctionId, PlaceBidRequest request, CancellationToken ct)
     {
-        var auction = await _auctions.GetByIdWithProductAsync(auctionId, ct);
+        await using var transaction = await _uow.BeginTransactionAsync(ct);
+
+        var auction = await _auctions.GetByIdWithProductForUpdateAsync(auctionId, ct);
         if (auction is null) return (false, "Auction not found.", null);
         if (auction.Status is not (AuctionStatus.Live or AuctionStatus.Extended)) return (false, "Auction is not live.", null);
         if (auction.EndsAt <= DateTimeOffset.UtcNow) return (false, "Auction has ended.", null);
@@ -161,6 +163,7 @@ public class AuctionBiddingApplicationService : IAuctionBiddingApplicationServic
         auction.UpdatedAt = DateTimeOffset.UtcNow;
 
         await _uow.SaveChangesAsync(ct);
+        await transaction.CommitAsync(ct);
 
         return (true, null, new PlaceBidResponse(auction.Id, bid.Id, bid.Amount, auction.CurrentBid, auction.Status));
     }

@@ -43,6 +43,20 @@ public class PaymentRepository : IPaymentRepository
                         .ThenInclude(oi => oi.Product)
             .FirstOrDefaultAsync(x => x.Id == paymentId, ct);
 
+    public Task<Payment?> GetByIdWithOrdersForUpdateAsync(long paymentId, CancellationToken ct)
+        => _db.Payments
+            .FromSqlInterpolated($"""
+                SELECT *
+                FROM payments
+                WHERE id = {paymentId}
+                FOR UPDATE
+                """)
+            .Include(x => x.PaymentOrders)
+                .ThenInclude(po => po.Order)
+                    .ThenInclude(o => o.Items)
+                        .ThenInclude(oi => oi.Product)
+            .FirstOrDefaultAsync(ct);
+
     public Task<Payment?> GetByOrderIdAsync(long orderId, CancellationToken ct)
         => _db.Payments
             .Include(x => x.PaymentOrders)

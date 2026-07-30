@@ -8,6 +8,7 @@ public interface IAuctionRepository
     Task<Auction?> GetByIdAsync(long auctionId, CancellationToken ct);
     Task<Auction?> GetByIdWithRelationsAsync(long auctionId, CancellationToken ct);
     Task<Auction?> GetByIdWithProductAsync(long auctionId, CancellationToken ct);
+    Task<Auction?> GetByIdWithProductForUpdateAsync(long auctionId, CancellationToken ct);
     Task<bool> ExistsLiveByProductIdAsync(long productId, CancellationToken ct);
     Task<bool> ExistsDraftOrLiveByProductIdAsync(long productId, CancellationToken ct);
     Task<bool> HasAnyBidAsync(long auctionId, CancellationToken ct);

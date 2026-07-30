@@ -33,6 +33,10 @@ public sealed class BidConfiguration : IEntityTypeConfiguration<Bid>
             .OnDelete(DeleteBehavior.Restrict);
 
         builder.HasIndex(x => x.AuctionId);
+        builder.HasIndex(x => x.AuctionId)
+            .IsUnique()
+            .HasDatabaseName("uq_bids_one_winning_per_auction")
+            .HasFilter("is_winning = true");
         builder.HasIndex(x => x.UserId);
         builder.HasIndex(x => new { x.AuctionId, x.Amount }).HasDatabaseName("idx_bids_auction_amount");
     }

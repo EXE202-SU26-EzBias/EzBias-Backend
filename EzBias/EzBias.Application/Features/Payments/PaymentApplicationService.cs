@@ -220,7 +220,7 @@ public class PaymentApplicationService : IPaymentApplicationService
     {
         await using var transaction = await _uow.BeginTransactionAsync(ct);
 
-        var payment = await _payments.GetByIdWithOrdersAsync(paymentId, ct);
+        var payment = await _payments.GetByIdWithOrdersForUpdateAsync(paymentId, ct);
         if (payment is null)
             return (false, "Payment not found.");
 

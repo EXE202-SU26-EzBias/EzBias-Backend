@@ -36,6 +36,7 @@ public sealed class AuctionConfiguration : IEntityTypeConfiguration<Auction>
         builder.Property(x => x.ReminderSent5Min).HasColumnName("reminder_sent_5min").HasDefaultValue(false).IsRequired();
         builder.Property(x => x.CreatedAt).HasColumnName("created_at").HasColumnType("timestamptz").HasDefaultValueSql("now()").IsRequired();
         builder.Property(x => x.UpdatedAt).HasColumnName("updated_at").HasColumnType("timestamptz");
+        builder.UseXminAsConcurrencyToken();
 
         builder.HasOne(x => x.Product)
             .WithMany(x => x.Auctions)
