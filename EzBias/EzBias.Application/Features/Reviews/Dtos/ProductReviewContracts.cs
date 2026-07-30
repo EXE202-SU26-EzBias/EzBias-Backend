@@ -7,7 +7,7 @@ public record StoredReviewMedia(
     ReviewMediaType MediaType,
     string Url,
     string? ThumbnailUrl,
-    string CloudinaryPublicId);
+    string StoragePublicId);
 
 public record CreateProductReviewRequest(short Stars, string? Comment, IReadOnlyList<UploadFile> Media);
 

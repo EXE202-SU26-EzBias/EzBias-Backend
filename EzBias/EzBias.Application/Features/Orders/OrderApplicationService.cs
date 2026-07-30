@@ -45,15 +45,15 @@ public class OrderApplicationService : IOrderApplicationService
     public async Task<Result<CreateOrderResponse>> CreateAsync(long userId, CreateOrderRequest request, CancellationToken ct)
     {
         if (request.Items is null || request.Items.Count == 0)
-            return (false, "Please select at least one cart item.", null);
+            return Result<CreateOrderResponse>.Fail("Please select at least one cart item.", ApplicationErrorCode.Validation);
 
         if (request.Items.Any(x => x.Quantity <= 0))
-            return (false, "Quantity must be greater than 0.", null);
+            return Result<CreateOrderResponse>.Fail("Quantity must be greater than 0.", ApplicationErrorCode.Validation);
 
         var cartItemIds = request.Items.Select(x => x.CartItemId).Distinct().ToList();
         var cartItems = await _carts.GetByUserIdAndIdsAsync(userId, cartItemIds, ct);
         if (cartItems.Count == 0)
-            return (false, "No cart items found.", null);
+            return Result<CreateOrderResponse>.Fail("No cart items found.", ApplicationErrorCode.Validation);
 
         var quantityMap = request.Items
             .GroupBy(x => x.CartItemId)
@@ -69,18 +69,18 @@ public class OrderApplicationService : IOrderApplicationService
             // Allow auction products in cart (added when winner proceeds to payment)
             // but reject if product is deleted or inactive
             if (item.Product.DeletedAt is not null || item.Product.Status != ProductStatus.Active)
-                return (false, $"Product '{item.Product.Name}' is not available for checkout.", null);
+                return Result<CreateOrderResponse>.Fail($"Product '{item.Product.Name}' is not available for checkout.", ApplicationErrorCode.Validation);
 
             if (item.Product.Stock < item.Quantity)
-                return (false, $"Product '{item.Product.Name}' does not have enough stock.", null);
+                return Result<CreateOrderResponse>.Fail($"Product '{item.Product.Name}' does not have enough stock.", ApplicationErrorCode.Validation);
         }
 
         if (request.AddressSnap is null)
-            return (false, "address_snap is required.", null);
+            return Result<CreateOrderResponse>.Fail("address_snap is required.", ApplicationErrorCode.Validation);
 
         var normalizedAddressSnap = NormalizeAddressSnap(request.AddressSnap);
         if (normalizedAddressSnap is null)
-            return (false, "address_snap is invalid.", null);
+            return Result<CreateOrderResponse>.Fail("address_snap is invalid.", ApplicationErrorCode.Validation);
 
         var sellerGroups = cartItems
             .GroupBy(x => x.Product.SellerId)
@@ -162,7 +162,7 @@ public class OrderApplicationService : IOrderApplicationService
         _carts.RemoveRange(cartItems);
         await _uow.SaveChangesAsync(ct);
 
-        return (true, null, new CreateOrderResponse(orderList.Select(x => x.Id).ToList()));
+        return Result<CreateOrderResponse>.Ok(new CreateOrderResponse(orderList.Select(x => x.Id).ToList()));
     }
 
     public async Task<IReadOnlyList<OrderViewResponse>> GetByBuyerAsync(long userId, CancellationToken ct)
@@ -174,16 +174,16 @@ public class OrderApplicationService : IOrderApplicationService
     public async Task<Result<OrderViewResponse>> GetDetailAsync(long userId, long orderId, CancellationToken ct)
     {
         var order = await _orders.GetByIdWithItemsAsync(orderId, ct);
-        if (order is null) return (false, "Order not found.", null);
-        if (order.UserId != userId && order.SellerId != userId) return (false, "Forbidden.", null);
-        return (true, null, Map(order));
+        if (order is null) return Result<OrderViewResponse>.Fail("Order not found.", ApplicationErrorCode.ResourceNotFound);
+        if (order.UserId != userId && order.SellerId != userId) return Result<OrderViewResponse>.Fail("Forbidden.", ApplicationErrorCode.Forbidden);
+        return Result<OrderViewResponse>.Ok(Map(order));
     }
 
     public async Task<Result<OrderViewResponse>> GetDetailForAdminAsync(long orderId, CancellationToken ct)
     {
         var order = await _orders.GetByIdWithItemsAsync(orderId, ct);
-        if (order is null) return (false, "Order not found.", null);
-        return (true, null, Map(order));
+        if (order is null) return Result<OrderViewResponse>.Fail("Order not found.", ApplicationErrorCode.ResourceNotFound);
+        return Result<OrderViewResponse>.Ok(Map(order));
     }
 
     public async Task<IReadOnlyList<OrderViewResponse>> GetBySellerAsync(long sellerId, CancellationToken ct)
@@ -199,8 +199,8 @@ public class OrderApplicationService : IOrderApplicationService
         CancellationToken ct)
     {
         var order = await _orders.GetByIdAsync(orderId, ct);
-        if (order is null) return (false, "Order not found.", null);
-        if (order.SellerId != sellerId) return (false, "Forbidden.", null);
+        if (order is null) return Result<FulfillmentActionResponse>.Fail("Order not found.", ApplicationErrorCode.ResourceNotFound);
+        if (order.SellerId != sellerId) return Result<FulfillmentActionResponse>.Fail("Forbidden.", ApplicationErrorCode.Forbidden);
 
         var normalizedCarrier = carrier?.Trim();
         var suffix = Random.Shared.Next(0, 1_000_000).ToString("D6");
@@ -210,7 +210,7 @@ public class OrderApplicationService : IOrderApplicationService
         var now = DateTimeOffset.UtcNow;
 
         if (order.MarkShipped(normalizedCarrier, trackingNumber, now) == TransitionOutcome.Invalid)
-            return (false, "Order cannot be marked shipped in current status.", null);
+            return Result<FulfillmentActionResponse>.Fail("Order cannot be marked shipped in current status.", ApplicationErrorCode.Validation);
 
         _notifications.Add(_notificationFactory.OrderShipped(
             order.UserId,
@@ -218,39 +218,39 @@ public class OrderApplicationService : IOrderApplicationService
             trackingNumber));
 
         await _uow.SaveChangesAsync(ct);
-        return (true, null, new FulfillmentActionResponse(order.Id, order.Status.ToString()));
+        return Result<FulfillmentActionResponse>.Ok(new FulfillmentActionResponse(order.Id, order.Status.ToString()));
     }
 
     public async Task<Result<FulfillmentActionResponse>> ConfirmReceivedAsync(long userId, long orderId, CancellationToken ct)
     {
         var order = await _orders.GetByIdAsync(orderId, ct);
-        if (order is null) return (false, "Order not found.", null);
-        if (order.UserId != userId) return (false, "Forbidden.", null);
+        if (order is null) return Result<FulfillmentActionResponse>.Fail("Order not found.", ApplicationErrorCode.ResourceNotFound);
+        if (order.UserId != userId) return Result<FulfillmentActionResponse>.Fail("Forbidden.", ApplicationErrorCode.Forbidden);
         if (order.Status != OrderStatus.Shipped && order.Status != OrderStatus.Delivered)
-            return (false, "Order cannot be confirmed in current status.", null);
+            return Result<FulfillmentActionResponse>.Fail("Order cannot be confirmed in current status.", ApplicationErrorCode.Validation);
 
         var transition = order.MarkDelivered(DateTimeOffset.UtcNow);
         if (transition == TransitionOutcome.Invalid)
-            return (false, "Order cannot be confirmed in current status.", null);
+            return Result<FulfillmentActionResponse>.Fail("Order cannot be confirmed in current status.", ApplicationErrorCode.Validation);
 
         _notifications.Add(_notificationFactory.OrderConfirmed(order.SellerId, order.Id));
 
         await _uow.SaveChangesAsync(ct);
-        return (true, null, new FulfillmentActionResponse(order.Id, order.Status.ToString()));
+        return Result<FulfillmentActionResponse>.Ok(new FulfillmentActionResponse(order.Id, order.Status.ToString()));
     }
 
     public async Task<Result> DeleteAsync(long userId, long orderId, CancellationToken ct)
     {
         var order = await _orders.GetByIdAsync(orderId, ct);
-        if (order is null) return (false, "Order not found.");
-        if (order.UserId != userId) return (false, "Forbidden.");
+        if (order is null) return Result.Fail("Order not found.", ApplicationErrorCode.ResourceNotFound);
+        if (order.UserId != userId) return Result.Fail("Forbidden.", ApplicationErrorCode.Forbidden);
 
         if (order.Status != OrderStatus.Pending && order.Status != OrderStatus.Canceled)
-            return (false, "Only pending or canceled orders can be deleted.");
+            return Result.Fail("Only pending or canceled orders can be deleted.", ApplicationErrorCode.Validation);
 
         _orders.Remove(order);
         await _uow.SaveChangesAsync(ct);
-        return (true, null);
+        return Result.Ok();
     }
 
     public async Task FinalizeOrderPayoutAsync(Order order, DateTimeOffset now, CancellationToken ct)

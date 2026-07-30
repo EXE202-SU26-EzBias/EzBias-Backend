@@ -23,15 +23,15 @@ public class NotificationApplicationService : INotificationApplicationService
     public async Task<Result> MarkReadAsync(long userId, long id, CancellationToken ct)
     {
         var n = await _notifications.GetByIdAsync(id, ct);
-        if (n is null) return (false, "Notification not found.");
-        if (n.UserId != userId) return (false, "Forbidden.");
+        if (n is null) return Result.Fail("Notification not found.", ApplicationErrorCode.ResourceNotFound);
+        if (n.UserId != userId) return Result.Fail("Forbidden.", ApplicationErrorCode.Forbidden);
         if (!n.IsRead)
         {
             n.IsRead = true;
             n.ReadAt = DateTimeOffset.UtcNow;
             await _uow.SaveChangesAsync(ct);
         }
-        return (true, null);
+        return Result.Ok();
     }
 
     public async Task<int> MarkReadAllAsync(long userId, CancellationToken ct)

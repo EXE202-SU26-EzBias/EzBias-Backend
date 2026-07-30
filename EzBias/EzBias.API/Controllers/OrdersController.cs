@@ -1,5 +1,5 @@
 using System.Security.Claims;
-using EzBias.API.Infrastructure;
+using EzBias.API.Mappings;
 using EzBias.Application.Common.Results;
 using EzBias.Application.Features.Orders;
 using EzBias.Application.Features.Orders.Dtos;
@@ -25,9 +25,8 @@ public class OrdersController : ControllerBase
     {
         if (!TryGetUserId(out var userId)) return Unauthorized();
         var result = await _orderService.CreateAsync(userId, request, ct);
-        var typed = result.ToResult();
-        if (!typed.IsSuccess || typed.Value is null) return this.ToErrorActionResult(typed, notFoundAsBadRequest: true);
-        return Ok(typed.Value);
+        if (!result.IsSuccess || result.Value is null) return this.ToErrorActionResult(result, notFoundAsBadRequest: true);
+        return Ok(result.Value);
     }
 
     [HttpGet]
@@ -43,9 +42,8 @@ public class OrdersController : ControllerBase
     {
         if (!TryGetUserId(out var userId)) return Unauthorized();
         var result = await _orderService.GetDetailAsync(userId, id, ct);
-        var typed = result.ToResult();
-        if (!typed.IsSuccess || typed.Value is null) return this.ToErrorActionResult(typed);
-        return Ok(typed.Value);
+        if (!result.IsSuccess || result.Value is null) return this.ToErrorActionResult(result);
+        return Ok(result.Value);
     }
 
     [HttpPut("{id:long}/confirm")]
@@ -53,9 +51,8 @@ public class OrdersController : ControllerBase
     {
         if (!TryGetUserId(out var userId)) return Unauthorized();
         var result = await _orderService.ConfirmReceivedAsync(userId, id, ct);
-        var typed = result.ToResult();
-        if (!typed.IsSuccess || typed.Value is null) return this.ToErrorActionResult(typed);
-        return Ok(typed.Value);
+        if (!result.IsSuccess || result.Value is null) return this.ToErrorActionResult(result);
+        return Ok(result.Value);
     }
 
     [HttpDelete("{id:long}")]
@@ -63,8 +60,7 @@ public class OrdersController : ControllerBase
     {
         if (!TryGetUserId(out var userId)) return Unauthorized();
         var result = await _orderService.DeleteAsync(userId, id, ct);
-        var typed = result.ToResult();
-        if (!typed.IsSuccess) return this.ToErrorActionResult(typed);
+        if (!result.IsSuccess) return this.ToErrorActionResult(result);
 
         return NoContent();
     }

@@ -57,21 +57,21 @@ public class ProductReviewApplicationService : IProductReviewApplicationService
     public async Task<Result<ProductReviewResponse>> CreateAsync(long userId, long productId, CreateProductReviewRequest request, CancellationToken ct)
     {
         if (request.Stars < 1 || request.Stars > 5)
-            return (false, "Stars must be between 1 and 5.", null);
+            return Result<ProductReviewResponse>.Fail("Stars must be between 1 and 5.", ApplicationErrorCode.Validation);
         if (NormalizeComment(request.Comment)?.Length > 1000)
-            return (false, "Comment must be 1000 characters or fewer.", null);
+            return Result<ProductReviewResponse>.Fail("Comment must be 1000 characters or fewer.", ApplicationErrorCode.Validation);
 
         var product = await _products.GetByIdAsync(productId, ct);
-        if (product is null) return (false, "Product not found.", null);
+        if (product is null) return Result<ProductReviewResponse>.Fail("Product not found.", ApplicationErrorCode.ResourceNotFound);
 
         var hasPurchased = await _orders.HasUserPurchasedProductAsync(userId, productId, ct);
-        if (!hasPurchased) return (false, "Forbidden.", null);
+        if (!hasPurchased) return Result<ProductReviewResponse>.Fail("Forbidden.", ApplicationErrorCode.Forbidden);
 
         var existing = await _reviews.GetByProductAndUserAsync(productId, userId, ct);
-        if (existing is not null) return (false, "Already reviewed.", null);
+        if (existing is not null) return Result<ProductReviewResponse>.Fail("Already reviewed.", ApplicationErrorCode.Validation);
 
         var mediaError = ValidateMediaSet(request.Media, []);
-        if (mediaError is not null) return (false, mediaError, null);
+        if (mediaError is not null) return Result<ProductReviewResponse>.Fail(mediaError, ApplicationErrorCode.Validation);
 
         var user = await _users.GetByIdAsync(userId, ct);
         var uploaded = new List<StoredReviewMedia>();
@@ -93,7 +93,7 @@ public class ProductReviewApplicationService : IProductReviewApplicationService
             _reviews.Add(review);
             await _uow.SaveChangesAsync(ct);
 
-            return (true, null, Map(review, user?.Username ?? string.Empty));
+            return Result<ProductReviewResponse>.Ok(Map(review, user?.Username ?? string.Empty));
         }
         catch
         {
@@ -105,23 +105,23 @@ public class ProductReviewApplicationService : IProductReviewApplicationService
     public async Task<Result<ProductReviewResponse>> UpdateAsync(long userId, long reviewId, UpdateProductReviewRequest request, CancellationToken ct)
     {
         if (request.Stars < 1 || request.Stars > 5)
-            return (false, "Stars must be between 1 and 5.", null);
+            return Result<ProductReviewResponse>.Fail("Stars must be between 1 and 5.", ApplicationErrorCode.Validation);
         if (NormalizeComment(request.Comment)?.Length > 1000)
-            return (false, "Comment must be 1000 characters or fewer.", null);
+            return Result<ProductReviewResponse>.Fail("Comment must be 1000 characters or fewer.", ApplicationErrorCode.Validation);
 
         var review = await _reviews.GetByIdAsync(reviewId, ct);
-        if (review is null) return (false, "Review not found.", null);
-        if (review.UserId != userId) return (false, "Forbidden.", null);
+        if (review is null) return Result<ProductReviewResponse>.Fail("Review not found.", ApplicationErrorCode.ResourceNotFound);
+        if (review.UserId != userId) return Result<ProductReviewResponse>.Fail("Forbidden.", ApplicationErrorCode.Forbidden);
 
         var existingMedia = review.Media.ToList();
         var keepIds = request.KeepMediaIds.Distinct().ToHashSet();
         if (keepIds.Any(id => existingMedia.All(media => media.Id != id)))
-            return (false, "Invalid media selection.", null);
+            return Result<ProductReviewResponse>.Fail("Invalid media selection.", ApplicationErrorCode.Validation);
 
         var keptMedia = existingMedia.Where(media => keepIds.Contains(media.Id)).ToList();
         var removedMedia = existingMedia.Where(media => !keepIds.Contains(media.Id)).ToList();
         var mediaError = ValidateMediaSet(request.NewMedia, keptMedia);
-        if (mediaError is not null) return (false, mediaError, null);
+        if (mediaError is not null) return Result<ProductReviewResponse>.Fail(mediaError, ApplicationErrorCode.Validation);
 
         var user = await _users.GetByIdAsync(userId, ct);
         var uploaded = new List<StoredReviewMedia>();
@@ -148,7 +148,7 @@ public class ProductReviewApplicationService : IProductReviewApplicationService
 
             await CleanupAsync(removedMedia.Select(ToStoredMedia), ct);
 
-            return (true, null, Map(review, user?.Username ?? string.Empty));
+            return Result<ProductReviewResponse>.Ok(Map(review, user?.Username ?? string.Empty));
         }
         catch
         {
@@ -160,14 +160,14 @@ public class ProductReviewApplicationService : IProductReviewApplicationService
     public async Task<Result> DeleteAsync(long userId, long reviewId, CancellationToken ct)
     {
         var review = await _reviews.GetByIdAsync(reviewId, ct);
-        if (review is null) return (false, "Review not found.");
-        if (review.UserId != userId) return (false, "Forbidden.");
+        if (review is null) return Result.Fail("Review not found.", ApplicationErrorCode.ResourceNotFound);
+        if (review.UserId != userId) return Result.Fail("Forbidden.", ApplicationErrorCode.Forbidden);
 
         var media = review.Media.Select(ToStoredMedia).ToList();
         _reviews.Remove(review);
         await _uow.SaveChangesAsync(ct);
         await CleanupAsync(media, ct);
-        return (true, null);
+        return Result.Ok();
     }
 
     public async Task<IReadOnlyList<AdminReviewListItem>> GetAllForAdminAsync(CancellationToken ct)
@@ -190,13 +190,13 @@ public class ProductReviewApplicationService : IProductReviewApplicationService
     public async Task<Result> AdminDeleteAsync(long reviewId, CancellationToken ct)
     {
         var review = await _reviews.GetByIdAsync(reviewId, ct);
-        if (review is null) return (false, "Review not found.");
+        if (review is null) return Result.Fail("Review not found.", ApplicationErrorCode.ResourceNotFound);
 
         var media = review.Media.Select(ToStoredMedia).ToList();
         _reviews.Remove(review);
         await _uow.SaveChangesAsync(ct);
         await CleanupAsync(media, ct);
-        return (true, null);
+        return Result.Ok();
     }
 
     private static ProductReviewResponse Map(ProductReview x, string username)
@@ -219,13 +219,13 @@ public class ProductReviewApplicationService : IProductReviewApplicationService
             MediaType = media.MediaType,
             Url = media.Url,
             ThumbnailUrl = media.ThumbnailUrl,
-            CloudinaryPublicId = media.CloudinaryPublicId,
+            StoragePublicId = media.StoragePublicId,
             SortOrder = sortOrder,
             CreatedAt = DateTimeOffset.UtcNow
         };
 
     private static StoredReviewMedia ToStoredMedia(ProductReviewMedia media)
-        => new(media.MediaType, media.Url, media.ThumbnailUrl, media.CloudinaryPublicId);
+        => new(media.MediaType, media.Url, media.ThumbnailUrl, media.StoragePublicId);
 
     private static string? NormalizeComment(string? comment)
         => string.IsNullOrWhiteSpace(comment) ? null : comment.Trim();
@@ -274,7 +274,7 @@ public class ProductReviewApplicationService : IProductReviewApplicationService
         {
             try
             {
-                await _mediaStorage.DeleteAsync(item.CloudinaryPublicId, item.MediaType, CancellationToken.None);
+                await _mediaStorage.DeleteAsync(item.StoragePublicId, item.MediaType, CancellationToken.None);
             }
             catch
             {

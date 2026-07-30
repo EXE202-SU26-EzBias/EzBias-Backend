@@ -291,7 +291,7 @@ public sealed class AuctionLifecycleApplicationService : IAuctionLifecycleApplic
                 ct);
             if (!forfeit.IsSuccess)
                 throw new InvalidOperationException(
-                    forfeit.Error ?? "Winner deposit could not be forfeited.");
+                    forfeit.Failure?.Message ?? "Winner deposit could not be forfeited.");
         }
 
         await _uow.SaveChangesAsync(ct);

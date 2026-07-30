@@ -51,9 +51,9 @@ public class AuctionBiddingApplicationService : IAuctionBiddingApplicationServic
     public async Task<Result<AuctionDetailItem>> GetDetailAsync(long auctionId, CancellationToken ct)
     {
         var item = await _auctions.GetByIdWithRelationsAsync(auctionId, ct);
-        if (item is null) return (false, "Auction not found.", null);
+        if (item is null) return Result<AuctionDetailItem>.Fail("Auction not found.", ApplicationErrorCode.ResourceNotFound);
 
-        return (true, null, new AuctionDetailItem(
+        return Result<AuctionDetailItem>.Ok(new AuctionDetailItem(
             item.Id,
             item.ProductId,
             item.SellerId,
@@ -89,17 +89,17 @@ public class AuctionBiddingApplicationService : IAuctionBiddingApplicationServic
         var now = DateTimeOffset.UtcNow;
 
         var auction = await _auctions.GetByIdWithProductForUpdateAsync(auctionId, ct);
-        if (auction is null) return (false, "Auction not found.", null);
-        if (auction.Status is not (AuctionStatus.Live or AuctionStatus.Extended)) return (false, "Auction is not live.", null);
-        if (auction.EndsAt <= DateTimeOffset.UtcNow) return (false, "Auction has ended.", null);
-        if (auction.SellerId == bidderId) return (false, "Seller cannot bid own auction.", null);
+        if (auction is null) return Result<PlaceBidResponse>.Fail("Auction not found.", ApplicationErrorCode.ResourceNotFound);
+        if (auction.Status is not (AuctionStatus.Live or AuctionStatus.Extended)) return Result<PlaceBidResponse>.Fail("Auction is not live.", ApplicationErrorCode.Validation);
+        if (auction.EndsAt <= DateTimeOffset.UtcNow) return Result<PlaceBidResponse>.Fail("Auction has ended.", ApplicationErrorCode.Validation);
+        if (auction.SellerId == bidderId) return Result<PlaceBidResponse>.Fail("Seller cannot bid own auction.", ApplicationErrorCode.Validation);
 
         // Req 4: a held deposit is required to bid when the auction is deposit-gated.
         if (auction.RequiredDepositAmount > 0m)
         {
             var hasHeld = await _deposits.HasHeldDepositAsync(bidderId, auctionId, ct);
             if (!hasHeld)
-                return (false, "A held deposit is required to bid on this auction.", null);
+                return Result<PlaceBidResponse>.Fail("A held deposit is required to bid on this auction.", ApplicationErrorCode.Validation);
         }
 
         var highest = await _bids.GetHighestBidAmountAsync(auctionId, ct);
@@ -117,7 +117,7 @@ public class AuctionBiddingApplicationService : IAuctionBiddingApplicationServic
         }
 
         if (request.Amount < minRequired)
-            return (false, $"Bid must be >= {minRequired:N0} VND.", null);
+            return Result<PlaceBidResponse>.Fail($"Bid must be >= {minRequired:N0} VND.", ApplicationErrorCode.Validation);
 
         var bid = new Bid
         {
@@ -159,11 +159,11 @@ public class AuctionBiddingApplicationService : IAuctionBiddingApplicationServic
         
         var transition = auction.RecordBid(request.Amount, now);
         if (transition == TransitionOutcome.Invalid)
-            return (false, "Auction is not live.", null);
+            return Result<PlaceBidResponse>.Fail("Auction is not live.", ApplicationErrorCode.Validation);
 
         await _uow.SaveChangesAsync(ct);
         await transaction.CommitAsync(ct);
 
-        return (true, null, new PlaceBidResponse(auction.Id, bid.Id, bid.Amount, auction.CurrentBid, auction.Status));
+        return Result<PlaceBidResponse>.Ok(new PlaceBidResponse(auction.Id, bid.Id, bid.Amount, auction.CurrentBid, auction.Status));
     }
 }

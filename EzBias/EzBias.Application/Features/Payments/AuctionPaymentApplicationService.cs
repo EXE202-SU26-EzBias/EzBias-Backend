@@ -53,14 +53,18 @@ public sealed class AuctionPaymentApplicationService : IAuctionPaymentApplicatio
             ct);
         if (!confirmation.IsSuccess)
             return Result<PaymentStatusResponse>.Fail(
-                confirmation.Error ?? "Payment confirmation failed.",
-                ApplicationErrorCode.Validation);
+                confirmation.Failure
+                ?? ApplicationError.Create(
+                    ApplicationErrorCode.Validation,
+                    "Payment confirmation failed."));
 
         var status = await _paymentService.GetStatusAsync(userId, payment.Id, ct);
         if (!status.IsSuccess || status.Value is null)
             return Result<PaymentStatusResponse>.Fail(
-                status.Error ?? "Payment status could not be loaded.",
-                ApplicationErrorCode.Validation);
+                status.Failure
+                ?? ApplicationError.Create(
+                    ApplicationErrorCode.Validation,
+                    "Payment status could not be loaded."));
 
         return Result<PaymentStatusResponse>.Ok(status.Value);
     }

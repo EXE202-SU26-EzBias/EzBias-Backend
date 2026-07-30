@@ -80,26 +80,26 @@ public class AdminApplicationService : IAdminApplicationService
     public async Task<Result<AdminUserDetailResponse>> GetUserDetailAsync(long userId, CancellationToken ct)
     {
         var user = await _adminRepository.GetUserDetailAsync(userId, ct);
-        if (user is null) return (false, "User not found.", null);
+        if (user is null) return Result<AdminUserDetailResponse>.Fail("User not found.", ApplicationErrorCode.ResourceNotFound);
         var data = new AdminUserDetailResponse(user.Id, user.FullName, user.Username, user.Email, user.Role.ToString(), user.Phone, user.City, user.DeletedAt != null, user.CreatedAt, user.UpdatedAt, user.OrdersAsBuyer.Count, user.OrdersAsSeller.Count, user.DisputesOpened.Count, user.AvgSellerRating, user.TotalRatings);
-        return (true, null, data);
+        return Result<AdminUserDetailResponse>.Ok(data);
     }
 
     public async Task<Result<AdminUserDetailResponse>> CreateUserAsync(AdminCreateUserRequest request, CancellationToken ct)
     {
         if (string.IsNullOrWhiteSpace(request.FullName) || string.IsNullOrWhiteSpace(request.Username) || string.IsNullOrWhiteSpace(request.Email) || string.IsNullOrWhiteSpace(request.Password))
-            return (false, "FullName, Username, Email, Password are required.", null);
+            return Result<AdminUserDetailResponse>.Fail("FullName, Username, Email, Password are required.", ApplicationErrorCode.Validation);
 
         if (request.Password.Length < 6)
-            return (false, "Password must be at least 6 chars.", null);
+            return Result<AdminUserDetailResponse>.Fail("Password must be at least 6 chars.", ApplicationErrorCode.Validation);
 
         if (!Enum.TryParse<UserRole>(request.Role, true, out var role))
-            return (false, "Invalid role.", null);
+            return Result<AdminUserDetailResponse>.Fail("Invalid role.", ApplicationErrorCode.Validation);
 
         var email = request.Email.Trim().ToLowerInvariant();
         var username = request.Username.Trim().ToLowerInvariant();
         var exists = await _adminRepository.ExistsByEmailOrUsernameAsync(email, username, null, ct);
-        if (exists) return (false, "Email or username already exists.", null);
+        if (exists) return Result<AdminUserDetailResponse>.Fail("Email or username already exists.", ApplicationErrorCode.Validation);
 
         var user = new User
         {
@@ -122,15 +122,15 @@ public class AdminApplicationService : IAdminApplicationService
     public async Task<Result<AdminUserDetailResponse>> UpdateUserAsync(long userId, AdminUpdateUserRequest request, CancellationToken ct)
     {
         var user = await _adminRepository.GetUserByIdAsync(userId, ct);
-        if (user is null) return (false, "User not found.", null);
+        if (user is null) return Result<AdminUserDetailResponse>.Fail("User not found.", ApplicationErrorCode.ResourceNotFound);
 
         if (!string.IsNullOrWhiteSpace(request.Role) && !Enum.TryParse<UserRole>(request.Role, true, out _))
-            return (false, "Invalid role.", null);
+            return Result<AdminUserDetailResponse>.Fail("Invalid role.", ApplicationErrorCode.Validation);
 
         var newEmail = string.IsNullOrWhiteSpace(request.Email) ? user.Email.ToLowerInvariant() : request.Email.Trim().ToLowerInvariant();
         var newUsername = string.IsNullOrWhiteSpace(request.Username) ? user.Username.ToLowerInvariant() : request.Username.Trim().ToLowerInvariant();
         var exists = await _adminRepository.ExistsByEmailOrUsernameAsync(newEmail, newUsername, user.Id, ct);
-        if (exists) return (false, "Email or username already exists.", null);
+        if (exists) return Result<AdminUserDetailResponse>.Fail("Email or username already exists.", ApplicationErrorCode.Validation);
 
         if (!string.IsNullOrWhiteSpace(request.FullName)) user.FullName = request.FullName.Trim();
         if (!string.IsNullOrWhiteSpace(request.Username)) user.Username = request.Username.Trim();
@@ -147,23 +147,23 @@ public class AdminApplicationService : IAdminApplicationService
 
     public async Task<Result> SoftDeleteUserAsync(long userId, long adminId, CancellationToken ct)
     {
-        if (userId == adminId) return (false, "You cannot delete your own account.");
+        if (userId == adminId) return Result.Fail("You cannot delete your own account.", ApplicationErrorCode.Validation);
 
         var user = await _adminRepository.GetUserByIdAsync(userId, ct);
-        if (user is null) return (false, "User not found.");
-        if (user.DeletedAt != null) return (false, "User already deleted.");
+        if (user is null) return Result.Fail("User not found.", ApplicationErrorCode.ResourceNotFound);
+        if (user.DeletedAt != null) return Result.Fail("User already deleted.", ApplicationErrorCode.Validation);
 
         user.DeletedAt = DateTimeOffset.UtcNow;
         user.UpdatedAt = DateTimeOffset.UtcNow;
         await _uow.SaveChangesAsync(ct);
-        return (true, null);
+        return Result.Ok();
     }
 
     public async Task<Result<AdminUserDetailResponse>> RestoreUserAsync(long userId, CancellationToken ct)
     {
         var user = await _adminRepository.GetUserByIdAsync(userId, ct);
-        if (user is null) return (false, "User not found.", null);
-        if (user.DeletedAt is null) return (false, "User is not deleted.", null);
+        if (user is null) return Result<AdminUserDetailResponse>.Fail("User not found.", ApplicationErrorCode.ResourceNotFound);
+        if (user.DeletedAt is null) return Result<AdminUserDetailResponse>.Fail("User is not deleted.", ApplicationErrorCode.Validation);
 
         user.DeletedAt = null;
         user.UpdatedAt = DateTimeOffset.UtcNow;

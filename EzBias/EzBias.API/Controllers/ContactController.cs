@@ -1,4 +1,4 @@
-using EzBias.API.Infrastructure;
+using EzBias.API.Mappings;
 using EzBias.Application.Features.Contact;
 using EzBias.Application.Features.Contact.Dtos;
 using Microsoft.AspNetCore.Mvc;

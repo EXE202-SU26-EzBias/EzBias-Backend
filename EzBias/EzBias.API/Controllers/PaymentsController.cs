@@ -1,7 +1,7 @@
 using System.Security.Claims;
 using System.Text;
 using System.Text.Json;
-using EzBias.API.Infrastructure;
+using EzBias.API.Mappings;
 using EzBias.Application.Common.Results;
 using EzBias.Application.Features.Payments;
 using EzBias.Application.Features.Payments.Dtos;
@@ -27,9 +27,8 @@ public class PaymentsController : ControllerBase
     {
         if (!TryGetUserId(out var userId)) return Unauthorized();
         var result = await _paymentService.CreateAsync(userId, request, ct);
-        var typed = result.ToResult();
-        if (!typed.IsSuccess || typed.Value is null) return this.ToErrorActionResult(typed, notFoundAsBadRequest: true);
-        return Ok(typed.Value);
+        if (!result.IsSuccess || result.Value is null) return this.ToErrorActionResult(result, notFoundAsBadRequest: true);
+        return Ok(result.Value);
     }
 
     [HttpGet("{paymentId:long}")]
@@ -37,9 +36,8 @@ public class PaymentsController : ControllerBase
     {
         if (!TryGetUserId(out var userId)) return Unauthorized();
         var result = await _paymentService.GetStatusAsync(userId, paymentId, ct);
-        var typed = result.ToResult();
-        if (!typed.IsSuccess || typed.Value is null) return this.ToErrorActionResult(typed);
-        return Ok(typed.Value);
+        if (!result.IsSuccess || result.Value is null) return this.ToErrorActionResult(result);
+        return Ok(result.Value);
     }
 
     [HttpPost("{paymentId:long}/manual-confirm")]
@@ -49,8 +47,7 @@ public class PaymentsController : ControllerBase
         if (!TryGetUserId(out var adminId)) return Unauthorized();
 
         var result = await _paymentService.ConfirmManualAsync(adminId, paymentId, ct);
-        var typed = result.ToResult();
-        if (!typed.IsSuccess) return this.ToErrorActionResult(typed);
+        if (!result.IsSuccess) return this.ToErrorActionResult(result);
 
         return Ok(new { ok = true, paymentId, message = "Payment confirmed manually." });
     }
@@ -85,8 +82,7 @@ public class PaymentsController : ControllerBase
         var timestamp = Request.Headers["X-SePay-Timestamp"].FirstOrDefault();
 
         var result = await _paymentService.HandleSePayWebhookAsync(request, rawBody, signature, timestamp, ct);
-        var typed = result.ToResult();
-        if (!typed.IsSuccess) return this.ToErrorActionResult(typed, notFoundAsBadRequest: true);
+        if (!result.IsSuccess) return this.ToErrorActionResult(result, notFoundAsBadRequest: true);
 
         return Ok(new { ok = true });
     }

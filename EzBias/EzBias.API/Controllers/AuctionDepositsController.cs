@@ -1,5 +1,5 @@
 using System.Security.Claims;
-using EzBias.API.Infrastructure;
+using EzBias.API.Mappings;
 using EzBias.Application.Common.Results;
 using EzBias.Application.Features.Deposits;
 using Microsoft.AspNetCore.Authorization;
@@ -24,9 +24,8 @@ public class AuctionDepositsController : ControllerBase
     {
         if (!TryGetUserId(out var userId)) return Unauthorized();
         var result = await _deposits.InitiateDepositAsync(userId, auctionId, ct);
-        var typed = result.ToResult();
-        if (!typed.IsSuccess || typed.Value is null) return this.ToErrorActionResult(typed);
-        return Ok(typed.Value);
+        if (!result.IsSuccess || result.Value is null) return this.ToErrorActionResult(result);
+        return Ok(result.Value);
     }
 
     [HttpGet("{auctionId:long}/deposit")]
@@ -34,9 +33,8 @@ public class AuctionDepositsController : ControllerBase
     {
         if (!TryGetUserId(out var userId)) return Unauthorized();
         var result = await _deposits.GetMyDepositStatusAsync(userId, auctionId, ct);
-        var typed = result.ToResult();
-        if (!typed.IsSuccess || typed.Value is null) return this.ToErrorActionResult(typed);
-        return Ok(typed.Value);
+        if (!result.IsSuccess || result.Value is null) return this.ToErrorActionResult(result);
+        return Ok(result.Value);
     }
 
     private bool TryGetUserId(out long userId)

@@ -38,14 +38,14 @@ public class ChatApplicationService : IChatApplicationService
         StartOrGetConversationAsync(long callerId, StartConversationRequest request, CancellationToken ct)
     {
         if (callerId == request.CounterpartId)
-            return (false, "Cannot start a conversation with yourself.", null);
+            return Result<ConversationSummary>.Fail("Cannot start a conversation with yourself.", ApplicationErrorCode.Validation);
 
         var counterpart = await _users.GetByIdAsync(request.CounterpartId, ct);
         if (counterpart is null || counterpart.DeletedAt != null)
-            return (false, "User not found.", null);
+            return Result<ConversationSummary>.Fail("User not found.", ApplicationErrorCode.ResourceNotFound);
 
         var caller = await _users.GetByIdAsync(callerId, ct);
-        if (caller is null) return (false, "Unauthorized.", null);
+        if (caller is null) return Result<ConversationSummary>.Fail("Unauthorized.", ApplicationErrorCode.Unauthorized);
 
         // Caller is always treated as buyer, counterpart as seller.
         // Both parties can initiate — the first caller becomes buyer.
@@ -54,7 +54,7 @@ public class ChatApplicationService : IChatApplicationService
 
         var existing = await _conversations.GetByParticipantsAsync(buyerId, sellerId, ct);
         if (existing is not null)
-            return (true, null, await ToSummaryAsync(existing, callerId, ct));
+            return Result<ConversationSummary>.Ok(await ToSummaryAsync(existing, callerId, ct));
 
         var conversation = new Conversation
         {
@@ -70,7 +70,7 @@ public class ChatApplicationService : IChatApplicationService
         await _uow.SaveChangesAsync(ct);
 
         var created = await _conversations.GetByIdAsync(conversation.Id, ct);
-        return (true, null, await ToSummaryAsync(created!, callerId, ct));
+        return Result<ConversationSummary>.Ok(await ToSummaryAsync(created!, callerId, ct));
     }
 
     public async Task<IReadOnlyList<ConversationSummary>> GetMyConversationsAsync(long userId, CancellationToken ct)
@@ -87,17 +87,17 @@ public class ChatApplicationService : IChatApplicationService
     {
         var trimmed = (request.Content ?? string.Empty).Trim();
         if (string.IsNullOrEmpty(trimmed))
-            return (false, "Message content cannot be empty.", null);
+            return Result<MessageResponse>.Fail("Message content cannot be empty.", ApplicationErrorCode.Validation);
         if (trimmed.Length > 2000)
-            return (false, "Message content cannot exceed 2000 characters.", null);
+            return Result<MessageResponse>.Fail("Message content cannot exceed 2000 characters.", ApplicationErrorCode.Validation);
 
         var conversation = await _conversations.GetByIdAsync(conversationId, ct);
-        if (conversation is null) return (false, "Conversation not found.", null);
+        if (conversation is null) return Result<MessageResponse>.Fail("Conversation not found.", ApplicationErrorCode.ResourceNotFound);
         if (conversation.BuyerId != senderId && conversation.SellerId != senderId)
-            return (false, "Forbidden.", null);
+            return Result<MessageResponse>.Fail("Forbidden.", ApplicationErrorCode.Forbidden);
 
         var sender = await _users.GetByIdAsync(senderId, ct);
-        if (sender is null) return (false, "Unauthorized.", null);
+        if (sender is null) return Result<MessageResponse>.Fail("Unauthorized.", ApplicationErrorCode.Unauthorized);
 
         var recipientId = conversation.BuyerId == senderId ? conversation.SellerId : conversation.BuyerId;
 
@@ -124,16 +124,16 @@ public class ChatApplicationService : IChatApplicationService
         var response = ToMessageResponse(message, sender);
         await _chatRealtime.PushMessageAsync(recipientId, response, ct);
 
-        return (true, null, response);
+        return Result<MessageResponse>.Ok(response);
     }
 
     public async Task<Result<MessagePageResponse>>
         GetMessagesAsync(long userId, long conversationId, long? before, int pageSize, CancellationToken ct)
     {
         var conversation = await _conversations.GetByIdAsync(conversationId, ct);
-        if (conversation is null) return (false, "Conversation not found.", null);
+        if (conversation is null) return Result<MessagePageResponse>.Fail("Conversation not found.", ApplicationErrorCode.ResourceNotFound);
         if (conversation.BuyerId != userId && conversation.SellerId != userId)
-            return (false, "Forbidden.", null);
+            return Result<MessagePageResponse>.Fail("Forbidden.", ApplicationErrorCode.Forbidden);
 
         var size = Math.Clamp(pageSize, 1, 100);
         var msgs = await _messages.GetPageAsync(conversationId, before, size + 1, ct);
@@ -156,19 +156,19 @@ public class ChatApplicationService : IChatApplicationService
         }).ToList();
 
         long? nextCursor = hasMore ? page.First().Id : null;
-        return (true, null, new MessagePageResponse(responses, hasMore, nextCursor));
+        return Result<MessagePageResponse>.Ok(new MessagePageResponse(responses, hasMore, nextCursor));
     }
 
     public async Task<Result>
         MarkAsReadAsync(long userId, long conversationId, CancellationToken ct)
     {
         var conversation = await _conversations.GetByIdAsync(conversationId, ct);
-        if (conversation is null) return (false, "Conversation not found.");
+        if (conversation is null) return Result.Fail("Conversation not found.", ApplicationErrorCode.ResourceNotFound);
         if (conversation.BuyerId != userId && conversation.SellerId != userId)
-            return (false, "Forbidden.");
+            return Result.Fail("Forbidden.", ApplicationErrorCode.Forbidden);
 
         var unread = await _messages.GetUnreadByRecipientAsync(conversationId, userId, ct);
-        if (unread.Count == 0) return (true, null);
+        if (unread.Count == 0) return Result.Ok();
 
         var senderId = unread[0].SenderId;
         foreach (var msg in unread)
@@ -177,7 +177,7 @@ public class ChatApplicationService : IChatApplicationService
         await _uow.SaveChangesAsync(ct);
         await _chatRealtime.PushConversationReadAsync(senderId, conversationId, userId, ct);
 
-        return (true, null);
+        return Result.Ok();
     }
 
     private async Task<ConversationSummary> ToSummaryAsync(Conversation c, long callerId, CancellationToken ct)

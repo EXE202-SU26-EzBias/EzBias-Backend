@@ -7,5 +7,5 @@ namespace EzBias.Application.Features.Reviews;
 public interface IReviewMediaStorage
 {
     Task<StoredReviewMedia> UploadAsync(UploadFile file, CancellationToken ct);
-    Task DeleteAsync(string publicId, ReviewMediaType mediaType, CancellationToken ct);
+    Task DeleteAsync(string storagePublicId, ReviewMediaType mediaType, CancellationToken ct);
 }

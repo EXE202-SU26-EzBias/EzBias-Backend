@@ -146,19 +146,19 @@ public class DepositApplicationService : IDepositApplicationService
         var auction = await _auctions.GetByIdAsync(auctionId, ct);
         if (auction is null)
         {
-            return (false, "Auction not found.", null);
+            return Result<InitiateDepositResponse>.Fail("Auction not found.", ApplicationErrorCode.ResourceNotFound);
         }
 
         // (2) Auction must be open for deposits — Live or Extended (Req 2.3).
         if (auction.Status is not AuctionStatus.Live and not AuctionStatus.Extended)
         {
-            return (false, "Auction is not open for deposits.", null);
+            return Result<InitiateDepositResponse>.Fail("Auction is not open for deposits.", ApplicationErrorCode.Validation);
         }
 
         // (3) A seller cannot deposit on an auction they own (Req 2.4).
         if (auction.SellerId == userId)
         {
-            return (false, "A seller cannot deposit on an owned auction.", null);
+            return Result<InitiateDepositResponse>.Fail("A seller cannot deposit on an owned auction.", ApplicationErrorCode.Validation);
         }
 
         // (4) Single-active / idempotency: return any existing PendingPayment/Held deposit
@@ -181,7 +181,7 @@ public class DepositApplicationService : IDepositApplicationService
                 existing.Amount,
                 existingPayment?.Currency ?? "VND");
 
-            return (true, null, existingResponse);
+            return Result<InitiateDepositResponse>.Ok(existingResponse);
         }
 
         // (5) Otherwise create a new PendingPayment deposit plus its linked SePay payment.
@@ -219,7 +219,9 @@ public class DepositApplicationService : IDepositApplicationService
         var (saved, saveError) = await SaveAsync(ct);
         if (!saved)
         {
-            return (false, saveError, null);
+            return Result<InitiateDepositResponse>.Fail(
+                saveError ?? "Deposit could not be saved.",
+                ApplicationErrorCode.ConcurrencyConflict);
         }
 
         // Notify all admins that a new deposit was submitted and needs resolution.
@@ -242,7 +244,7 @@ public class DepositApplicationService : IDepositApplicationService
             payment.Amount,
             payment.Currency);
 
-        return (true, null, response);
+        return Result<InitiateDepositResponse>.Ok(response);
     }
 
     // Req 9 — implemented in task 5.29
@@ -255,7 +257,7 @@ public class DepositApplicationService : IDepositApplicationService
         var auction = await _auctions.GetByIdAsync(auctionId, ct);
         if (auction is null)
         {
-            return (false, "Auction not found.", null);
+            return Result<DepositStatusResponse>.Fail("Auction not found.", ApplicationErrorCode.ResourceNotFound);
         }
 
         // (2) Load only THIS user's latest deposit (Req 9.3 — never exposes others').
@@ -264,7 +266,7 @@ public class DepositApplicationService : IDepositApplicationService
         // (3) No deposit yet (Req 9.2): report HasDeposit = false alongside the required amount.
         if (deposit is null)
         {
-            return (true, null, new DepositStatusResponse(
+            return Result<DepositStatusResponse>.Ok(new DepositStatusResponse(
                 auctionId,
                 auction.RequiredDepositAmount,
                 HasDeposit: false,
@@ -282,7 +284,7 @@ public class DepositApplicationService : IDepositApplicationService
             reference = p?.Reference;
         }
 
-        return (true, null, new DepositStatusResponse(
+        return Result<DepositStatusResponse>.Ok(new DepositStatusResponse(
             auctionId,
             auction.RequiredDepositAmount,
             HasDeposit: true,
@@ -304,14 +306,14 @@ public class DepositApplicationService : IDepositApplicationService
         var deposit = await _deposits.GetByPaymentIdAsync(paymentId, ct);
         if (deposit is null)
         {
-            return (false, "Deposit not found for payment.");
+            return Result.Fail("Deposit not found for payment.", ApplicationErrorCode.ResourceNotFound);
         }
 
         // (2) Idempotency (Req 3.5): a confirmation arriving for an already-Held deposit is a no-op —
         //     no state change, no extra notification.
         if (deposit.State == DepositState.Held)
         {
-            return (true, null);
+            return Result.Ok();
         }
 
         // (3) Verification / legal-state guard (Req 3.6): only a PendingPayment deposit may be held.
@@ -323,10 +325,12 @@ public class DepositApplicationService : IDepositApplicationService
             var (savedFail, saveFailError) = await SaveAsync(ct);
             if (!savedFail)
             {
-                return (false, saveFailError);
+                return Result.Fail(
+                    saveFailError ?? "Deposit failure state could not be saved.",
+                    ApplicationErrorCode.ConcurrencyConflict);
             }
 
-            return (false, "Deposit is not awaiting payment.");
+            return Result.Fail("Deposit is not awaiting payment.", ApplicationErrorCode.Validation);
         }
 
         // (4) Read the confirmed payment amount; the held amount must equal it (Req 3.2). Fall back to
@@ -340,7 +344,8 @@ public class DepositApplicationService : IDepositApplicationService
         var (transitioned, transitionError) = TryTransition(deposit, DepositState.Held);
         if (!transitioned)
         {
-            return (false, transitionError);
+            return Result.Fail(
+                transitionError ?? "Deposit cannot be held.", ApplicationErrorCode.Validation);
         }
 
         // (6) Confirmation notification (Req 3.3). Load the auction WITH its Product so the message can
@@ -359,11 +364,13 @@ public class DepositApplicationService : IDepositApplicationService
         var (saved, saveError) = await SaveAsync(ct);
         if (!saved)
         {
-            return (false, saveError);
+            return Result.Fail(
+                saveError ?? "Deposit could not be saved.",
+                ApplicationErrorCode.ConcurrencyConflict);
         }
 
         await transaction.CommitAsync(ct);
-        return (true, null);
+        return Result.Ok();
     }
 
     /// <summary>
@@ -401,7 +408,7 @@ public class DepositApplicationService : IDepositApplicationService
     /// Notification delivery is best-effort post-save and never rolls back a Refunded deposit
     /// (Req 5.7, 8.5).
     /// </remarks>
-    private async Task<(bool Success, string? Error)> RefundHeldDepositsAsync(
+    private async Task<Result> RefundHeldDepositsAsync(
         long auctionId, long? excludeUserId, CancellationToken ct)
     {
         await using var transaction = await _uow.BeginTransactionAsync(ct);
@@ -412,7 +419,7 @@ public class DepositApplicationService : IDepositApplicationService
         // (2) Nothing Held → nothing to do. Idempotent: already-Refunded deposits are never returned.
         if (held.Count == 0)
         {
-            return (true, null);
+            return Result.Ok();
         }
 
         // (3) Resolve the product name once for all refund notifications on this auction.
@@ -469,7 +476,11 @@ public class DepositApplicationService : IDepositApplicationService
         if (saved.Ok)
             await transaction.CommitAsync(ct);
 
-        return saved;
+        return saved.Ok
+            ? Result.Ok()
+            : Result.Fail(
+                saved.Error ?? "Deposit refunds could not be saved.",
+                ApplicationErrorCode.ConcurrencyConflict);
     }
 
     // Req 6.3/6.5 — implemented in task 5.16
@@ -486,7 +497,7 @@ public class DepositApplicationService : IDepositApplicationService
         // (2) Req 6.6: with no Held deposit there is nothing to apply.
         if (deposit is null)
         {
-            return (false, "No held deposit available to apply.");
+            return Result.Fail("No held deposit available to apply.", ApplicationErrorCode.Validation);
         }
 
         // (3) Transition Held -> Applied via the guard, recording the application timestamp.
@@ -494,18 +505,21 @@ public class DepositApplicationService : IDepositApplicationService
         var (ok, err) = TryTransition(deposit, DepositState.Applied);
         if (!ok)
         {
-            return (false, err);
+            return Result.Fail(
+                err ?? "Deposit cannot be applied.", ApplicationErrorCode.Validation);
         }
 
         // (4) Persist; a concurrency conflict (Req 10.6) is surfaced as an error.
         var (saved, saveError) = await SaveAsync(ct);
         if (!saved)
         {
-            return (false, saveError);
+            return Result.Fail(
+                saveError ?? "Deposit could not be saved.",
+                ApplicationErrorCode.ConcurrencyConflict);
         }
 
         await transaction.CommitAsync(ct);
-        return (true, null);
+        return Result.Ok();
     }
 
     // Req 6.2/6.4/6.6 — implemented in task 5.16
@@ -520,7 +534,7 @@ public class DepositApplicationService : IDepositApplicationService
         // (2) Req 6.6: no Held deposit to apply — full final price is due, no transition.
         if (deposit is null)
         {
-            return (false, "No held deposit available to apply.", finalPrice);
+            return Result<decimal>.Fail("No held deposit available to apply.", ApplicationErrorCode.Validation);
         }
 
         var held = deposit.Amount;
@@ -528,13 +542,13 @@ public class DepositApplicationService : IDepositApplicationService
         // (3) Req 6.4: a deposit covering the whole price leaves nothing due.
         if (held >= finalPrice)
         {
-            return (true, null, 0m);
+            return Result<decimal>.Ok(0m);
         }
 
         // (4) Req 6.2: otherwise the remaining balance is the price minus the held amount. Because both
         //     are whole VND and held < finalPrice, the result is naturally >= 1 VND (>= 0.01 VND).
         var amountDue = finalPrice - held;
-        return (true, null, amountDue);
+        return Result<decimal>.Ok(amountDue);
     }
 
     // Req 7 — implemented in task 5.25
@@ -554,7 +568,7 @@ public class DepositApplicationService : IDepositApplicationService
         //     error. Leave any non-Held deposit unchanged.
         if (deposit is null)
         {
-            return (true, null);
+            return Result.Ok();
         }
 
         // (3) Resolve the product name for the forfeiture notification.
@@ -570,7 +584,8 @@ public class DepositApplicationService : IDepositApplicationService
         if (!ok)
         {
             deposit.LastError = err;
-            return (false, err);
+            return Result.Fail(
+                err ?? "Deposit cannot be forfeited.", ApplicationErrorCode.Validation);
         }
 
         // (6) One forfeiture notification to the winner (Req 7.2).
@@ -587,7 +602,7 @@ public class DepositApplicationService : IDepositApplicationService
             if (saved)
             {
                 await transaction.CommitAsync(ct);
-                return (true, null);
+                return Result.Ok();
             }
 
             deposit.ForfeitRetryCount = attempt;
@@ -597,7 +612,7 @@ public class DepositApplicationService : IDepositApplicationService
         // (8) Exhausted all attempts: record the failure. Best-effort persist of the error/retry count.
         deposit.LastError = "Forfeiture did not complete after 3 attempts.";
         await SaveAsync(ct);
-        return (false, lastSaveError ?? "Forfeiture did not complete after 3 attempts.");
+        return Result.Fail(lastSaveError ?? "Forfeiture did not complete after 3 attempts.", ApplicationErrorCode.Validation);
     }
 
     // Req 8 — implemented in task 5.20
@@ -631,7 +646,7 @@ public class DepositApplicationService : IDepositApplicationService
             d.State.ToString()
         )).ToList();
 
-        return (true, null, items);
+        return Result<IReadOnlyList<AdminDepositListItem>>.Ok(items);
     }
 
     /// <summary>
@@ -643,7 +658,7 @@ public class DepositApplicationService : IDepositApplicationService
         var deposit = await _deposits.GetByIdAsync(depositId, ct);
         if (deposit is null)
         {
-            return (false, "Deposit not found.", null);
+            return Result<AdminDepositDetailResponse>.Fail("Deposit not found.", ApplicationErrorCode.ResourceNotFound);
         }
 
         // Load related entities
@@ -674,7 +689,7 @@ public class DepositApplicationService : IDepositApplicationService
             payment?.Reference,
             deposit.CreatedAt);
 
-        return (true, null, detail);
+        return Result<AdminDepositDetailResponse>.Ok(detail);
     }
 
     /// <summary>
@@ -691,13 +706,13 @@ public class DepositApplicationService : IDepositApplicationService
         var deposit = await _deposits.GetByIdAsync(depositId, ct);
         if (deposit is null)
         {
-            return (false, "Deposit not found.");
+            return Result.Fail("Deposit not found.", ApplicationErrorCode.ResourceNotFound);
         }
 
         // (2) Verify deposit is in Held state
         if (deposit.State != DepositState.Held)
         {
-            return (false, $"Deposit is not in Held state. Current state: {deposit.State}");
+            return Result.Fail($"Deposit is not in Held state. Current state: {deposit.State}", ApplicationErrorCode.Validation);
         }
 
         // (3) Verify deposit has a linked payment
@@ -705,7 +720,7 @@ public class DepositApplicationService : IDepositApplicationService
         {
             deposit.LastError = "Cannot refund: deposit has no linked payment.";
             await SaveAsync(ct);
-            return (false, "Cannot refund: deposit has no linked payment.");
+            return Result.Fail("Cannot refund: deposit has no linked payment.", ApplicationErrorCode.Validation);
         }
 
         // (4) Create a Refund record
@@ -726,7 +741,8 @@ public class DepositApplicationService : IDepositApplicationService
         var (transitioned, transitionError) = TryTransition(deposit, DepositState.Refunded);
         if (!transitioned)
         {
-            return (false, transitionError);
+            return Result.Fail(
+                transitionError ?? "Deposit cannot be refunded.", ApplicationErrorCode.Validation);
         }
 
         deposit.RefundedAt = DateTimeOffset.UtcNow;
@@ -741,10 +757,12 @@ public class DepositApplicationService : IDepositApplicationService
         var (saved, saveError) = await SaveAsync(ct);
         if (!saved)
         {
-            return (false, saveError);
+            return Result.Fail(
+                saveError ?? "Deposit could not be saved.",
+                ApplicationErrorCode.ConcurrencyConflict);
         }
 
         await transaction.CommitAsync(ct);
-        return (true, null);
+        return Result.Ok();
     }
 }

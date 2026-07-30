@@ -1,5 +1,5 @@
 using System.Security.Claims;
-using EzBias.API.Infrastructure;
+using EzBias.API.Mappings;
 using EzBias.Application.Common.Results;
 using EzBias.Application.Features.Disputes;
 using EzBias.Application.Features.Disputes.Dtos;
@@ -25,9 +25,8 @@ public class DisputesController : ControllerBase
     {
         if (!TryGetUserId(out var userId)) return Unauthorized();
         var result = await _service.CreateAsync(userId, request, ct);
-        var typed = result.ToResult();
-        if (!typed.IsSuccess || typed.Value is null) return this.ToErrorActionResult(typed);
-        return Ok(typed.Value);
+        if (!result.IsSuccess || result.Value is null) return this.ToErrorActionResult(result);
+        return Ok(result.Value);
     }
 
     [HttpGet]
@@ -44,9 +43,8 @@ public class DisputesController : ControllerBase
     {
         if (!TryGetUserId(out var adminId)) return Unauthorized();
         var result = await _service.ApproveAsync(adminId, id, request, ct);
-        var typed = result.ToResult();
-        if (!typed.IsSuccess || typed.Value is null) return this.ToErrorActionResult(typed);
-        return Ok(typed.Value);
+        if (!result.IsSuccess || result.Value is null) return this.ToErrorActionResult(result);
+        return Ok(result.Value);
     }
 
     [HttpPut("{id:long}/refund-payment")]
@@ -55,9 +53,8 @@ public class DisputesController : ControllerBase
     {
         if (!TryGetUserId(out var adminId)) return Unauthorized();
         var result = await _service.CompleteRefundPaymentAsync(adminId, id, new CompleteRefundPaymentRequest(), ct);
-        var typed = result.ToResult();
-        if (!typed.IsSuccess || typed.Value is null) return this.ToErrorActionResult(typed);
-        return Ok(typed.Value);
+        if (!result.IsSuccess || result.Value is null) return this.ToErrorActionResult(result);
+        return Ok(result.Value);
     }
 
     [HttpGet("{id:long}/items")]
@@ -76,9 +73,8 @@ public class DisputesController : ControllerBase
     {
         if (!TryGetUserId(out var adminId)) return Unauthorized();
         var result = await _service.RejectAsync(adminId, id, request, ct);
-        var typed = result.ToResult();
-        if (!typed.IsSuccess || typed.Value is null) return this.ToErrorActionResult(typed);
-        return Ok(typed.Value);
+        if (!result.IsSuccess || result.Value is null) return this.ToErrorActionResult(result);
+        return Ok(result.Value);
     }
 
     private bool TryGetUserId(out long userId)

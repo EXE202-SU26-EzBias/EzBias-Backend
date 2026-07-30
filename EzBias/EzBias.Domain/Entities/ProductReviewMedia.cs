@@ -9,7 +9,7 @@ public class ProductReviewMedia
     public ReviewMediaType MediaType { get; set; }
     public string Url { get; set; } = string.Empty;
     public string? ThumbnailUrl { get; set; }
-    public string CloudinaryPublicId { get; set; } = string.Empty;
+    public string StoragePublicId { get; set; } = string.Empty;
     public short SortOrder { get; set; }
     public DateTimeOffset CreatedAt { get; set; } = DateTimeOffset.UtcNow;
 

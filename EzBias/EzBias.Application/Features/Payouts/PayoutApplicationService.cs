@@ -51,14 +51,14 @@ public class PayoutApplicationService : IPayoutApplicationService
     public async Task<Result<MarkPayoutPaidResponse>> MarkPaidAsync(long payoutId, MarkPayoutPaidRequest request, CancellationToken ct)
     {
         var payout = await _payouts.GetByIdAsync(payoutId, ct);
-        if (payout is null) return (false, "Payout not found.", null);
+        if (payout is null) return Result<MarkPayoutPaidResponse>.Fail("Payout not found.", ApplicationErrorCode.ResourceNotFound);
 
         if (payout.Status == PayoutStatus.Approved)
-            return (true, null, new MarkPayoutPaidResponse(payout.Id, payout.Status, payout.PaidAt ?? DateTimeOffset.UtcNow, payout.BankTransferRef));
+            return Result<MarkPayoutPaidResponse>.Ok(new MarkPayoutPaidResponse(payout.Id, payout.Status, payout.PaidAt ?? DateTimeOffset.UtcNow, payout.BankTransferRef));
 
         var now = DateTimeOffset.UtcNow;
         if (payout.Approve(now) == TransitionOutcome.Invalid)
-            return (false, "Payout cannot be marked paid in current status.", null);
+            return Result<MarkPayoutPaidResponse>.Fail("Payout cannot be marked paid in current status.", ApplicationErrorCode.Validation);
         payout.BankTransferRef = !string.IsNullOrWhiteSpace(request.BankTransferRef)
             ? request.BankTransferRef.Trim()
             : $"PO-{now:yyyyMMddHHmmss}-{payout.Id}";
@@ -67,24 +67,24 @@ public class PayoutApplicationService : IPayoutApplicationService
 
         await _uow.SaveChangesAsync(ct);
 
-        return (true, null, new MarkPayoutPaidResponse(payout.Id, payout.Status, payout.PaidAt ?? now, payout.BankTransferRef));
+        return Result<MarkPayoutPaidResponse>.Ok(new MarkPayoutPaidResponse(payout.Id, payout.Status, payout.PaidAt ?? now, payout.BankTransferRef));
     }
 
     public async Task<Result<RejectPayoutResponse>> RejectAsync(long payoutId, RejectPayoutRequest request, CancellationToken ct)
     {
         var payout = await _payouts.GetByIdAsync(payoutId, ct);
-        if (payout is null) return (false, "Payout not found.", null);
+        if (payout is null) return Result<RejectPayoutResponse>.Fail("Payout not found.", ApplicationErrorCode.ResourceNotFound);
 
         if (payout.Status == PayoutStatus.Rejected)
-            return (true, null, new RejectPayoutResponse(payout.Id, payout.Status, request.Reason));
+            return Result<RejectPayoutResponse>.Ok(new RejectPayoutResponse(payout.Id, payout.Status, request.Reason));
 
         if (payout.Status == PayoutStatus.Approved)
-            return (false, "Approved payout cannot be rejected.", null);
+            return Result<RejectPayoutResponse>.Fail("Approved payout cannot be rejected.", ApplicationErrorCode.Validation);
 
         if (payout.Reject(DateTimeOffset.UtcNow) == TransitionOutcome.Invalid)
-            return (false, "Approved payout cannot be rejected.", null);
+            return Result<RejectPayoutResponse>.Fail("Approved payout cannot be rejected.", ApplicationErrorCode.Validation);
         await _uow.SaveChangesAsync(ct);
 
-        return (true, null, new RejectPayoutResponse(payout.Id, payout.Status, request.Reason));
+        return Result<RejectPayoutResponse>.Ok(new RejectPayoutResponse(payout.Id, payout.Status, request.Reason));
     }
 }

@@ -1,6 +1,6 @@
 using System.Security.Claims;
 using EzBias.API.Hubs;
-using EzBias.API.Infrastructure;
+using EzBias.API.Mappings;
 using EzBias.Application.Common.Results;
 using EzBias.Application.Features.Auctions;
 using EzBias.Application.Features.Auctions.Dtos;
@@ -40,9 +40,8 @@ public class AuctionsController : ControllerBase
     public async Task<IActionResult> GetById([FromRoute] long auctionId, CancellationToken ct)
     {
         var result = await _service.GetDetailAsync(auctionId, ct);
-        var typed = result.ToResult();
-        if (!typed.IsSuccess || typed.Value is null) return this.ToErrorActionResult(typed);
-        return Ok(typed.Value);
+        if (!result.IsSuccess || result.Value is null) return this.ToErrorActionResult(result);
+        return Ok(result.Value);
     }
 
     [HttpGet("{auctionId:long}/bids/history")]
@@ -59,8 +58,7 @@ public class AuctionsController : ControllerBase
         if (!TryGetUserId(out var userId)) return Unauthorized();
 
         var result = await _service.PlaceBidAsync(userId, auctionId, request, ct);
-        var typed = result.ToResult();
-        if (!typed.IsSuccess || typed.Value is null) return this.ToErrorActionResult(typed);
+        if (!result.IsSuccess || result.Value is null) return this.ToErrorActionResult(result);
 
         // Push realtime event to all viewers of this auction
         try
@@ -70,10 +68,10 @@ public class AuctionsController : ControllerBase
                 .SendAsync("BidPlaced", new
                 {
                     auctionId,
-                    bidId      = typed.Value.BidId,
-                    amount     = typed.Value.Amount,
-                    currentBid = typed.Value.CurrentBid,
-                    status     = typed.Value.Status.ToString(),
+                    bidId      = result.Value.BidId,
+                    amount     = result.Value.Amount,
+                    currentBid = result.Value.CurrentBid,
+                    status     = result.Value.Status.ToString(),
                     placedAt   = DateTimeOffset.UtcNow
                 }, ct);
         }
@@ -82,11 +80,11 @@ public class AuctionsController : ControllerBase
             _logger.LogWarning(
                 ex,
                 "Bid {BidId} committed but BidPlaced broadcast failed for auction {AuctionId}.",
-                typed.Value.BidId,
+                result.Value.BidId,
                 auctionId);
         }
 
-        return Ok(typed.Value);
+        return Ok(result.Value);
     }
 
     private bool TryGetUserId(out long userId)

@@ -36,14 +36,14 @@ public class UserProfileApplicationService : IUserProfileApplicationService
     public async Task<Result<UserProfileResponse>> GetMeAsync(long userId, CancellationToken ct)
     {
         var user = await _users.GetByIdAsync(userId, ct);
-        if (user is null) return (false, "User not found.", null);
-        return (true, null, Map(user));
+        if (user is null) return Result<UserProfileResponse>.Fail("User not found.", ApplicationErrorCode.ResourceNotFound);
+        return Result<UserProfileResponse>.Ok(Map(user));
     }
 
     public async Task<Result<UserProfileResponse>> UpdateMeAsync(long userId, UpdateUserProfileRequest request, CancellationToken ct)
     {
         var user = await _users.GetByIdAsync(userId, ct);
-        if (user is null) return (false, "User not found.", null);
+        if (user is null) return Result<UserProfileResponse>.Fail("User not found.", ApplicationErrorCode.ResourceNotFound);
 
         user.FullName = request.FullName?.Trim() ?? string.Empty;
         user.Phone = request.Phone?.Trim() ?? string.Empty;
@@ -56,25 +56,25 @@ public class UserProfileApplicationService : IUserProfileApplicationService
         user.UpdatedAt = DateTimeOffset.UtcNow;
 
         await _uow.SaveChangesAsync(ct);
-        return (true, null, Map(user));
+        return Result<UserProfileResponse>.Ok(Map(user));
     }
 
     public async Task<Result> DeleteUnverifiedByEmailAsync(string email, CancellationToken ct)
     {
         var normalizedEmail = (email ?? string.Empty).Trim().ToLowerInvariant();
         if (string.IsNullOrWhiteSpace(normalizedEmail))
-            return (false, "Email is required.");
+            return Result.Fail("Email is required.", ApplicationErrorCode.Validation);
 
         var user = await _users.GetByEmailAsync(normalizedEmail, ct);
         if (user is null)
-            return (false, "User not found.");
+            return Result.Fail("User not found.", ApplicationErrorCode.ResourceNotFound);
 
         if (user.EmailVerifiedAt is not null)
-            return (false, "Only unverified users can be deleted.");
+            return Result.Fail("Only unverified users can be deleted.", ApplicationErrorCode.Validation);
 
         _users.Remove(user);
         await _uow.SaveChangesAsync(ct);
-        return (true, null);
+        return Result.Ok();
     }
 
     public async Task<SellerDashboardResponse> GetSellerDashboardAsync(long sellerId, CancellationToken ct)

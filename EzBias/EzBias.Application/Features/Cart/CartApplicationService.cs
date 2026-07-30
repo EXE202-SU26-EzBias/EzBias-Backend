@@ -24,23 +24,23 @@ public class CartApplicationService : ICartApplicationService
     public async Task<Result> UpsertItemAsync(long userId, UpsertCartItemRequest request, CancellationToken ct)
     {
         if (request.Quantity <= 0)
-            return (false, "Quantity must be greater than 0.");
+            return Result.Fail("Quantity must be greater than 0.", ApplicationErrorCode.Validation);
 
         var product = await _productRepository.GetByIdAsync(request.ProductId, ct);
         if (product is null || product.DeletedAt is not null)
-            return (false, "Product not found.");
+            return Result.Fail("Product not found.", ApplicationErrorCode.ResourceNotFound);
 
         if (product.Status != ProductStatus.Active)
-            return (false, "Product is not available.");
+            return Result.Fail("Product is not available.", ApplicationErrorCode.Validation);
 
         if (product.IsAuction)
-            return (false, "Auction products cannot be added to cart.");
+            return Result.Fail("Auction products cannot be added to cart.", ApplicationErrorCode.Validation);
 
         if (product.SellerId == userId)
-            return (false, "You cannot add your own product to cart.");
+            return Result.Fail("You cannot add your own product to cart.", ApplicationErrorCode.Validation);
 
         if (product.Stock < request.Quantity)
-            return (false, "Not enough stock.");
+            return Result.Fail("Not enough stock.", ApplicationErrorCode.Validation);
 
         var existing = await _cartRepository.GetByUserAndProductAsync(userId, request.ProductId, ct);
         if (existing is null)
@@ -60,7 +60,7 @@ public class CartApplicationService : ICartApplicationService
         }
 
         await _unitOfWork.SaveChangesAsync(ct);
-        return (true, null);
+        return Result.Ok();
     }
 
     public async Task<CartResponse> GetMyCartAsync(long userId, CancellationToken ct)
@@ -101,60 +101,60 @@ public class CartApplicationService : ICartApplicationService
         CancellationToken ct)
     {
         if (request.Quantity <= 0)
-            return (false, "Quantity must be greater than 0.");
+            return Result.Fail("Quantity must be greater than 0.", ApplicationErrorCode.Validation);
 
         var item = await _cartRepository.GetByIdAsync(cartItemId, ct);
         if (item is null || item.UserId != userId)
-            return (false, "Cart item not found.");
+            return Result.Fail("Cart item not found.", ApplicationErrorCode.ResourceNotFound);
 
         var product = await _productRepository.GetByIdAsync(item.ProductId, ct);
         if (product is null || product.DeletedAt is not null)
-            return (false, "Product not found.");
+            return Result.Fail("Product not found.", ApplicationErrorCode.ResourceNotFound);
 
         if (product.Status != ProductStatus.Active)
-            return (false, "Product is not available.");
+            return Result.Fail("Product is not available.", ApplicationErrorCode.Validation);
 
         if (product.Stock < request.Quantity)
-            return (false, "Not enough stock.");
+            return Result.Fail("Not enough stock.", ApplicationErrorCode.Validation);
 
         item.Quantity = request.Quantity;
         item.UpdatedAt = DateTimeOffset.UtcNow;
 
         await _unitOfWork.SaveChangesAsync(ct);
-        return (true, null);
+        return Result.Ok();
     }
 
     public async Task<Result> RemoveItemAsync(long userId, long cartItemId, CancellationToken ct)
     {
         var item = await _cartRepository.GetByIdAsync(cartItemId, ct);
         if (item is null || item.UserId != userId)
-            return (false, "Cart item not found.");
+            return Result.Fail("Cart item not found.", ApplicationErrorCode.ResourceNotFound);
 
         _cartRepository.Remove(item);
         await _unitOfWork.SaveChangesAsync(ct);
-        return (true, null);
+        return Result.Ok();
     }
 
     public async Task<Result> AddAuctionItemToCartAsync(long userId, long auctionId, CancellationToken ct)
     {
         var auction = await _auctionRepository.GetByIdAsync(auctionId, ct);
         if (auction is null)
-            return (false, "Auction not found.");
+            return Result.Fail("Auction not found.", ApplicationErrorCode.ResourceNotFound);
 
         if (auction.Status != AuctionStatus.EndedPendingPayment)
-            return (false, "Auction is not in pending payment status.");
+            return Result.Fail("Auction is not in pending payment status.", ApplicationErrorCode.Validation);
 
         if (auction.WinnerId != userId)
-            return (false, "You are not the winner of this auction.");
+            return Result.Fail("You are not the winner of this auction.", ApplicationErrorCode.Validation);
 
         var product = await _productRepository.GetByIdAsync(auction.ProductId, ct);
         if (product is null || product.DeletedAt is not null)
-            return (false, "Product not found.");
+            return Result.Fail("Product not found.", ApplicationErrorCode.ResourceNotFound);
 
         // Check if auction item already in cart
         var existing = await _cartRepository.GetByUserAndProductAsync(userId, product.Id, ct);
         if (existing is not null)
-            return (true, null); // Already in cart, no error
+            return Result.Ok(); // Already in cart, no error
 
         // Add auction product to cart with quantity 1
         _cartRepository.Add(new CartItem
@@ -166,6 +166,6 @@ public class CartApplicationService : ICartApplicationService
         });
 
         await _unitOfWork.SaveChangesAsync(ct);
-        return (true, null);
+        return Result.Ok();
     }
 }

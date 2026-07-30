@@ -47,14 +47,14 @@ public class AuthApplicationService : IAuthApplicationService
     public async Task<Result<AuthResult>> RegisterAsync(RegisterRequest req, CancellationToken ct)
     {
         if (string.IsNullOrWhiteSpace(req.Password) || req.Password.Length < 6)
-            return (false, "Password must be at least 6 chars.", null);
+            return Result<AuthResult>.Fail("Password must be at least 6 chars.", ApplicationErrorCode.Validation);
 
         var normalizedEmail = req.Email.Trim().ToLowerInvariant();
         var normalizedUsername = req.Username.Trim().ToLowerInvariant();
 
         var exists = await _users.ExistsByEmailOrUsernameAsync(normalizedEmail, normalizedUsername, ct);
         if (exists)
-            return (false, "Email or username already exists.", null);
+            return Result<AuthResult>.Fail("Email or username already exists.", ApplicationErrorCode.Validation);
 
         var user = new User
         {
@@ -72,7 +72,7 @@ public class AuthApplicationService : IAuthApplicationService
         await CreateAndSendOtpAsync(user, OtpPurpose.EmailVerification, ct);
 
         var auth = await BuildAuthResponseAsync(user, ct);
-        return (true, null, auth);
+        return Result<AuthResult>.Ok(auth);
     }
 
     public async Task<Result<AuthResult>> LoginAsync(LoginRequest req, CancellationToken ct)
@@ -81,28 +81,28 @@ public class AuthApplicationService : IAuthApplicationService
         var user = await _users.GetByLoginKeyAsync(key, ct);
 
         if (user is null || user.DeletedAt != null)
-            return (false, "Invalid credentials.", null);
+            return Result<AuthResult>.Fail("Invalid credentials.", ApplicationErrorCode.Validation);
 
         if (!_passwordHasher.Verify(req.Password, user.PasswordHash))
-            return (false, "Invalid credentials.", null);
+            return Result<AuthResult>.Fail("Invalid credentials.", ApplicationErrorCode.Validation);
 
         if (user.EmailVerifiedAt is null)
-            return (false, "Email is not verified.", null);
+            return Result<AuthResult>.Fail("Email is not verified.", ApplicationErrorCode.Validation);
 
         var auth = await BuildAuthResponseAsync(user, ct);
-        return (true, null, auth);
+        return Result<AuthResult>.Ok(auth);
     }
 
     public async Task<Result<AuthResult>> RefreshAsync(RefreshRequest req, CancellationToken ct)
     {
         if (string.IsNullOrWhiteSpace(req.RefreshToken))
-            return (false, "Refresh token is required.", null);
+            return Result<AuthResult>.Fail("Refresh token is required.", ApplicationErrorCode.Validation);
 
         var hash = _tokenService.HashRefreshToken(req.RefreshToken!);
         var stored = await _refreshTokens.GetByHashWithUserAsync(hash, ct);
 
         if (stored is null || stored.IsRevoked || stored.ExpiresAt <= DateTimeOffset.UtcNow)
-            return (false, "Invalid refresh token.", null);
+            return Result<AuthResult>.Fail("Invalid refresh token.", ApplicationErrorCode.Validation);
 
         stored.IsRevoked = true;
         stored.RevokedAt = DateTimeOffset.UtcNow;
@@ -122,7 +122,7 @@ public class AuthApplicationService : IAuthApplicationService
 
         await _uow.SaveChangesAsync(ct);
 
-        return (true, null, new AuthResult(
+        return Result<AuthResult>.Ok(new AuthResult(
             access,
             _tokenService.AccessTokenExpiresInSeconds,
             refresh,
@@ -152,51 +152,51 @@ public class AuthApplicationService : IAuthApplicationService
     {
         var normalizedEmail = NormalizeEmail(req.Email);
         if (string.IsNullOrWhiteSpace(normalizedEmail))
-            return (false, "Email is required.");
+            return Result.Fail("Email is required.", ApplicationErrorCode.Validation);
 
         var user = await _users.GetByEmailAsync(normalizedEmail, ct);
         if (user is null || user.DeletedAt != null)
-            return (true, null);
+            return Result.Ok();
 
         await CreateAndSendOtpAsync(user, OtpPurpose.PasswordReset, ct);
-        return (true, null);
+        return Result.Ok();
     }
 
     public async Task<Result> ResetPasswordAsync(ResetPasswordRequest req, CancellationToken ct)
     {
         if (string.IsNullOrWhiteSpace(req.NewPassword) || req.NewPassword.Length < 6)
-            return (false, "Password must be at least 6 chars.");
+            return Result.Fail("Password must be at least 6 chars.", ApplicationErrorCode.Validation);
 
         var normalizedEmail = NormalizeEmail(req.Email);
         var user = await _users.GetByEmailAsync(normalizedEmail, ct);
         if (user is null || user.DeletedAt != null)
-            return (false, "Invalid or expired code.");
+            return Result.Fail("Invalid or expired code.", ApplicationErrorCode.Validation);
 
         var now = DateTimeOffset.UtcNow;
         var otp = await FindMatchingOtpAsync(user.Id, OtpPurpose.PasswordReset, req.Code, now, ct);
         if (otp is null)
-            return (false, "Invalid or expired code.");
+            return Result.Fail("Invalid or expired code.", ApplicationErrorCode.Validation);
 
         otp.IsUsed = true;
         user.PasswordHash = _passwordHasher.Hash(req.NewPassword);
         user.UpdatedAt = now;
 
         await _uow.SaveChangesAsync(ct);
-        return (true, null);
+        return Result.Ok();
     }
 
     public async Task<Result> RequestEmailVerificationAsync(RequestEmailVerificationRequest req, CancellationToken ct)
     {
         var normalizedEmail = NormalizeEmail(req.Email);
         if (string.IsNullOrWhiteSpace(normalizedEmail))
-            return (false, "Email is required.");
+            return Result.Fail("Email is required.", ApplicationErrorCode.Validation);
 
         var user = await _users.GetByEmailAsync(normalizedEmail, ct);
         if (user is null || user.DeletedAt != null || user.EmailVerifiedAt != null)
-            return (true, null);
+            return Result.Ok();
 
         await CreateAndSendOtpAsync(user, OtpPurpose.EmailVerification, ct);
-        return (true, null);
+        return Result.Ok();
     }
 
     public async Task<Result> VerifyEmailAsync(VerifyEmailRequest req, CancellationToken ct)
@@ -204,12 +204,12 @@ public class AuthApplicationService : IAuthApplicationService
         var normalizedEmail = NormalizeEmail(req.Email);
         var user = await _users.GetByEmailAsync(normalizedEmail, ct);
         if (user is null || user.DeletedAt != null)
-            return (false, "Invalid or expired code.");
+            return Result.Fail("Invalid or expired code.", ApplicationErrorCode.Validation);
 
         var now = DateTimeOffset.UtcNow;
         var otp = await FindMatchingOtpAsync(user.Id, OtpPurpose.EmailVerification, req.Code, now, ct);
         if (otp is null)
-            return (false, "Invalid or expired code.");
+            return Result.Fail("Invalid or expired code.", ApplicationErrorCode.Validation);
 
         otp.IsUsed = true;
         user.EmailVerifiedAt ??= now;
@@ -218,7 +218,7 @@ public class AuthApplicationService : IAuthApplicationService
         _notifications.Add(_notificationFactory.UserVerified(user.Id));
 
         await _uow.SaveChangesAsync(ct);
-        return (true, null);
+        return Result.Ok();
     }
 
     public async Task<Result<MeResponse>> MeAsync(long userId, CancellationToken ct)

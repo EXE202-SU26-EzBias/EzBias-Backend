@@ -24,7 +24,7 @@ public sealed class ContactApplicationService : IContactApplicationService
             || string.IsNullOrWhiteSpace(request.Email)
             || string.IsNullOrWhiteSpace(request.Subject)
             || string.IsNullOrWhiteSpace(request.Message))
-            return Result<ContactSubmissionResponse>.Fail("All fields are required.");
+            return Result<ContactSubmissionResponse>.Fail("All fields are required.", ApplicationErrorCode.Validation);
 
         var message = new ContactMessage
         {

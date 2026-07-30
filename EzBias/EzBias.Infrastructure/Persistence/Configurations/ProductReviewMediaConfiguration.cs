@@ -17,7 +17,7 @@ public sealed class ProductReviewMediaConfiguration : IEntityTypeConfiguration<P
         builder.Property(x => x.MediaType).HasColumnName("media_type").HasConversion<short>().IsRequired();
         builder.Property(x => x.Url).HasColumnName("url").HasColumnType("text").IsRequired();
         builder.Property(x => x.ThumbnailUrl).HasColumnName("thumbnail_url").HasColumnType("text");
-        builder.Property(x => x.CloudinaryPublicId).HasColumnName("cloudinary_public_id").HasColumnType("text").IsRequired();
+        builder.Property(x => x.StoragePublicId).HasColumnName("storage_public_id").HasColumnType("text").IsRequired();
         builder.Property(x => x.SortOrder).HasColumnName("sort_order").IsRequired();
         builder.Property(x => x.CreatedAt).HasColumnName("created_at").HasColumnType("timestamptz").HasDefaultValueSql("now()").IsRequired();
 

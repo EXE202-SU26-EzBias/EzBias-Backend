@@ -1,4 +1,4 @@
-using EzBias.API.Infrastructure;
+using EzBias.API.Mappings;
 using EzBias.Application.Common.Results;
 using EzBias.Application.Features.Deposits;
 using EzBias.Application.Features.Deposits.Dtos;

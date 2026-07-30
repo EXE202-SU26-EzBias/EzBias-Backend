@@ -1,5 +1,5 @@
 using System.Security.Claims;
-using EzBias.API.Infrastructure;
+using EzBias.API.Mappings;
 using EzBias.Application.Common.Results;
 using EzBias.Application.Features.Media;
 using EzBias.Application.Features.Products;

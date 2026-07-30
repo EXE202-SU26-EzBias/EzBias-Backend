@@ -29,21 +29,22 @@ public class ProductManagementApplicationService : IProductManagementApplication
     public async Task<Result<ProductItemResponse>> GetMineByIdAsync(long sellerId, long productId, CancellationToken ct)
     {
         var p = await _products.GetByIdAsync(productId, ct);
-        if (p is null || p.DeletedAt is not null) return (false, "Product not found.", null);
-        if (p.SellerId != sellerId) return (false, "Forbidden.", null);
-        return (true, null, Map(p));
+        if (p is null || p.DeletedAt is not null) return Result<ProductItemResponse>.Fail("Product not found.", ApplicationErrorCode.ResourceNotFound);
+        if (p.SellerId != sellerId) return Result<ProductItemResponse>.Fail("Forbidden.", ApplicationErrorCode.Forbidden);
+        return Result<ProductItemResponse>.Ok(Map(p));
     }
 
     public async Task<Result<ProductItemResponse>> CreateAsync(long sellerId, CreateProductRequest request, CancellationToken ct)
     {
-        if (request.Price <= 0) return (false, "Price must be greater than zero.", null);
-        if (request.Stock < 0) return (false, "Stock cannot be negative.", null);
+        if (request.Price <= 0) return Result<ProductItemResponse>.Fail("Price must be greater than zero.", ApplicationErrorCode.Validation);
+        if (request.Stock < 0) return Result<ProductItemResponse>.Fail("Stock cannot be negative.", ApplicationErrorCode.Validation);
         var imageUrls = NormalizeImageUrls(request.ImageUrls, request.PrimaryImageUrl);
-        if (imageUrls.Count == 0) return (false, "At least one product image is required.", null);
+        if (imageUrls.Count == 0) return Result<ProductItemResponse>.Fail("At least one product image is required.", ApplicationErrorCode.Validation);
 
         var fandomResult = await ResolveFandomAsync(request.FandomName, request.LegacyFandomId, ct);
         if (fandomResult.Fandom is null)
-            return (false, fandomResult.Error, null);
+            return Result<ProductItemResponse>.Fail(
+                fandomResult.Error ?? "Fandom could not be resolved.", ApplicationErrorCode.Validation);
 
         var p = new Product
         {
@@ -83,7 +84,8 @@ public class ProductManagementApplicationService : IProductManagementApplication
 
                 fandomResult = await ResolveFandomAsync(request.FandomName, request.LegacyFandomId, ct);
                 if (fandomResult.Fandom is null)
-                    return (false, fandomResult.Error, null);
+                    return Result<ProductItemResponse>.Fail(
+                        fandomResult.Error ?? "Fandom could not be resolved.", ApplicationErrorCode.Validation);
 
                 p.FandomId = fandomResult.Fandom.Id;
                 _products.Add(p);
@@ -91,16 +93,16 @@ public class ProductManagementApplicationService : IProductManagementApplication
             }
         }
 
-        return (true, null, Map(p));
+        return Result<ProductItemResponse>.Ok(Map(p));
     }
 
     public async Task<Result<ProductItemResponse>> UpdateAsync(long sellerId, long productId, UpdateProductRequest request, CancellationToken ct)
     {
         var p = await _products.GetByIdAsync(productId, ct);
-        if (p is null || p.DeletedAt is not null) return (false, "Product not found.", null);
-        if (p.SellerId != sellerId) return (false, "Forbidden.", null);
-        if (request.Price <= 0) return (false, "Price must be greater than zero.", null);
-        if (request.Stock < 0) return (false, "Stock cannot be negative.", null);
+        if (p is null || p.DeletedAt is not null) return Result<ProductItemResponse>.Fail("Product not found.", ApplicationErrorCode.ResourceNotFound);
+        if (p.SellerId != sellerId) return Result<ProductItemResponse>.Fail("Forbidden.", ApplicationErrorCode.Forbidden);
+        if (request.Price <= 0) return Result<ProductItemResponse>.Fail("Price must be greater than zero.", ApplicationErrorCode.Validation);
+        if (request.Stock < 0) return Result<ProductItemResponse>.Fail("Stock cannot be negative.", ApplicationErrorCode.Validation);
 
         p.Price = request.Price;
         p.Stock = request.Stock;
@@ -135,7 +137,7 @@ public class ProductManagementApplicationService : IProductManagementApplication
 
         // Must have at least one image after all changes
         if (p.Images.Count == 0)
-            return (false, "At least one product image is required.", null);
+            return Result<ProductItemResponse>.Fail("At least one product image is required.", ApplicationErrorCode.Validation);
 
         // Recalculate primary: first remaining image wins
         var firstImage = p.Images.OrderBy(x => x.SortOrder).FirstOrDefault();
@@ -145,21 +147,21 @@ public class ProductManagementApplicationService : IProductManagementApplication
         p.UpdatedAt = DateTimeOffset.UtcNow;
 
         await _uow.SaveChangesAsync(ct);
-        return (true, null, Map(p));
+        return Result<ProductItemResponse>.Ok(Map(p));
     }
 
     public async Task<Result> DeleteAsync(long sellerId, long productId, CancellationToken ct)
     {
         var p = await _products.GetByIdAsync(productId, ct);
-        if (p is null || p.DeletedAt is not null) return (false, "Product not found.");
-        if (p.SellerId != sellerId) return (false, "Forbidden.");
+        if (p is null || p.DeletedAt is not null) return Result.Fail("Product not found.", ApplicationErrorCode.ResourceNotFound);
+        if (p.SellerId != sellerId) return Result.Fail("Forbidden.", ApplicationErrorCode.Forbidden);
 
         p.DeletedAt = DateTimeOffset.UtcNow;
         p.UpdatedAt = DateTimeOffset.UtcNow;
         p.Status = ProductStatus.Archived;
 
         await _uow.SaveChangesAsync(ct);
-        return (true, null);
+        return Result.Ok();
     }
 
     private static ProductItemResponse Map(Product p)

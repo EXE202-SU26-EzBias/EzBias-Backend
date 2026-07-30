@@ -28,11 +28,11 @@ public class VideoCallApplicationService : IVideoCallApplicationService
     public async Task<Result<CallSessionResponse>> StartCallAsync(long callerId, long conversationId, CancellationToken ct)
     {
         var conversation = await _conversations.GetByIdAsync(conversationId, ct);
-        if (conversation is null) return (false, "Conversation not found.", null);
-        if (!IsParticipant(conversation, callerId)) return (false, "Forbidden.", null);
+        if (conversation is null) return Result<CallSessionResponse>.Fail("Conversation not found.", ApplicationErrorCode.ResourceNotFound);
+        if (!IsParticipant(conversation, callerId)) return Result<CallSessionResponse>.Fail("Forbidden.", ApplicationErrorCode.Forbidden);
 
         var active = await _calls.GetActiveByConversationAsync(conversationId, ct);
-        if (active is not null) return (false, "There is already an active call for this conversation.", null);
+        if (active is not null) return Result<CallSessionResponse>.Fail("There is already an active call for this conversation.", ApplicationErrorCode.Validation);
 
         var calleeId = conversation.BuyerId == callerId ? conversation.SellerId : conversation.BuyerId;
         var call = new CallSession
@@ -49,15 +49,15 @@ public class VideoCallApplicationService : IVideoCallApplicationService
 
         var response = ToResponse(call);
         await _realtime.PushIncomingCallAsync(calleeId, response, ct);
-        return (true, null, response);
+        return Result<CallSessionResponse>.Ok(response);
     }
 
     public async Task<Result<CallSessionResponse>> AcceptCallAsync(long userId, long callId, CancellationToken ct)
     {
         var call = await _calls.GetByIdAsync(callId, ct);
-        if (call is null) return (false, "Call not found.", null);
-        if (call.CalleeId != userId) return (false, "Forbidden.", null);
-        if (call.Status != CallSessionStatus.Ringing) return (false, "Call is no longer ringing.", null);
+        if (call is null) return Result<CallSessionResponse>.Fail("Call not found.", ApplicationErrorCode.ResourceNotFound);
+        if (call.CalleeId != userId) return Result<CallSessionResponse>.Fail("Forbidden.", ApplicationErrorCode.Forbidden);
+        if (call.Status != CallSessionStatus.Ringing) return Result<CallSessionResponse>.Fail("Call is no longer ringing.", ApplicationErrorCode.Validation);
 
         call.Status = CallSessionStatus.Accepted;
         call.AnsweredAt = DateTimeOffset.UtcNow;
@@ -66,15 +66,15 @@ public class VideoCallApplicationService : IVideoCallApplicationService
 
         var response = ToResponse(call);
         await _realtime.PushCallAcceptedAsync(call.CallerId, response, ct);
-        return (true, null, response);
+        return Result<CallSessionResponse>.Ok(response);
     }
 
     public async Task<Result<CallSessionResponse>> RejectCallAsync(long userId, long callId, CancellationToken ct)
     {
         var call = await _calls.GetByIdAsync(callId, ct);
-        if (call is null) return (false, "Call not found.", null);
-        if (call.CalleeId != userId) return (false, "Forbidden.", null);
-        if (call.Status != CallSessionStatus.Ringing) return (false, "Call is no longer ringing.", null);
+        if (call is null) return Result<CallSessionResponse>.Fail("Call not found.", ApplicationErrorCode.ResourceNotFound);
+        if (call.CalleeId != userId) return Result<CallSessionResponse>.Fail("Forbidden.", ApplicationErrorCode.Forbidden);
+        if (call.Status != CallSessionStatus.Ringing) return Result<CallSessionResponse>.Fail("Call is no longer ringing.", ApplicationErrorCode.Validation);
 
         call.Status = CallSessionStatus.Rejected;
         call.EndedAt = DateTimeOffset.UtcNow;
@@ -83,16 +83,16 @@ public class VideoCallApplicationService : IVideoCallApplicationService
 
         var response = ToResponse(call);
         await _realtime.PushCallRejectedAsync(call.CallerId, response, ct);
-        return (true, null, response);
+        return Result<CallSessionResponse>.Ok(response);
     }
 
     public async Task<Result<CallSessionResponse>> EndCallAsync(long userId, long callId, CancellationToken ct)
     {
         var call = await _calls.GetByIdAsync(callId, ct);
-        if (call is null) return (false, "Call not found.", null);
-        if (call.CallerId != userId && call.CalleeId != userId) return (false, "Forbidden.", null);
+        if (call is null) return Result<CallSessionResponse>.Fail("Call not found.", ApplicationErrorCode.ResourceNotFound);
+        if (call.CallerId != userId && call.CalleeId != userId) return Result<CallSessionResponse>.Fail("Forbidden.", ApplicationErrorCode.Forbidden);
         if (call.Status is not (CallSessionStatus.Ringing or CallSessionStatus.Accepted))
-            return (false, "Call has already ended.", null);
+            return Result<CallSessionResponse>.Fail("Call has already ended.", ApplicationErrorCode.Validation);
 
         call.Status = CallSessionStatus.Ended;
         call.EndedAt = DateTimeOffset.UtcNow;
@@ -102,17 +102,17 @@ public class VideoCallApplicationService : IVideoCallApplicationService
         var response = ToResponse(call);
         var recipientId = call.CallerId == userId ? call.CalleeId : call.CallerId;
         await _realtime.PushCallEndedAsync(recipientId, response, ct);
-        return (true, null, response);
+        return Result<CallSessionResponse>.Ok(response);
     }
 
     public async Task<Result<IReadOnlyList<CallSessionResponse>>> GetConversationCallsAsync(long userId, long conversationId, CancellationToken ct)
     {
         var conversation = await _conversations.GetByIdAsync(conversationId, ct);
-        if (conversation is null) return (false, "Conversation not found.", null);
-        if (!IsParticipant(conversation, userId)) return (false, "Forbidden.", null);
+        if (conversation is null) return Result<IReadOnlyList<CallSessionResponse>>.Fail("Conversation not found.", ApplicationErrorCode.ResourceNotFound);
+        if (!IsParticipant(conversation, userId)) return Result<IReadOnlyList<CallSessionResponse>>.Fail("Forbidden.", ApplicationErrorCode.Forbidden);
 
         var calls = await _calls.GetByConversationAsync(conversationId, ct);
-        return (true, null, calls.Select(ToResponse).ToList());
+        return Result<IReadOnlyList<CallSessionResponse>>.Ok(calls.Select(ToResponse).ToList());
     }
 
     private static bool IsParticipant(Conversation conversation, long userId)

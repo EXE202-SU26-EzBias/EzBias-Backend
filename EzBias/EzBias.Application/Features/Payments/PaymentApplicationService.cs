@@ -56,31 +56,32 @@ public class PaymentApplicationService : IPaymentApplicationService
 
     public async Task<Result<CreatePaymentResponse>> CreateAsync(long userId, CreatePaymentRequest request, CancellationToken ct)
     {
-        if (request.OrderIds is null || request.OrderIds.Count == 0) return (false, "OrderIds is required.", null);
+        if (request.OrderIds is null || request.OrderIds.Count == 0) return Result<CreatePaymentResponse>.Fail("OrderIds is required.", ApplicationErrorCode.Validation);
 
         var uniqueOrderIds = request.OrderIds.Distinct().ToList();
         var orders = new List<Order>();
         foreach (var orderId in uniqueOrderIds)
         {
             var order = await _orders.GetByIdAsync(orderId, ct);
-            if (order is null) return (false, $"Order {orderId} not found.", null);
-            if (order.UserId != userId) return (false, "Forbidden.", null);
-            if (order.Status != OrderStatus.Pending) return (false, $"Order {orderId} is not pending.", null);
+            if (order is null) return Result<CreatePaymentResponse>.Fail($"Order {orderId} not found.", ApplicationErrorCode.ResourceNotFound);
+            if (order.UserId != userId) return Result<CreatePaymentResponse>.Fail("Forbidden.", ApplicationErrorCode.Forbidden);
+            if (order.Status != OrderStatus.Pending) return Result<CreatePaymentResponse>.Fail($"Order {orderId} is not pending.", ApplicationErrorCode.Validation);
             orders.Add(order);
         }
 
         var alreadyHasPayment = false;
         foreach (var id in uniqueOrderIds)
             alreadyHasPayment = alreadyHasPayment || await _payments.ExistsByOrderIdAsync(id, ct);
-        if (alreadyHasPayment) return (false, "One or more orders already has payment.", null);
+        if (alreadyHasPayment) return Result<CreatePaymentResponse>.Fail("One or more orders already has payment.", ApplicationErrorCode.Validation);
 
         var amount = orders.Sum(x => x.Total);
         var auctionOrder = orders[0];
         if (uniqueOrderIds.Count == 1 && auctionOrder.Source == OrderSource.Auction && auctionOrder.AuctionId is long winnerAuctionId)
         {
-            var (computed, _, amountDue) = await _deposits.ComputeWinnerAmountDueAsync(
+            var amountDueResult = await _deposits.ComputeWinnerAmountDueAsync(
                 winnerAuctionId, userId, auctionOrder.Total, ct);
-            if (computed) amount = amountDue; // Req 6.2/6.4: reduce by held deposit; Order.Total stays = FinalPrice
+            if (amountDueResult.IsSuccess)
+                amount = amountDueResult.Value; // Req 6.2/6.4: reduce by held deposit; Order.Total stays = FinalPrice
         }
         var now = DateTimeOffset.UtcNow;
         var reference = $"PAY-{now:yyyyMMddHHmmss}-{userId}";
@@ -103,27 +104,27 @@ public class PaymentApplicationService : IPaymentApplicationService
         _payments.Add(payment);
         await _uow.SaveChangesAsync(ct);
 
-        return (true, null, new CreatePaymentResponse(payment.Id, payment.Reference, payment.Amount, payment.Status.ToString()));
+        return Result<CreatePaymentResponse>.Ok(new CreatePaymentResponse(payment.Id, payment.Reference, payment.Amount, payment.Status.ToString()));
     }
 
     public async Task<Result<PaymentStatusResponse>> GetStatusAsync(long userId, long paymentId, CancellationToken ct)
     {
         var payment = await _payments.GetByIdAsync(paymentId, ct);
-        if (payment is null) return (false, "Payment not found.", null);
-        if (payment.UserId != userId) return (false, "Forbidden.", null);
+        if (payment is null) return Result<PaymentStatusResponse>.Fail("Payment not found.", ApplicationErrorCode.ResourceNotFound);
+        if (payment.UserId != userId) return Result<PaymentStatusResponse>.Fail("Forbidden.", ApplicationErrorCode.Forbidden);
 
         var orderIds = payment.PaymentOrders.Select(po => po.OrderId).ToList();
         var orders = payment.PaymentOrders
             .Select(po => new PaymentOrderSummary(po.OrderId, po.Order.Total, po.Order.Status, po.Order.UserId, po.Order.SellerId))
             .ToList();
 
-        return (true, null, new PaymentStatusResponse(payment.Id, payment.Reference, payment.Amount, payment.Status.ToString(), payment.CreatedAt, payment.PaidAt, orderIds, orders));
+        return Result<PaymentStatusResponse>.Ok(new PaymentStatusResponse(payment.Id, payment.Reference, payment.Amount, payment.Status.ToString(), payment.CreatedAt, payment.PaidAt, orderIds, orders));
     }
 
     public async Task<Result> ConfirmManualAsync(long adminId, long paymentId, CancellationToken ct)
     {
         var payment = await _payments.GetByIdAsync(paymentId, ct);
-        if (payment is null) return (false, "Payment not found.");
+        if (payment is null) return Result.Fail("Payment not found.", ApplicationErrorCode.ResourceNotFound);
 
         payment.ProviderTxnId ??= $"MANUAL-{adminId}-{DateTimeOffset.UtcNow:yyyyMMddHHmmss}";
         payment.Payload = $"{{\"source\":\"manual-admin-confirm\",\"adminId\":{adminId},\"at\":\"{DateTimeOffset.UtcNow:O}\"}}";
@@ -135,11 +136,11 @@ public class PaymentApplicationService : IPaymentApplicationService
     public async Task<Result> HandleWebhookAsync(PaymentWebhookRequest request, string rawBody, string? signature, string? timestamp, CancellationToken ct)
     {
         if (!_webhookVerifier.Verify(rawBody, signature, timestamp))
-            return (false, "Invalid webhook signature.");
+            return Result.Fail("Invalid webhook signature.", ApplicationErrorCode.InvalidWebhookSignature);
 
         var payment = await _payments.GetByReferenceAsync(request.Reference, ct);
-        if (payment is null) return (false, "Payment not found.");
-        if (payment.Status == PaymentStatus.Paid) return (true, null);
+        if (payment is null) return Result.Fail("Payment not found.", ApplicationErrorCode.ResourceNotFound);
+        if (payment.Status == PaymentStatus.Paid) return Result.Ok();
 
         return await ConfirmBySePayPullAsync(payment, ct);
     }
@@ -147,27 +148,27 @@ public class PaymentApplicationService : IPaymentApplicationService
     public async Task<Result> HandleSePayWebhookAsync(SePayWebhookPayload payload, string rawBody, string? signature, string? timestamp, CancellationToken ct)
     {
         if (!_webhookVerifier.Verify(rawBody, signature, timestamp))
-            return (false, "Invalid webhook signature.");
+            return Result.Fail("Invalid webhook signature.", ApplicationErrorCode.InvalidWebhookSignature);
 
         if (payload.TransferType is not null && !payload.TransferType.Equals("in", StringComparison.OrdinalIgnoreCase))
-            return (false, "Unsupported transfer type.");
+            return Result.Fail("Unsupported transfer type.", ApplicationErrorCode.Validation);
 
         var content = payload.Content ?? payload.Description ?? string.Empty;
         var reference = ExtractReference(content);
         if (string.IsNullOrWhiteSpace(reference))
-            return (false, "Reference not found in SePay content.");
+            return Result.Fail("Reference not found in SePay content.", ApplicationErrorCode.ResourceNotFound);
 
         var mapped = new PaymentWebhookRequest(reference, payload.Id?.ToString() ?? payload.ReferenceCode, content, rawBody);
         return await HandleWebhookAsync(mapped, rawBody, signature, timestamp, ct);
     }
 
-    private async Task<(bool Success, string? Error)> ConfirmBySePayPullAsync(Payment payment, CancellationToken ct)
+    private async Task<Result> ConfirmBySePayPullAsync(Payment payment, CancellationToken ct)
     {
         var pull = await _sepay.GetTransactionsAsync(ct);
         if (!pull.Success)
         {
             var msg = pull.RetryAfterSeconds.HasValue ? $"{pull.Error} Retry after {pull.RetryAfterSeconds.Value}s." : pull.Error;
-            return (false, msg);
+            return Result.Fail(msg ?? "SePay transaction lookup failed.", ApplicationErrorCode.Validation);
         }
 
         var matched = pull.Transactions.FirstOrDefault(x =>
@@ -175,16 +176,21 @@ public class PaymentApplicationService : IPaymentApplicationService
             (ContainsNormalized(x.TransactionContent, payment.Reference) ||
              ContainsNormalized(x.TransactionContent, payment.TransferContent)));
 
-        if (matched is null) return (false, "No matching SePay transaction found.");
+        if (matched is null) return Result.Fail("No matching SePay transaction found.", ApplicationErrorCode.Validation);
 
         payment.ProviderTxnId = matched.Id;
         payment.Payload = System.Text.Json.JsonSerializer.Serialize(matched);
         payment.UpdatedAt = DateTimeOffset.UtcNow;
 
         var confirm = await ConfirmInternalAsync(payment.UserId, payment.Id, ct);
-        if (!confirm.Success) return (false, confirm.Error);
+        if (!confirm.IsSuccess)
+            return Result.Fail(
+                confirm.Failure
+                ?? ApplicationError.Create(
+                    ApplicationErrorCode.Validation,
+                    "Payment confirmation failed."));
 
-        return (true, null);
+        return Result.Ok();
     }
 
     private static string Normalize(string? input)
@@ -217,25 +223,25 @@ public class PaymentApplicationService : IPaymentApplicationService
         return $"PAY-{ts}-{userId}";
     }
 
-    private async Task<(bool Success, string? Error)> ConfirmInternalAsync(long userId, long paymentId, CancellationToken ct)
+    private async Task<Result> ConfirmInternalAsync(long userId, long paymentId, CancellationToken ct)
     {
         await using var transaction = await _uow.BeginTransactionAsync(ct);
         var now = DateTimeOffset.UtcNow;
 
         var payment = await _payments.GetByIdWithOrdersForUpdateAsync(paymentId, ct);
         if (payment is null)
-            return (false, "Payment not found.");
+            return Result.Fail("Payment not found.", ApplicationErrorCode.ResourceNotFound);
 
         if (payment.UserId != userId)
-            return (false, "Forbidden.");
+            return Result.Fail("Forbidden.", ApplicationErrorCode.Forbidden);
 
         if (payment.Status == PaymentStatus.Paid)
         {
-            return (true, null);
+            return Result.Ok();
         }
 
         if (payment.MarkPaid(now) == TransitionOutcome.Invalid)
-            return (false, "Payment cannot be confirmed in current status.");
+            return Result.Fail("Payment cannot be confirmed in current status.", ApplicationErrorCode.Validation);
 
         if (payment.Type == PaymentType.AuctionDeposit)
         {
@@ -243,15 +249,20 @@ public class PaymentApplicationService : IPaymentApplicationService
             // to the Deposit_Service to transition the linked deposit PendingPayment -> Held (Req 3.1).
             await _uow.SaveChangesAsync(ct);
             var hold = await _deposits.ConfirmDepositAsync(payment.Id, ct);
-            if (!hold.Success) return (false, hold.Error);
+            if (!hold.IsSuccess)
+                return Result.Fail(
+                    hold.Failure
+                    ?? ApplicationError.Create(
+                        ApplicationErrorCode.Validation,
+                        "Deposit could not be held."));
             await transaction.CommitAsync(ct);
-            return (true, null);
+            return Result.Ok();
         }
 
         foreach (var po in payment.PaymentOrders)
         {
             if (po.Order.MarkPaid(now) == TransitionOutcome.Invalid)
-                return (false, "Order cannot be marked paid in current status.");
+                return Result.Fail("Order cannot be marked paid in current status.", ApplicationErrorCode.Validation);
 
             // Notify seller of new order
             var productNames = string.Join(", ", po.Order.Items.Select(i => i.ProductName));
@@ -263,7 +274,7 @@ public class PaymentApplicationService : IPaymentApplicationService
                 if (auction is not null && auction.Status == AuctionStatus.EndedPendingPayment)
                 {
                     if (auction.MarkSold(now) == TransitionOutcome.Invalid)
-                        return (false, "Auction cannot be marked sold in current status.");
+                        return Result.Fail("Auction cannot be marked sold in current status.", ApplicationErrorCode.Validation);
                     
                     // Product was successfully sold in auction, free it up
                     var product = await _products.GetByIdAsync(auction.ProductId, ct);
@@ -284,10 +295,12 @@ public class PaymentApplicationService : IPaymentApplicationService
             foreach (var item in po.Order.Items)
             {
                 if (item.Product is null)
-                    return (false, $"Product {item.ProductId} no longer exists.");
+                    return Result.Fail(
+                        $"Product {item.ProductId} no longer exists.",
+                        ApplicationErrorCode.ResourceNotFound);
 
                 if (item.Product.Stock < item.Quantity)
-                    return (false, $"Insufficient stock for product {item.ProductId}.");
+                    return Result.Fail($"Insufficient stock for product {item.ProductId}.", ApplicationErrorCode.Validation);
 
                 item.Product.Stock -= item.Quantity;
                 item.Product.UpdatedAt = DateTimeOffset.UtcNow;
@@ -338,6 +351,6 @@ public class PaymentApplicationService : IPaymentApplicationService
         await _uow.SaveChangesAsync(ct);
 
         await transaction.CommitAsync(ct);
-        return (true, null);
+        return Result.Ok();
     }
 }

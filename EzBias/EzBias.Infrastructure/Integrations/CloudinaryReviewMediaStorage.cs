@@ -108,10 +108,10 @@ public sealed class CloudinaryReviewMediaStorage : IReviewMediaStorage
             result.PublicId);
     }
 
-    public Task DeleteAsync(string publicId, ReviewMediaType mediaType, CancellationToken ct)
+    public Task DeleteAsync(string storagePublicId, ReviewMediaType mediaType, CancellationToken ct)
     {
         ct.ThrowIfCancellationRequested();
-        return TryDeleteAsync(publicId, mediaType, ct);
+        return TryDeleteAsync(storagePublicId, mediaType, ct);
     }
 
     private async Task TryDeleteAsync(string publicId, ReviewMediaType mediaType, CancellationToken ct)
@@ -133,7 +133,7 @@ public sealed class CloudinaryReviewMediaStorage : IReviewMediaStorage
         }
         catch (Exception ex) when (ex is not OperationCanceledException)
         {
-            _logger.LogWarning(ex, "Failed to delete review media asset {CloudinaryPublicId}", publicId);
+            _logger.LogWarning(ex, "Failed to delete review media asset {StoragePublicId}", publicId);
         }
     }
 

@@ -1,7 +1,7 @@
 using EzBias.Application.Common.Results;
 using Microsoft.AspNetCore.Mvc;
 
-namespace EzBias.API.Infrastructure;
+namespace EzBias.API.Mappings;
 
 public static class ApiResultMapper
 {
@@ -14,7 +14,10 @@ public static class ApiResultMapper
         if (result.IsSuccess)
             throw new InvalidOperationException("Only failed results can be mapped to an error response.");
 
-        var error = result.Failure ?? ApplicationErrorCatalog.FromMessage(null);
+        var error = result.Failure
+            ?? ApplicationError.Create(
+                ApplicationErrorCode.Validation,
+                "Request could not be completed.");
         var kind = forceKind ?? error.Kind;
         if (notFoundAsBadRequest && kind == ErrorKind.NotFound)
             return controller.BadRequest(new { message = error.Message });

@@ -41,19 +41,21 @@ public class SellerAuctionApplicationService : ISellerAuctionApplicationService
     public async Task<Result<AuctionActionResponse>> CreateAsync(long sellerId, CreateAuctionRequest request, CancellationToken ct)
     {
         var product = await _products.GetByIdAsync(request.ProductId, ct);
-        if (product is null) return (false, "Product not found.", null);
-        if (product.SellerId != sellerId) return (false, "Forbidden.", null);
-        if (product.IsAuction) return (false, "Product already configured for auction.", null);
-        if (request.FloorPrice <= 0) return (false, "Floor price must be greater than zero.", null);
-        if (request.ReservePrice.HasValue && request.ReservePrice.Value < request.FloorPrice) return (false, "Reserve price must be >= floor price.", null);
-        if (request.EndsAt <= DateTimeOffset.UtcNow.AddMinutes(1)) return (false, "EndsAt must be in the future.", null);
+        if (product is null) return Result<AuctionActionResponse>.Fail("Product not found.", ApplicationErrorCode.ResourceNotFound);
+        if (product.SellerId != sellerId) return Result<AuctionActionResponse>.Fail("Forbidden.", ApplicationErrorCode.Forbidden);
+        if (product.IsAuction) return Result<AuctionActionResponse>.Fail("Product already configured for auction.", ApplicationErrorCode.Validation);
+        if (request.FloorPrice <= 0) return Result<AuctionActionResponse>.Fail("Floor price must be greater than zero.", ApplicationErrorCode.Validation);
+        if (request.ReservePrice.HasValue && request.ReservePrice.Value < request.FloorPrice) return Result<AuctionActionResponse>.Fail("Reserve price must be >= floor price.", ApplicationErrorCode.Validation);
+        if (request.EndsAt <= DateTimeOffset.UtcNow.AddMinutes(1)) return Result<AuctionActionResponse>.Fail("EndsAt must be in the future.", ApplicationErrorCode.Validation);
 
         var hasLive = await _auctions.ExistsLiveByProductIdAsync(product.Id, ct);
-        if (hasLive) return (false, "A live auction already exists for this product.", null);
+        if (hasLive) return Result<AuctionActionResponse>.Fail("A live auction already exists for this product.", ApplicationErrorCode.Validation);
 
         // Seller sets the required bid deposit. 0 disables the deposit gate; it may not exceed the floor price.
         var (depositOk, depositError, resolvedDeposit) = ResolveSellerDeposit(request.RequiredDepositAmount, request.FloorPrice);
-        if (!depositOk) return (false, depositError, null);
+        if (!depositOk)
+            return Result<AuctionActionResponse>.Fail(
+                depositError ?? "Required deposit is invalid.", ApplicationErrorCode.Validation);
 
         product.IsAuction = true;
         product.UpdatedAt = DateTimeOffset.UtcNow;
@@ -78,22 +80,22 @@ public class SellerAuctionApplicationService : ISellerAuctionApplicationService
         _auctions.Add(auction);
         await _uow.SaveChangesAsync(ct);
 
-        return (true, null, new AuctionActionResponse(auction.Id, auction.Status.ToString()));
+        return Result<AuctionActionResponse>.Ok(new AuctionActionResponse(auction.Id, auction.Status.ToString()));
     }
 
     public async Task<Result<AuctionActionResponse>> PublishAsync(long sellerId, long auctionId, CancellationToken ct)
     {
         var auction = await _auctions.GetByIdAsync(auctionId, ct);
-        if (auction is null) return (false, "Auction not found.", null);
-        if (auction.SellerId != sellerId) return (false, "Forbidden.", null);
+        if (auction is null) return Result<AuctionActionResponse>.Fail("Auction not found.", ApplicationErrorCode.ResourceNotFound);
+        if (auction.SellerId != sellerId) return Result<AuctionActionResponse>.Fail("Forbidden.", ApplicationErrorCode.Forbidden);
         if (auction.Status == AuctionStatus.Canceled || auction.Status == AuctionStatus.Sold || auction.Status == AuctionStatus.EndedNoWinner || auction.Status == AuctionStatus.EndedPendingPayment)
-            return (false, "Auction cannot be published in current status.", null);
+            return Result<AuctionActionResponse>.Fail("Auction cannot be published in current status.", ApplicationErrorCode.Validation);
 
         if (auction.Publish(DateTimeOffset.UtcNow) == TransitionOutcome.Invalid)
-            return (false, "Auction cannot be published in current status.", null);
+            return Result<AuctionActionResponse>.Fail("Auction cannot be published in current status.", ApplicationErrorCode.Validation);
         await _uow.SaveChangesAsync(ct);
 
-        return (true, null, new AuctionActionResponse(auction.Id, auction.Status.ToString()));
+        return Result<AuctionActionResponse>.Ok(new AuctionActionResponse(auction.Id, auction.Status.ToString()));
     }
 
     public async Task<Result<AuctionActionResponse>> CancelAsync(long sellerId, long auctionId, CancellationToken ct)
@@ -101,20 +103,20 @@ public class SellerAuctionApplicationService : ISellerAuctionApplicationService
         await using var transaction = await _uow.BeginTransactionAsync(ct);
 
         var auction = await _auctions.GetByIdAsync(auctionId, ct);
-        if (auction is null) return (false, "Auction not found.", null);
-        if (auction.SellerId != sellerId) return (false, "Forbidden.", null);
+        if (auction is null) return Result<AuctionActionResponse>.Fail("Auction not found.", ApplicationErrorCode.ResourceNotFound);
+        if (auction.SellerId != sellerId) return Result<AuctionActionResponse>.Fail("Forbidden.", ApplicationErrorCode.Forbidden);
         if (auction.Status == AuctionStatus.Live || auction.Status == AuctionStatus.Extended)
         {
             var hasAnyBid = await _auctions.HasAnyBidAsync(auction.Id, ct);
             if (hasAnyBid)
-                return (false, "Auction with bids cannot be canceled.", null);
+                return Result<AuctionActionResponse>.Fail("Auction with bids cannot be canceled.", ApplicationErrorCode.Validation);
         }
 
         if (auction.Status is AuctionStatus.Sold or AuctionStatus.EndedPendingPayment or AuctionStatus.EndedNoWinner or AuctionStatus.WinnerFailed or AuctionStatus.Canceled)
-            return (false, "Auction cannot be canceled in current status.", null);
+            return Result<AuctionActionResponse>.Fail("Auction cannot be canceled in current status.", ApplicationErrorCode.Validation);
 
         if (auction.Cancel(DateTimeOffset.UtcNow) == TransitionOutcome.Invalid)
-            return (false, "Auction cannot be canceled in current status.", null);
+            return Result<AuctionActionResponse>.Fail("Auction cannot be canceled in current status.", ApplicationErrorCode.Validation);
         
         // Free up the product so seller can create a new auction or relist
         var product = await _products.GetByIdAsync(auction.ProductId, ct);
@@ -128,7 +130,7 @@ public class SellerAuctionApplicationService : ISellerAuctionApplicationService
         await _uow.SaveChangesAsync(ct);
 
         await transaction.CommitAsync(ct);
-        return (true, null, new AuctionActionResponse(auction.Id, auction.Status.ToString()));
+        return Result<AuctionActionResponse>.Ok(new AuctionActionResponse(auction.Id, auction.Status.ToString()));
     }
 
     public async Task<Result<AuctionActionResponse>> RelistAsync(long sellerId, long auctionId, RelistAuctionRequest request, CancellationToken ct)
@@ -136,23 +138,25 @@ public class SellerAuctionApplicationService : ISellerAuctionApplicationService
         await using var transaction = await _uow.BeginTransactionAsync(ct);
 
         var source = await _auctions.GetByIdAsync(auctionId, ct);
-        if (source is null) return (false, "Auction not found.", null);
-        if (source.SellerId != sellerId) return (false, "Forbidden.", null);
+        if (source is null) return Result<AuctionActionResponse>.Fail("Auction not found.", ApplicationErrorCode.ResourceNotFound);
+        if (source.SellerId != sellerId) return Result<AuctionActionResponse>.Fail("Forbidden.", ApplicationErrorCode.Forbidden);
 
         if (source.Status is not (AuctionStatus.Canceled or AuctionStatus.EndedNoWinner or AuctionStatus.WinnerFailed))
-            return (false, "Auction cannot be relisted in current status.", null);
+            return Result<AuctionActionResponse>.Fail("Auction cannot be relisted in current status.", ApplicationErrorCode.Validation);
 
         // Floor price is carried over from the source auction — it cannot be changed on relist.
         var floorPrice = source.FloorPrice;
-        if (request.ReservePrice.HasValue && request.ReservePrice.Value < floorPrice) return (false, "Reserve price must be >= floor price.", null);
-        if (request.EndsAt <= DateTimeOffset.UtcNow.AddMinutes(1)) return (false, "EndsAt must be in the future.", null);
+        if (request.ReservePrice.HasValue && request.ReservePrice.Value < floorPrice) return Result<AuctionActionResponse>.Fail("Reserve price must be >= floor price.", ApplicationErrorCode.Validation);
+        if (request.EndsAt <= DateTimeOffset.UtcNow.AddMinutes(1)) return Result<AuctionActionResponse>.Fail("EndsAt must be in the future.", ApplicationErrorCode.Validation);
 
         var hasDraftOrLive = await _auctions.ExistsDraftOrLiveByProductIdAsync(source.ProductId, ct);
-        if (hasDraftOrLive) return (false, "An active/draft auction already exists for this product.", null);
+        if (hasDraftOrLive) return Result<AuctionActionResponse>.Fail("An active/draft auction already exists for this product.", ApplicationErrorCode.Validation);
 
         // Seller sets the required bid deposit. 0 disables the deposit gate; it may not exceed the floor price.
         var (depositOk, depositError, resolvedDeposit) = ResolveSellerDeposit(request.RequiredDepositAmount, floorPrice);
-        if (!depositOk) return (false, depositError, null);
+        if (!depositOk)
+            return Result<AuctionActionResponse>.Fail(
+                depositError ?? "Required deposit is invalid.", ApplicationErrorCode.Validation);
 
         // Mark product as in auction again (it was freed when the source auction ended/canceled)
         var product = await _products.GetByIdAsync(source.ProductId, ct);
@@ -191,7 +195,7 @@ public class SellerAuctionApplicationService : ISellerAuctionApplicationService
         await _uow.SaveChangesAsync(ct);
 
         await transaction.CommitAsync(ct);
-        return (true, null, new AuctionActionResponse(newAuction.Id, newAuction.Status.ToString()));
+        return Result<AuctionActionResponse>.Ok(new AuctionActionResponse(newAuction.Id, newAuction.Status.ToString()));
     }
 
     public async Task<IReadOnlyList<SellerAuctionItem>> GetMyAuctionsAsync(long sellerId, AuctionStatus? status, CancellationToken ct)
