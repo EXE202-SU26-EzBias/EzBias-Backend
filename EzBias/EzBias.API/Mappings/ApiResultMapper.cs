@@ -12,10 +12,7 @@ public static class ApiResultMapper
         if (result.IsSuccess)
             throw new InvalidOperationException("Only failed results can be mapped to an error response.");
 
-        var error = result.Failure
-            ?? ApplicationError.Create(
-                ApplicationErrorCode.Validation,
-                "Request could not be completed.");
+        var error = result.Failure!;
         return error.Kind switch
         {
             ErrorKind.Forbidden => controller.Forbid(),
