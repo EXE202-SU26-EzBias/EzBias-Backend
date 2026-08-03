@@ -2,7 +2,6 @@ using System.Security.Claims;
 using System.Text;
 using System.Text.Json;
 using EzBias.API.Mappings;
-using EzBias.Application.Common.Results;
 using EzBias.Application.Features.Payments;
 using EzBias.Application.Features.Payments.Dtos;
 using Microsoft.AspNetCore.Authorization;
@@ -27,7 +26,7 @@ public class PaymentsController : ControllerBase
     {
         if (!TryGetUserId(out var userId)) return Unauthorized();
         var result = await _paymentService.CreateAsync(userId, request, ct);
-        if (!result.IsSuccess || result.Value is null) return this.ToErrorActionResult(result, notFoundAsBadRequest: true);
+        if (!result.IsSuccess || result.Value is null) return this.ToErrorActionResult(result);
         return Ok(result.Value);
     }
 
@@ -82,7 +81,7 @@ public class PaymentsController : ControllerBase
         var timestamp = Request.Headers["X-SePay-Timestamp"].FirstOrDefault();
 
         var result = await _paymentService.HandleSePayWebhookAsync(request, rawBody, signature, timestamp, ct);
-        if (!result.IsSuccess) return this.ToErrorActionResult(result, notFoundAsBadRequest: true);
+        if (!result.IsSuccess) return this.ToErrorActionResult(result);
 
         return Ok(new { ok = true });
     }

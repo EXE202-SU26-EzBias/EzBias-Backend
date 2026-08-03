@@ -1,5 +1,4 @@
 using EzBias.API.Mappings;
-using EzBias.Application.Common.Results;
 using EzBias.Application.Features.Deposits;
 using EzBias.Application.Features.Deposits.Dtos;
 using Microsoft.AspNetCore.Authorization;
@@ -28,7 +27,7 @@ public class AdminDepositsController : ControllerBase
     {
         var result = await _depositService.GetPendingRefundsAsync(ct);
         if (!result.IsSuccess || result.Value is null)
-            return this.ToErrorActionResult(result, notFoundAsBadRequest: true);
+            return this.ToErrorActionResult(result);
 
         return Ok(result.Value);
     }

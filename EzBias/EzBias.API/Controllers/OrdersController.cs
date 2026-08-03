@@ -1,6 +1,5 @@
 using System.Security.Claims;
 using EzBias.API.Mappings;
-using EzBias.Application.Common.Results;
 using EzBias.Application.Features.Orders;
 using EzBias.Application.Features.Orders.Dtos;
 using Microsoft.AspNetCore.Authorization;
@@ -25,7 +24,7 @@ public class OrdersController : ControllerBase
     {
         if (!TryGetUserId(out var userId)) return Unauthorized();
         var result = await _orderService.CreateAsync(userId, request, ct);
-        if (!result.IsSuccess || result.Value is null) return this.ToErrorActionResult(result, notFoundAsBadRequest: true);
+        if (!result.IsSuccess || result.Value is null) return this.ToErrorActionResult(result);
         return Ok(result.Value);
     }
 

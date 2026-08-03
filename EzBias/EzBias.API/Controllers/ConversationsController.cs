@@ -1,6 +1,5 @@
 using System.Security.Claims;
 using EzBias.API.Mappings;
-using EzBias.Application.Common.Results;
 using EzBias.Application.Features.Chat;
 using EzBias.Application.Features.Chat.Dtos;
 using EzBias.Application.Features.Media;
@@ -30,7 +29,7 @@ public class ConversationsController : ControllerBase
         if (!TryGetUserId(out var userId)) return Unauthorized();
         var result = await _chat.StartOrGetConversationAsync(userId, request, ct);
         if (!result.IsSuccess || result.Value is null)
-            return this.ToErrorActionResult(result, notFoundAsBadRequest: true);
+            return this.ToErrorActionResult(result);
         return Ok(result.Value);
     }
 

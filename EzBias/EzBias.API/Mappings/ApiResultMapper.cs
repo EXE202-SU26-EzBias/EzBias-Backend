@@ -7,9 +7,7 @@ public static class ApiResultMapper
 {
     public static IActionResult ToErrorActionResult(
         this ControllerBase controller,
-        Result result,
-        bool notFoundAsBadRequest = false,
-        ErrorKind? forceKind = null)
+        Result result)
     {
         if (result.IsSuccess)
             throw new InvalidOperationException("Only failed results can be mapped to an error response.");
@@ -18,11 +16,7 @@ public static class ApiResultMapper
             ?? ApplicationError.Create(
                 ApplicationErrorCode.Validation,
                 "Request could not be completed.");
-        var kind = forceKind ?? error.Kind;
-        if (notFoundAsBadRequest && kind == ErrorKind.NotFound)
-            return controller.BadRequest(new { message = error.Message });
-
-        return kind switch
+        return error.Kind switch
         {
             ErrorKind.Forbidden => controller.Forbid(),
             ErrorKind.Unauthorized => controller.Unauthorized(new { message = error.Message }),

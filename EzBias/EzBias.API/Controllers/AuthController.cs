@@ -1,6 +1,5 @@
 using System.Security.Claims;
 using EzBias.API.Mappings;
-using EzBias.Application.Common.Results;
 using EzBias.Application.Features.Auth;
 using EzBias.Application.Features.Auth.Dtos;
 using Microsoft.AspNetCore.Authorization;
@@ -27,7 +26,7 @@ public class AuthController : ControllerBase
     {
         var result = await _authService.RegisterAsync(req, ct);
         if (!result.IsSuccess || result.Value is null)
-            return this.ToErrorActionResult(result, forceKind: ErrorKind.Conflict);
+            return this.ToErrorActionResult(result);
 
         SetRefreshCookie(result.Value.RefreshToken);
         return Ok(ToAuthResponse(result.Value));
@@ -38,7 +37,7 @@ public class AuthController : ControllerBase
     {
         var result = await _authService.LoginAsync(req, ct);
         if (!result.IsSuccess || result.Value is null)
-            return this.ToErrorActionResult(result, forceKind: ErrorKind.Unauthorized);
+            return this.ToErrorActionResult(result);
 
         SetRefreshCookie(result.Value.RefreshToken);
         return Ok(ToAuthResponse(result.Value));
@@ -52,7 +51,7 @@ public class AuthController : ControllerBase
 
         var result = await _authService.RefreshAsync(new RefreshRequest(token), ct);
         if (!result.IsSuccess || result.Value is null)
-            return this.ToErrorActionResult(result, forceKind: ErrorKind.Unauthorized);
+            return this.ToErrorActionResult(result);
 
         SetRefreshCookie(result.Value.RefreshToken);
         return Ok(ToAuthResponse(result.Value));
@@ -74,7 +73,7 @@ public class AuthController : ControllerBase
     public async Task<IActionResult> ForgotPassword(ForgotPasswordRequest req, CancellationToken ct)
     {
         var result = await _authService.ForgotPasswordAsync(req, ct);
-        if (!result.IsSuccess) return this.ToErrorActionResult(result, forceKind: ErrorKind.Validation);
+        if (!result.IsSuccess) return this.ToErrorActionResult(result);
 
         return Ok(new SimpleMessageResponse("If the email exists, a password reset code has been sent."));
     }
@@ -83,7 +82,7 @@ public class AuthController : ControllerBase
     public async Task<IActionResult> ResetPassword(ResetPasswordRequest req, CancellationToken ct)
     {
         var result = await _authService.ResetPasswordAsync(req, ct);
-        if (!result.IsSuccess) return this.ToErrorActionResult(result, forceKind: ErrorKind.Validation);
+        if (!result.IsSuccess) return this.ToErrorActionResult(result);
 
         return Ok(new SimpleMessageResponse("Password has been reset."));
     }
@@ -92,7 +91,7 @@ public class AuthController : ControllerBase
     public async Task<IActionResult> RequestEmailVerification(RequestEmailVerificationRequest req, CancellationToken ct)
     {
         var result = await _authService.RequestEmailVerificationAsync(req, ct);
-        if (!result.IsSuccess) return this.ToErrorActionResult(result, forceKind: ErrorKind.Validation);
+        if (!result.IsSuccess) return this.ToErrorActionResult(result);
 
         return Ok(new SimpleMessageResponse("If the email exists and is not verified, a verification code has been sent."));
     }
@@ -101,7 +100,7 @@ public class AuthController : ControllerBase
     public async Task<IActionResult> VerifyEmail(VerifyEmailRequest req, CancellationToken ct)
     {
         var result = await _authService.VerifyEmailAsync(req, ct);
-        if (!result.IsSuccess) return this.ToErrorActionResult(result, forceKind: ErrorKind.Validation);
+        if (!result.IsSuccess) return this.ToErrorActionResult(result);
 
         return Ok(new SimpleMessageResponse("Email has been verified."));
     }
@@ -119,7 +118,7 @@ public class AuthController : ControllerBase
 
         var result = await _authService.MeAsync(userId, ct);
         if (!result.IsSuccess || result.Value is null)
-            return this.ToErrorActionResult(result, forceKind: ErrorKind.Unauthorized);
+            return this.ToErrorActionResult(result);
 
         return Ok(result.Value);
     }

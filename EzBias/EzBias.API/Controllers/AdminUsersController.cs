@@ -1,6 +1,5 @@
 using System.Security.Claims;
 using EzBias.API.Mappings;
-using EzBias.Application.Common.Results;
 using EzBias.Application.Features.Admin;
 using EzBias.Application.Features.Admin.Dtos;
 using Microsoft.AspNetCore.Authorization;
@@ -31,7 +30,7 @@ public class AdminUsersController : ControllerBase
     public async Task<IActionResult> GetById([FromRoute] long id, CancellationToken ct)
     {
         var result = await _adminService.GetUserDetailAsync(id, ct);
-        if (!result.IsSuccess || result.Value is null) return this.ToErrorActionResult(result, forceKind: ErrorKind.NotFound);
+        if (!result.IsSuccess || result.Value is null) return this.ToErrorActionResult(result);
         return Ok(result.Value);
     }
 
@@ -39,7 +38,7 @@ public class AdminUsersController : ControllerBase
     public async Task<IActionResult> Create([FromBody] AdminCreateUserRequest request, CancellationToken ct)
     {
         var result = await _adminService.CreateUserAsync(request, ct);
-        if (!result.IsSuccess || result.Value is null) return this.ToErrorActionResult(result, notFoundAsBadRequest: true);
+        if (!result.IsSuccess || result.Value is null) return this.ToErrorActionResult(result);
         return Ok(result.Value);
     }
 

@@ -1,6 +1,5 @@
 using System.Security.Claims;
 using EzBias.API.Mappings;
-using EzBias.Application.Common.Results;
 using EzBias.Application.Features.Users;
 using EzBias.Application.Features.Users.Dtos;
 using Microsoft.AspNetCore.Authorization;
@@ -25,7 +24,7 @@ public class UsersController : ControllerBase
     {
         if (!TryGetUserId(out var userId)) return Unauthorized();
         var result = await _service.GetMeAsync(userId, ct);
-        if (!result.IsSuccess || result.Value is null) return this.ToErrorActionResult(result, forceKind: ErrorKind.NotFound);
+        if (!result.IsSuccess || result.Value is null) return this.ToErrorActionResult(result);
         return Ok(result.Value);
     }
 
@@ -34,7 +33,7 @@ public class UsersController : ControllerBase
     {
         if (!TryGetUserId(out var userId)) return Unauthorized();
         var result = await _service.UpdateMeAsync(userId, request, ct);
-        if (!result.IsSuccess || result.Value is null) return this.ToErrorActionResult(result, forceKind: ErrorKind.NotFound);
+        if (!result.IsSuccess || result.Value is null) return this.ToErrorActionResult(result);
         return Ok(result.Value);
     }
 

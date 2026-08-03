@@ -54,7 +54,7 @@ public class AuthApplicationService : IAuthApplicationService
 
         var exists = await _users.ExistsByEmailOrUsernameAsync(normalizedEmail, normalizedUsername, ct);
         if (exists)
-            return Result<AuthResult>.Fail("Email or username already exists.", ApplicationErrorCode.Validation);
+            return Result<AuthResult>.Fail("Email or username already exists.", ApplicationErrorCode.Conflict);
 
         var user = new User
         {
@@ -81,13 +81,13 @@ public class AuthApplicationService : IAuthApplicationService
         var user = await _users.GetByLoginKeyAsync(key, ct);
 
         if (user is null || user.DeletedAt != null)
-            return Result<AuthResult>.Fail("Invalid credentials.", ApplicationErrorCode.Validation);
+            return Result<AuthResult>.Fail("Invalid credentials.", ApplicationErrorCode.Unauthorized);
 
         if (!_passwordHasher.Verify(req.Password, user.PasswordHash))
-            return Result<AuthResult>.Fail("Invalid credentials.", ApplicationErrorCode.Validation);
+            return Result<AuthResult>.Fail("Invalid credentials.", ApplicationErrorCode.Unauthorized);
 
         if (user.EmailVerifiedAt is null)
-            return Result<AuthResult>.Fail("Email is not verified.", ApplicationErrorCode.Validation);
+            return Result<AuthResult>.Fail("Email is not verified.", ApplicationErrorCode.Unauthorized);
 
         var auth = await BuildAuthResponseAsync(user, ct);
         return Result<AuthResult>.Ok(auth);
@@ -102,7 +102,7 @@ public class AuthApplicationService : IAuthApplicationService
         var stored = await _refreshTokens.GetByHashWithUserAsync(hash, ct);
 
         if (stored is null || stored.IsRevoked || stored.ExpiresAt <= DateTimeOffset.UtcNow)
-            return Result<AuthResult>.Fail("Invalid refresh token.", ApplicationErrorCode.Validation);
+            return Result<AuthResult>.Fail("Invalid refresh token.", ApplicationErrorCode.Unauthorized);
 
         stored.IsRevoked = true;
         stored.RevokedAt = DateTimeOffset.UtcNow;

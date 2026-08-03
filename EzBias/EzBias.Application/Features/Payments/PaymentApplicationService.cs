@@ -156,10 +156,14 @@ public class PaymentApplicationService : IPaymentApplicationService
         var content = payload.Content ?? payload.Description ?? string.Empty;
         var reference = ExtractReference(content);
         if (string.IsNullOrWhiteSpace(reference))
-            return Result.Fail("Reference not found in SePay content.", ApplicationErrorCode.ResourceNotFound);
+            return Result.Fail("Reference not found in SePay content.", ApplicationErrorCode.Validation);
 
         var mapped = new PaymentWebhookRequest(reference, payload.Id?.ToString() ?? payload.ReferenceCode, content, rawBody);
-        return await HandleWebhookAsync(mapped, rawBody, signature, timestamp, ct);
+        var result = await HandleWebhookAsync(mapped, rawBody, signature, timestamp, ct);
+        if (!result.IsSuccess && result.Failure?.Code == ApplicationErrorCode.ResourceNotFound)
+            return Result.Fail(result.Failure.Message, ApplicationErrorCode.Validation);
+
+        return result;
     }
 
     private async Task<Result> ConfirmBySePayPullAsync(Payment payment, CancellationToken ct)

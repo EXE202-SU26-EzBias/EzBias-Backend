@@ -1,6 +1,5 @@
 using System.Security.Claims;
 using EzBias.API.Mappings;
-using EzBias.Application.Common.Results;
 using EzBias.Application.Features.Cart;
 using EzBias.Application.Features.Cart.Dtos;
 using Microsoft.AspNetCore.Authorization;
@@ -34,7 +33,7 @@ public class CartController : ControllerBase
         if (!TryGetUserId(out var userId)) return Unauthorized();
 
         var result = await _cartService.UpsertItemAsync(userId, request, ct);
-        if (!result.IsSuccess) return this.ToErrorActionResult(result, notFoundAsBadRequest: true);
+        if (!result.IsSuccess) return this.ToErrorActionResult(result);
 
         return Ok(new { message = "Cart updated." });
     }
@@ -45,7 +44,7 @@ public class CartController : ControllerBase
         if (!TryGetUserId(out var userId)) return Unauthorized();
 
         var result = await _cartService.AddAuctionItemToCartAsync(userId, auctionId, ct);
-        if (!result.IsSuccess) return this.ToErrorActionResult(result, notFoundAsBadRequest: true);
+        if (!result.IsSuccess) return this.ToErrorActionResult(result);
 
         return Ok(new { message = "Auction item added to cart." });
     }
@@ -70,7 +69,7 @@ public class CartController : ControllerBase
         if (!TryGetUserId(out var userId)) return Unauthorized();
 
         var result = await _cartService.RemoveItemAsync(userId, cartItemId, ct);
-        if (!result.IsSuccess) return this.ToErrorActionResult(result, forceKind: ErrorKind.NotFound);
+        if (!result.IsSuccess) return this.ToErrorActionResult(result);
 
         return NoContent();
     }
