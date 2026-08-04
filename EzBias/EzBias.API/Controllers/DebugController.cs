@@ -65,8 +65,7 @@ public class DebugController : ControllerBase
     }
 
     /// <summary>
-    /// Health check endpoint for keep-alive services.
-    /// Returns simple OK response with timestamp.
+    /// Lightweight health endpoint for operational probes.
     /// </summary>
     [HttpGet("health")]
     public IActionResult Health()

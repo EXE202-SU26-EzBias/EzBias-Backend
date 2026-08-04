@@ -16,7 +16,7 @@
 ## Runtime Composition
 - `Program.cs` clears default configuration sources, then loads `appsettings.json`, optional environment-specific appsettings, and environment variables.
 - Controllers, SignalR, response compression, Swagger, JWT bearer auth, CORS, EF Core/Npgsql, repositories, application services, hosted services, and named HTTP clients are registered in API.
-- Named HTTP clients are `"SePay"`, `"Brevo"`, and `"KeepAlive"`.
+- Named HTTP clients are `"SePay"` and `"Brevo"`.
 - Swagger is enabled when the app is in Development or `Swagger:Enabled` is `true`.
 - CORS is hard-coded for `http://localhost:5173` and `https://ez-bias-frontend.vercel.app`.
 
@@ -30,7 +30,7 @@
 - Auctions: public `api/auctions` reads and authenticated bidding/deposit/payment/post-flow endpoints.
 - Admin: dashboards, users, deposits, payouts, disputes, manual payment confirmation, and review moderation.
 - Collaboration: notifications, conversations/chat, chat image upload, and video calls.
-- Utility endpoints: `api/contact` stores contact messages directly; `api/debug/*` exposes development/secret-gated seed, reset, health, and config helpers.
+- Utility endpoints: `api/contact` stores contact messages directly. `api/debug/*` exposes development/secret-gated seed, reset, and config helpers; `GET /api/debug/health` is a stateless, read-only operational probe returning `status`, `timestamp`, and `uptime`, independent of hosted services.
 
 ## Repository Pattern
 - Repository interfaces live in `EzBias.Domain.Interfaces`.
@@ -53,7 +53,7 @@
 ## Hosted Services
 - `AuctionCloseScheduler`: every configured interval, sends near-end reminders, closes ended auctions, creates pending auction orders for winners, cancels unpaid winner orders after 24 hours, and forfeits winner deposits. Non-winner auto-refund code is deliberately disabled.
 - `DeliveredOrderFinalizeScheduler`: completes delivered orders after the configured grace period when no open dispute or pending refund blocks finalization, then creates escrow OUT and pending seller payout records.
-- `KeepAliveScheduler`: when enabled, pings a configured URL after startup and then on a minimum 30-second interval.
+- `NotificationDispatchScheduler`: claims pending notification rows and delivers them through the realtime adapter with lease/retry handling.
 - Hosted services create a DI scope on each polling tick before resolving scoped repositories/services.
 
 ## Startup and Seed Data

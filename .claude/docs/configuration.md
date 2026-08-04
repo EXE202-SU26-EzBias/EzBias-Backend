@@ -17,9 +17,6 @@
 - `Auction:CloseScheduler:IntervalSeconds`: default `10`, minimum runtime value `1`.
 - `Order:DeliveredFinalizeScheduler:IntervalSeconds`: default `60`, minimum runtime value `1`.
 - `Order:DeliveredFinalizeScheduler:GraceDays`: default `3`, minimum runtime value `0`.
-- `KeepAlive:Enabled`: default `false`.
-- `KeepAlive:TargetUrl`: default Render health URL placeholder.
-- `KeepAlive:IntervalSeconds`: default `240`, minimum runtime value `30`.
 - `SePay:BaseUrl`: default `https://my.sepay.vn`.
 - `SePay:ApiToken`: placeholder.
 - `SePay:AccountNumber`: placeholder.
@@ -48,7 +45,6 @@
 - Brevo env mapping: `Brevo__ApiKey`, `Brevo__FromEmail`, `Brevo__FromName`.
 - Commission env mapping: `Commission__RatePercent=${COMMISSION_RATE_PERCENT}`.
 - Cloudinary env mapping: `Cloudinary__CloudName`, `Cloudinary__ApiKey`, `Cloudinary__ApiSecret`, `Cloudinary__Folder`.
-- `.env.example` defines keep-alive values, but `docker-compose.yml` currently does not inject `KeepAlive__*` keys.
 - `.env.example` does not define or inject SePay keys; configure `SePay__ApiToken`, `SePay__AccountNumber`, `SePay__WebhookSecret`, and optionally `SePay__DefaultLimit` in the deployment environment.
 
 ## Integration Behavior
@@ -57,7 +53,6 @@
 - Brevo is considered configured when `ApiKey` and `FromEmail` are non-empty. If not configured, OTP emails are not sent and the OTP is logged.
 - Cloudinary is considered configured when `CloudName`, `ApiKey`, and `ApiSecret` are non-empty. Product uploads fail with `"Cloudinary is not configured."` when missing.
 - Shared Cloudinary upload validation allows JPEG, PNG, and WEBP images up to 5 MB. Chat upload controller also accepts GIF at the controller validation layer, but the shared uploader will reject GIF unless the uploader is extended.
-- KeepAlive waits 10 seconds after startup before the first ping, then pings on the configured interval.
 
 ## Fixed Code-Level Settings
 - CORS origins are hard-coded in `Program.cs`: `http://localhost:5173` and `https://ez-bias-frontend.vercel.app`.
