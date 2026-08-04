@@ -15,6 +15,7 @@ public class AuctionBiddingApplicationService : IAuctionBiddingApplicationServic
     private readonly INotificationFactory _notificationFactory;
     private readonly IAuctionDepositRepository _deposits;
     private readonly IUnitOfWork _uow;
+    private readonly IAuctionRealtime _auctionRealtime;
 
     public AuctionBiddingApplicationService(
         IAuctionRepository auctions,
@@ -22,7 +23,8 @@ public class AuctionBiddingApplicationService : IAuctionBiddingApplicationServic
         INotificationRepository notifications,
         INotificationFactory notificationFactory,
         IAuctionDepositRepository deposits,
-        IUnitOfWork uow)
+        IUnitOfWork uow,
+        IAuctionRealtime auctionRealtime)
     {
         _auctions = auctions;
         _bids = bids;
@@ -30,6 +32,7 @@ public class AuctionBiddingApplicationService : IAuctionBiddingApplicationServic
         _notificationFactory = notificationFactory;
         _deposits = deposits;
         _uow = uow;
+        _auctionRealtime = auctionRealtime;
     }
 
     public async Task<IReadOnlyList<AuctionListItem>> GetPublicAuctionsAsync(AuctionStatus? status, CancellationToken ct)
@@ -85,85 +88,100 @@ public class AuctionBiddingApplicationService : IAuctionBiddingApplicationServic
 
     public async Task<Result<PlaceBidResponse>> PlaceBidAsync(long bidderId, long auctionId, PlaceBidRequest request, CancellationToken ct)
     {
-        await using var transaction = await _uow.BeginTransactionAsync(ct);
-        var now = DateTimeOffset.UtcNow;
+        PlaceBidResponse response;
+        BidPlacedEvent realtimeEvent;
 
-        var auction = await _auctions.GetByIdWithProductForUpdateAsync(auctionId, ct);
-        if (auction is null) return Result<PlaceBidResponse>.Fail("Auction not found.", ApplicationErrorCode.ResourceNotFound);
-        if (auction.Status is not (AuctionStatus.Live or AuctionStatus.Extended)) return Result<PlaceBidResponse>.Fail("Auction is not live.", ApplicationErrorCode.Validation);
-        if (auction.EndsAt <= DateTimeOffset.UtcNow) return Result<PlaceBidResponse>.Fail("Auction has ended.", ApplicationErrorCode.Validation);
-        if (auction.SellerId == bidderId) return Result<PlaceBidResponse>.Fail("Seller cannot bid own auction.", ApplicationErrorCode.Validation);
-
-        // Req 4: a held deposit is required to bid when the auction is deposit-gated.
-        if (auction.RequiredDepositAmount > 0m)
         {
-            var hasHeld = await _deposits.HasHeldDepositAsync(bidderId, auctionId, ct);
-            if (!hasHeld)
-                return Result<PlaceBidResponse>.Fail("A held deposit is required to bid on this auction.", ApplicationErrorCode.Validation);
+            await using var transaction = await _uow.BeginTransactionAsync(ct);
+            var now = DateTimeOffset.UtcNow;
+
+            var auction = await _auctions.GetByIdWithProductForUpdateAsync(auctionId, ct);
+            if (auction is null) return Result<PlaceBidResponse>.Fail("Auction not found.", ApplicationErrorCode.ResourceNotFound);
+            if (auction.Status is not (AuctionStatus.Live or AuctionStatus.Extended)) return Result<PlaceBidResponse>.Fail("Auction is not live.", ApplicationErrorCode.Validation);
+            if (auction.EndsAt <= DateTimeOffset.UtcNow) return Result<PlaceBidResponse>.Fail("Auction has ended.", ApplicationErrorCode.Validation);
+            if (auction.SellerId == bidderId) return Result<PlaceBidResponse>.Fail("Seller cannot bid own auction.", ApplicationErrorCode.Validation);
+
+            // Req 4: a held deposit is required to bid when the auction is deposit-gated.
+            if (auction.RequiredDepositAmount > 0m)
+            {
+                var hasHeld = await _deposits.HasHeldDepositAsync(bidderId, auctionId, ct);
+                if (!hasHeld)
+                    return Result<PlaceBidResponse>.Fail("A held deposit is required to bid on this auction.", ApplicationErrorCode.Validation);
+            }
+
+            var highest = await _bids.GetHighestBidAmountAsync(auctionId, ct);
+
+            decimal minRequired;
+            if (highest is null)
+            {
+                // No bids yet — first bid must be >= floor price
+                minRequired = auction.FloorPrice;
+            }
+            else
+            {
+                // Subsequent bids must exceed current highest by at least 1,000 VND
+                minRequired = highest.Value + 1_000m;
+            }
+
+            if (request.Amount < minRequired)
+                return Result<PlaceBidResponse>.Fail($"Bid must be >= {minRequired:N0} VND.", ApplicationErrorCode.Validation);
+
+            var bid = new Bid
+            {
+                AuctionId = auction.Id,
+                UserId = bidderId,
+                Amount = request.Amount,
+                IsWinning = true,
+                PlacedAt = DateTimeOffset.UtcNow
+            };
+
+            // Notify the previous winner that they've been outbid
+            var previousTopBid = await _bids.GetTopBidAsync(auctionId, ct);
+            if (previousTopBid is not null && previousTopBid.UserId != bidderId)
+            {
+                _notifications.Add(_notificationFactory.Outbid(
+                    previousTopBid.UserId,
+                    auctionId,
+                    auction.Product.Name,
+                    request.Amount));
+            }
+
+            await _bids.ClearWinningFlagsAsync(auction.Id, ct);
+            _bids.Add(bid);
+
+            // TEMPORARILY DISABLED: Auction extension for testing
+            // var remaining = auction.EndsAt - DateTimeOffset.UtcNow;
+            // if (remaining.TotalSeconds <= auction.TriggerBeforeEnd)
+            // {
+            //     auction.EndsAt = auction.EndsAt.AddSeconds(auction.ExtensionSeconds);
+            //     auction.ExtensionCount += 1;
+            //     auction.Status = AuctionStatus.Extended;
+            //     // Reset reminder flag so the 5-min reminder fires again after extension
+            //     auction.ReminderSent5Min = false;
+            // }
+            // else
+            // {
+            //     auction.Status = AuctionStatus.Live;
+            // }
+
+            var transition = auction.RecordBid(request.Amount, now);
+            if (transition == TransitionOutcome.Invalid)
+                return Result<PlaceBidResponse>.Fail("Auction is not live.", ApplicationErrorCode.Validation);
+
+            await _uow.SaveChangesAsync(ct);
+            await transaction.CommitAsync(ct);
+
+            response = new PlaceBidResponse(auction.Id, bid.Id, bid.Amount, auction.CurrentBid, auction.Status);
+            realtimeEvent = new BidPlacedEvent(
+                auction.Id,
+                bid.Id,
+                bid.Amount,
+                auction.CurrentBid,
+                auction.Status.ToString(),
+                bid.PlacedAt);
         }
 
-        var highest = await _bids.GetHighestBidAmountAsync(auctionId, ct);
-
-        decimal minRequired;
-        if (highest is null)
-        {
-            // No bids yet — first bid must be >= floor price
-            minRequired = auction.FloorPrice;
-        }
-        else
-        {
-            // Subsequent bids must exceed current highest by at least 1,000 VND
-            minRequired = highest.Value + 1_000m;
-        }
-
-        if (request.Amount < minRequired)
-            return Result<PlaceBidResponse>.Fail($"Bid must be >= {minRequired:N0} VND.", ApplicationErrorCode.Validation);
-
-        var bid = new Bid
-        {
-            AuctionId = auction.Id,
-            UserId = bidderId,
-            Amount = request.Amount,
-            IsWinning = true,
-            PlacedAt = DateTimeOffset.UtcNow
-        };
-
-        // Notify the previous winner that they've been outbid
-        var previousTopBid = await _bids.GetTopBidAsync(auctionId, ct);
-        if (previousTopBid is not null && previousTopBid.UserId != bidderId)
-        {
-            _notifications.Add(_notificationFactory.Outbid(
-                previousTopBid.UserId,
-                auctionId,
-                auction.Product.Name,
-                request.Amount));
-        }
-
-        await _bids.ClearWinningFlagsAsync(auction.Id, ct);
-        _bids.Add(bid);
-
-        // TEMPORARILY DISABLED: Auction extension for testing
-        // var remaining = auction.EndsAt - DateTimeOffset.UtcNow;
-        // if (remaining.TotalSeconds <= auction.TriggerBeforeEnd)
-        // {
-        //     auction.EndsAt = auction.EndsAt.AddSeconds(auction.ExtensionSeconds);
-        //     auction.ExtensionCount += 1;
-        //     auction.Status = AuctionStatus.Extended;
-        //     // Reset reminder flag so the 5-min reminder fires again after extension
-        //     auction.ReminderSent5Min = false;
-        // }
-        // else
-        // {
-        //     auction.Status = AuctionStatus.Live;
-        // }
-        
-        var transition = auction.RecordBid(request.Amount, now);
-        if (transition == TransitionOutcome.Invalid)
-            return Result<PlaceBidResponse>.Fail("Auction is not live.", ApplicationErrorCode.Validation);
-
-        await _uow.SaveChangesAsync(ct);
-        await transaction.CommitAsync(ct);
-
-        return Result<PlaceBidResponse>.Ok(new PlaceBidResponse(auction.Id, bid.Id, bid.Amount, auction.CurrentBid, auction.Status));
+        await _auctionRealtime.PushBidPlacedAsync(realtimeEvent, ct);
+        return Result<PlaceBidResponse>.Ok(response);
     }
 }

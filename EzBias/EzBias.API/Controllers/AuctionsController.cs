@@ -1,5 +1,4 @@
 using System.Security.Claims;
-using EzBias.API.Hubs;
 using EzBias.API.Mappings;
 using EzBias.Application.Common.Results;
 using EzBias.Application.Features.Auctions;
@@ -7,7 +6,6 @@ using EzBias.Application.Features.Auctions.Dtos;
 using EzBias.Domain.Enums;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.AspNetCore.SignalR;
 
 namespace EzBias.API.Controllers;
 
@@ -16,17 +14,11 @@ namespace EzBias.API.Controllers;
 public class AuctionsController : ControllerBase
 {
     private readonly IAuctionBiddingApplicationService _service;
-    private readonly IHubContext<AuctionHub> _auctionHub;
-    private readonly ILogger<AuctionsController> _logger;
 
     public AuctionsController(
-        IAuctionBiddingApplicationService service,
-        IHubContext<AuctionHub> auctionHub,
-        ILogger<AuctionsController> logger)
+        IAuctionBiddingApplicationService service)
     {
         _service = service;
-        _auctionHub = auctionHub;
-        _logger = logger;
     }
 
     [HttpGet]
@@ -59,30 +51,6 @@ public class AuctionsController : ControllerBase
 
         var result = await _service.PlaceBidAsync(userId, auctionId, request, ct);
         if (!result.IsSuccess || result.Value is null) return this.ToErrorActionResult(result);
-
-        // Push realtime event to all viewers of this auction
-        try
-        {
-            await _auctionHub.Clients
-                .Group(AuctionHub.AuctionGroup(auctionId))
-                .SendAsync("BidPlaced", new
-                {
-                    auctionId,
-                    bidId      = result.Value.BidId,
-                    amount     = result.Value.Amount,
-                    currentBid = result.Value.CurrentBid,
-                    status     = result.Value.Status.ToString(),
-                    placedAt   = DateTimeOffset.UtcNow
-                }, ct);
-        }
-        catch (Exception ex)
-        {
-            _logger.LogWarning(
-                ex,
-                "Bid {BidId} committed but BidPlaced broadcast failed for auction {AuctionId}.",
-                result.Value.BidId,
-                auctionId);
-        }
 
         return Ok(result.Value);
     }

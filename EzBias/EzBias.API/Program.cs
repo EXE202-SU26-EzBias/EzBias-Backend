@@ -154,6 +154,7 @@ builder.Services.AddScoped<INotificationApplicationService, NotificationApplicat
 builder.Services.AddSingleton<INotificationFactory, NotificationFactory>();
 builder.Services.AddScoped<ISellerAuctionApplicationService, SellerAuctionApplicationService>();
 builder.Services.AddScoped<IAuctionBiddingApplicationService, AuctionBiddingApplicationService>();
+builder.Services.AddScoped<IAuctionRealtime, SignalRAuctionRealtime>();
 builder.Services.AddScoped<IAuctionLifecycleApplicationService, AuctionLifecycleApplicationService>();
 builder.Services.AddScoped<IDepositApplicationService, DepositApplicationService>();
 builder.Services.AddScoped<IAuctionPostFlowQueryService, AuctionPostFlowQueryService>();
