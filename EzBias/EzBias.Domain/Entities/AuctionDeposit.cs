@@ -29,9 +29,6 @@ public class AuctionDeposit
     public Payment? Payment { get; set; }
     public Refund? Refund { get; set; }
 
-    /// <summary>
-    /// Applies one of the legal deposit lifecycle transitions.
-    /// </summary>
     public TransitionOutcome TryTransitionTo(DepositState target, DateTimeOffset now)
     {
         if (State == target)

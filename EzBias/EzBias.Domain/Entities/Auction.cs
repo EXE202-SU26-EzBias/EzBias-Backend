@@ -29,7 +29,6 @@ public class Auction
     public DateTimeOffset CreatedAt { get; set; } = DateTimeOffset.UtcNow;
     public DateTimeOffset? UpdatedAt { get; set; }
     
-    // Track if this auction has been relisted to a new auction
     public long? RelistedToAuctionId { get; set; }
 
     public Product Product { get; set; } = null!;
