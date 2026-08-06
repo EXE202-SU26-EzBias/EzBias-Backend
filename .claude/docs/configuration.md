@@ -26,7 +26,6 @@
 - `Brevo:FromEmail`: placeholder.
 - `Brevo:FromName`: default `EzBias`.
 - `Commission:RatePercent`: default `8`, clamped at runtime to `5..10`.
-- `Deposit:DepositFractionOfFloor`: default `0.10`. The configured helper can compute a floor-price fraction, but seller auction creation currently persists the seller-provided `RequiredDepositAmount`.
 - `Cloudinary:CloudName`: default empty.
 - `Cloudinary:ApiKey`: default empty.
 - `Cloudinary:ApiSecret`: default empty.

@@ -21,7 +21,6 @@ public class DepositApplicationService : IDepositApplicationService
     private readonly IUserRepository _users;
     private readonly INotificationRepository _notifications;
     private readonly INotificationFactory _notificationFactory;
-    private readonly IDepositPolicy _depositPolicy;
     private readonly IUnitOfWork _uow;
 
     public DepositApplicationService(
@@ -32,7 +31,6 @@ public class DepositApplicationService : IDepositApplicationService
         IUserRepository users,
         INotificationRepository notifications,
         INotificationFactory notificationFactory,
-        IDepositPolicy depositPolicy,
         IUnitOfWork uow)
     {
         _deposits = deposits;
@@ -42,7 +40,6 @@ public class DepositApplicationService : IDepositApplicationService
         _users = users;
         _notifications = notifications;
         _notificationFactory = notificationFactory;
-        _depositPolicy = depositPolicy;
         _uow = uow;
     }
 

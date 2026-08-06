@@ -53,7 +53,6 @@ builder.Services.AddResponseCompression(opts =>
 builder.Services.Configure<SePayOptions>(builder.Configuration.GetSection(SePayOptions.SectionName));
 builder.Services.Configure<BrevoOptions>(builder.Configuration.GetSection(BrevoOptions.SectionName));
 builder.Services.Configure<CommissionOptions>(builder.Configuration.GetSection(CommissionOptions.SectionName));
-builder.Services.Configure<DepositOptions>(builder.Configuration.GetSection(DepositOptions.SectionName));
 builder.Services.Configure<CloudinaryOptions>(builder.Configuration.GetSection(CloudinaryOptions.SectionName));
 builder.Services.Configure<SeedDataOptions>(builder.Configuration.GetSection(SeedDataOptions.SectionName));
 builder.Services.AddHttpClient("SePay", client =>
@@ -143,7 +142,6 @@ builder.Services.AddScoped<ICartApplicationService, CartApplicationService>();
 builder.Services.AddScoped<IPaymentApplicationService, PaymentApplicationService>();
 builder.Services.AddScoped<IAuctionPaymentApplicationService, AuctionPaymentApplicationService>();
 builder.Services.AddScoped<ICommissionRateProvider, ConfiguredCommissionRateProvider>();
-builder.Services.AddScoped<IDepositPolicy, ConfiguredDepositPolicy>();
 builder.Services.AddScoped<ISePayClient, SePayClient>();
 builder.Services.AddScoped<ISePayWebhookVerifier, SePayWebhookVerifier>();
 builder.Services.AddScoped<IOrderApplicationService, OrderApplicationService>();
