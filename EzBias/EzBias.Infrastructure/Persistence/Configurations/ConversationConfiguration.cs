@@ -35,7 +35,6 @@ public sealed class ConversationConfiguration : IEntityTypeConfiguration<Convers
             .HasForeignKey(x => x.ConversationId)
             .OnDelete(DeleteBehavior.Cascade);
 
-        // Unique constraint: only one conversation per buyer-seller pair
         builder.HasIndex(x => new { x.BuyerId, x.SellerId }).IsUnique();
         builder.HasIndex(x => x.LastMessageAt);
     }

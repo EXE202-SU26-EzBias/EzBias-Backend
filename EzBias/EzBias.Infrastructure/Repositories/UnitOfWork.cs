@@ -97,8 +97,6 @@ public class UnitOfWork : IUnitOfWork
                 }
                 catch
                 {
-                    // Preserve the original exception, if any, while still
-                    // disposing the database transaction.
                 }
             }
 

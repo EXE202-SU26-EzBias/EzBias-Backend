@@ -60,8 +60,6 @@ public sealed class AuctionDepositConfiguration : IEntityTypeConfiguration<Aucti
         builder.HasIndex(x => new { x.AuctionId, x.State });
         builder.HasIndex(x => x.PaymentId);
 
-        // xmin is a PostgreSQL system column present on every table; map it as the optimistic
-        // concurrency token (Req 10.6) so it is NOT emitted as a created column in migrations.
         builder.UseXminAsConcurrencyToken();
     }
 }

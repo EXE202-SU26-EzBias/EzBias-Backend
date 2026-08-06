@@ -47,7 +47,6 @@ public class ProductReviewRepository : IProductReviewRepository
 
     public async Task<(decimal AvgStars, int TotalReviews)> GetSellerStatsAsync(long sellerId, CancellationToken ct)
     {
-        // Join ProductReviews → Products to filter by seller
         var stats = await _db.ProductReviews
             .Where(r => r.Product.SellerId == sellerId)
             .GroupBy(_ => 1)

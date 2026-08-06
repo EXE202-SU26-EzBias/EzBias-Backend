@@ -6,7 +6,6 @@ namespace EzBias.Infrastructure.Persistence.SeedData;
 
 public static class AuctionSeedData
 {
-    // Seed bidder accounts (separate from sellers)
     private static readonly IReadOnlyList<(string FullName, string Username, string Email)> BidderSeeds = new List<(string, string, string)>
     {
         ("Minh Khoa", "minhkhoa_fan",   "bidder1.demo@ezbias.local"),
@@ -18,7 +17,6 @@ public static class AuctionSeedData
 
     private static readonly IReadOnlyList<AuctionSeedEntry> Entries = new List<AuctionSeedEntry>
     {
-        // 7 bids — active bidding war
         new(
             SellerIndex: 0,
             FandomId: "twice",
@@ -42,7 +40,6 @@ public static class AuctionSeedData
                 (BidderIndex: 3, Amount: 550_000m, MinutesAgo: 10)
             }
         ),
-        // 5 bids — gaining traction
         new(
             SellerIndex: 1,
             FandomId: "newjeans",
@@ -64,7 +61,6 @@ public static class AuctionSeedData
                 (BidderIndex: 4, Amount: 320_000m, MinutesAgo: 15)
             }
         ),
-        // 8 bids — very hot
         new(
             SellerIndex: 2,
             FandomId: "blackpink",
@@ -89,7 +85,6 @@ public static class AuctionSeedData
                 (BidderIndex: 1, Amount: 730_000m, MinutesAgo: 8)
             }
         ),
-        // 3 bids — warming up
         new(
             SellerIndex: 0,
             FandomId: "straykids",
@@ -109,7 +104,6 @@ public static class AuctionSeedData
                 (BidderIndex: 4, Amount: 340_000m, MinutesAgo: 30)
             }
         ),
-        // 6 bids — competitive
         new(
             SellerIndex: 1,
             FandomId: "bts",
@@ -132,7 +126,6 @@ public static class AuctionSeedData
                 (BidderIndex: 4, Amount: 500_000m, MinutesAgo: 20)
             }
         ),
-        // 9 bids — fierce battle
         new(
             SellerIndex: 2,
             FandomId: "blackpink",
@@ -158,7 +151,6 @@ public static class AuctionSeedData
                 (BidderIndex: 3, Amount: 1_250_000m, MinutesAgo: 5)
             }
         ),
-        // 4 bids — steady
         new(
             SellerIndex: 0,
             FandomId: "cortis",
@@ -179,7 +171,6 @@ public static class AuctionSeedData
                 (BidderIndex: 1, Amount: 240_000m, MinutesAgo: 20)
             }
         ),
-        // 2 bids — just started
         new(
             SellerIndex: 1,
             FandomId: "bts",
@@ -198,7 +189,6 @@ public static class AuctionSeedData
                 (BidderIndex: 0, Amount: 700_000m, MinutesAgo: 45)
             }
         ),
-        // 5 bids — active
         new(
             SellerIndex: 2,
             FandomId: "blackpink",
@@ -224,7 +214,6 @@ public static class AuctionSeedData
 
     public static async Task SeedAsync(EzBiasDbContext db, IReadOnlyList<User> sellers, CancellationToken ct = default)
     {
-        // Ensure straykids fandom exists
         if (!db.Fandoms.Any(x => x.Id == "straykids"))
         {
             FandomNameNormalizer.TryNormalize("Stray Kids", out _, out var normalizedName, out _);
@@ -239,12 +228,10 @@ public static class AuctionSeedData
             await db.SaveChangesAsync(ct);
         }
 
-        // Ensure bidder accounts exist
         var bidders = await EnsureBiddersAsync(db, ct);
 
         var now = DateTimeOffset.UtcNow;
 
-        // Use PrimaryImageUrl as unique key to avoid duplicate seeding
         var existingAuctionImageUrls = db.Products
             .Where(x => x.IsAuction)
             .Select(x => x.PrimaryImageUrl)
@@ -256,13 +243,11 @@ public static class AuctionSeedData
 
             if (existingAuctionImageUrls.Contains(entry.PrimaryImageUrl))
             {
-                // Product/auction already exists — only seed missing bids
                 product = db.Products.FirstOrDefault(x => x.IsAuction && x.PrimaryImageUrl == entry.PrimaryImageUrl)!;
                 if (product is null) continue;
             }
             else
             {
-                // Create new product + auction
                 product = new Product
                 {
                     SellerId = sellers[entry.SellerIndex % sellers.Count].Id,
@@ -309,7 +294,6 @@ public static class AuctionSeedData
                 await db.SaveChangesAsync(ct);
             }
 
-            // Seed missing bids
             if (entry.BidHistory.Length == 0) continue;
 
             var existingAuction = db.Auctions.FirstOrDefault(x => x.ProductId == product.Id);
@@ -324,7 +308,6 @@ public static class AuctionSeedData
             var maxAmount = entry.BidHistory.Max(b => b.Amount);
             var addedAny = false;
 
-            // Clear winning flags on existing bids before re-evaluating
             var existingWinningBids = db.Bids
                 .Where(x => x.AuctionId == existingAuction.Id && x.IsWinning)
                 .ToList();
@@ -349,7 +332,6 @@ public static class AuctionSeedData
                 addedAny = true;
             }
 
-            // Mark the highest existing bid as winning
             var allBidsForAuction = db.Bids
                 .Where(x => x.AuctionId == existingAuction.Id)
                 .ToList();
@@ -359,7 +341,6 @@ public static class AuctionSeedData
 
             if (addedAny)
             {
-                // Update CurrentBid to reflect highest bid
                 var maxBid = entry.BidHistory.Max(b => b.Amount);
                 if (existingAuction.CurrentBid < maxBid)
                     existingAuction.CurrentBid = maxBid;

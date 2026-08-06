@@ -9,13 +9,11 @@ public static class TransactionSeedData
 
     public static async Task SeedAsync(EzBiasDbContext db, CancellationToken ct = default)
     {
-        // Idempotency guard — if any seeded deposits already exist, do nothing.
         if (db.AuctionDeposits.Any())
             return;
 
         var now = DateTimeOffset.UtcNow;
 
-        // Pick buyers from sales seed pool
         var buyers = db.Users
             .Where(u => u.Email.EndsWith(".sales@ezbias.local"))
             .OrderBy(u => u.Id)
@@ -24,7 +22,6 @@ public static class TransactionSeedData
 
         if (buyers.Count == 0) return;
 
-        // Pick auctions that are live
         var auctions = db.Auctions
             .Where(a => a.Status == AuctionStatus.Live)
             .Take(6)
@@ -32,15 +29,11 @@ public static class TransactionSeedData
 
         if (auctions.Count == 0) return;
 
-        // Pick orders that are Completed for Refund seed
         var completedOrders = db.Orders
             .Where(o => o.Status == OrderStatus.Completed)
             .Take(10)
             .ToList();
 
-        // ----------------------------------------------------------------
-        // 1. Auction Deposits
-        // ----------------------------------------------------------------
         var depositSeeds = new List<(User Buyer, Auction Auction, DepositState State, int DaysAgo)>();
 
         for (var i = 0; i < Math.Min(auctions.Count, buyers.Count); i++)
@@ -48,7 +41,6 @@ public static class TransactionSeedData
             var auction = auctions[i % auctions.Count];
             var buyer = buyers[i % buyers.Count];
 
-            // Vary states: Held, Applied, Refunded
             var state = i % 3 == 0 ? DepositState.Held
                       : i % 3 == 1 ? DepositState.Applied
                       : DepositState.Refunded;
@@ -56,7 +48,6 @@ public static class TransactionSeedData
             depositSeeds.Add((buyer, auction, state, DaysAgo: Rng.Next(1, 15)));
         }
 
-        // Add a few extra Held deposits from different buyers
         for (var i = 0; i < 4; i++)
         {
             var auction = auctions[i % auctions.Count];
@@ -101,10 +92,8 @@ public static class TransactionSeedData
             };
             db.AuctionDeposits.Add(deposit);
 
-            // For Refunded deposits → also create a Refund record
             if (state == DepositState.Refunded)
             {
-                // Persist first so deposit.Id is assigned for the REF-DEP reference.
                 await db.SaveChangesAsync(ct);
 
                 var rawRefundedAt = paidAt.AddDays(Rng.Next(1, 5));
@@ -128,12 +117,8 @@ public static class TransactionSeedData
             await db.SaveChangesAsync(ct);
         }
 
-        // ----------------------------------------------------------------
-        // 2. Dispute/Order Refunds (Pending + Completed)
-        // ----------------------------------------------------------------
         if (completedOrders.Count > 0)
         {
-            // Find payments linked to these orders
             var orderIds = completedOrders.Select(o => o.Id).ToList();
             var paymentOrders = db.PaymentOrders
                 .Where(po => orderIds.Contains(po.OrderId))
@@ -147,9 +132,8 @@ public static class TransactionSeedData
                 var daysAgo = Rng.Next(2, 20);
                 var createdAt = now.AddDays(-daysAgo);
 
-                // Alternate between Pending and Completed
                 var isCompleted = processedCount % 2 == 0;
-                var maxProcessedAt = now.AddMinutes(-5); // never in the future
+                var maxProcessedAt = now.AddMinutes(-5);
                 var rawProcessedAt = createdAt.AddDays(Rng.Next(1, 4));
                 var processedAt = isCompleted
                     ? (DateTimeOffset?)(rawProcessedAt > maxProcessedAt ? maxProcessedAt : rawProcessedAt)

@@ -24,7 +24,7 @@ public class MessageRepository : IMessageRepository
         return await query
             .OrderByDescending(x => x.SentAt)
             .Take(pageSize)
-            .OrderBy(x => x.SentAt) // return in ascending order
+            .OrderBy(x => x.SentAt)
             .ToListAsync(ct);
     }
 

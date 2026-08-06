@@ -29,7 +29,6 @@ public sealed class MessageConfiguration : IEntityTypeConfiguration<Message>
             .HasForeignKey(x => x.SenderId)
             .OnDelete(DeleteBehavior.Restrict);
 
-        // Index for efficient pagination
         builder.HasIndex(x => new { x.ConversationId, x.SentAt });
         builder.HasIndex(x => new { x.ConversationId, x.IsRead });
     }

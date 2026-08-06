@@ -125,7 +125,6 @@ public class AdminRepository : IAdminRepository
 
     private static readonly string[] _monthAbbr = { "Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec" };
 
-    // Last-12-calendar-months commission rollup (oldest first), dense so zero-sale months still render.
     private async Task<IReadOnlyList<AdminMonthlySalesData>> BuildMonthlySalesAsync(DateTimeOffset now, CancellationToken ct)
     {
         var windowStart = new DateTimeOffset(now.Year, now.Month, 1, 0, 0, 0, TimeSpan.Zero).AddMonths(-11);
@@ -210,7 +209,6 @@ public class AdminRepository : IAdminRepository
 
     public async Task<IReadOnlyList<AdminTransactionRow>> GetTransactionsAsync(CancellationToken ct)
     {
-        // ---- Payments (Buyer → Platform) ----
         var payments = await _db.Payments
             .Where(p => p.Type == PaymentType.Order)
             .Include(p => p.User)
@@ -241,7 +239,6 @@ public class AdminRepository : IAdminRepository
             );
         }).ToList();
 
-        // ---- Payouts (Platform → Seller) ----
         var payouts = await _db.Payouts
             .Include(p => p.Seller)
             .Include(p => p.Order)
@@ -266,7 +263,6 @@ public class AdminRepository : IAdminRepository
             p.PaidAt
         )).ToList();
 
-        // ---- Auction Deposits (Buyer → Platform, Type=AuctionDeposit) ----
         var deposits = await _db.Payments
             .Where(p => p.Type == PaymentType.AuctionDeposit)
             .Include(p => p.User)
@@ -296,7 +292,6 @@ public class AdminRepository : IAdminRepository
             );
         }).ToList();
 
-        // ---- Refunds (Platform → Buyer) ----
         var refunds = await _db.Refunds
             .Include(r => r.Payment)
                 .ThenInclude(pay => pay.User)
@@ -322,7 +317,6 @@ public class AdminRepository : IAdminRepository
             r.ProcessedAt
         )).ToList();
 
-        // Merge and sort by date descending
         return paymentRows
             .Concat(payoutRows)
             .Concat(depositRows)

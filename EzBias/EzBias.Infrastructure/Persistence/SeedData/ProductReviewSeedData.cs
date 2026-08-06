@@ -14,11 +14,9 @@ public static class ProductReviewSeedData
 
     public static async Task SeedAsync(EzBiasDbContext db, CancellationToken ct = default)
     {
-        // Idempotency — only seed an empty table.
         if (db.ProductReviews.Any())
             return;
 
-        // Buyer pool created by SalesSeedData. If it's missing, SalesSeedData hasn't run yet.
         var buyers = db.Users
             .Where(u => u.Email.EndsWith(".sales@ezbias.local"))
             .OrderBy(u => u.Id)
@@ -33,7 +31,6 @@ public static class ProductReviewSeedData
         if (products.Count == 0)
             return;
 
-        // Genuine purchasers per product (Delivered/Completed orders) — same whitelist as the gate.
         var purchaseMap = BuildPurchaseMap(db);
 
         var now = DateTimeOffset.UtcNow;
@@ -44,7 +41,6 @@ public static class ProductReviewSeedData
             var target = Rng.Next(MinReviewsPerProduct, MaxReviewsPerProduct + 1);
             var used = new HashSet<long>();
 
-            // 1. Purchase-backed reviewers first (shuffled, never the seller).
             var purchasers = purchaseMap.TryGetValue(product.Id, out var ids)
                 ? ids.Where(id => id != product.SellerId).OrderBy(_ => Rng.Next()).ToList()
                 : new List<long>();
@@ -56,7 +52,6 @@ public static class ProductReviewSeedData
                 reviews.Add(BuildReview(product.Id, userId, now));
             }
 
-            // 2. Fill the remainder from the broader buyer pool (display-only).
             var fillerPool = buyers
                 .Where(b => b.Id != product.SellerId && !used.Contains(b.Id))
                 .OrderBy(_ => Rng.Next())
@@ -70,7 +65,6 @@ public static class ProductReviewSeedData
             }
         }
 
-        // Chunked insert to keep the change-tracker light.
         const int chunk = 40;
         for (var i = 0; i < reviews.Count; i += chunk)
         {
@@ -119,7 +113,6 @@ public static class ProductReviewSeedData
         };
     }
 
-    // Weighted toward 4-5 stars; avg ≈ 4.2.
     private static readonly (short Stars, int Weight)[] StarWeights =
     {
         (5, 50),

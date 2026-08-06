@@ -60,7 +60,6 @@ public static class ProductSeedData
         ]
     };
 
-    // Maps old [SEED] names and other legacy names to current names for migration
     private static readonly IReadOnlyDictionary<string, string> LegacySeedProductNames = new Dictionary<string, string>
     {
         ["[SEED] BTS V Lotte Layover Photo Card"]           = "BTS V Lotte Layover Photo Card",
