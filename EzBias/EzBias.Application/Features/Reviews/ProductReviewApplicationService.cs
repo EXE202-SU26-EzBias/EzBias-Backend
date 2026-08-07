@@ -278,7 +278,6 @@ public class ProductReviewApplicationService : IProductReviewApplicationService
             }
             catch
             {
-                // Storage adapters log cleanup failures with the public ID. DB state remains authoritative.
             }
         }
     }

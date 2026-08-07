@@ -71,12 +71,10 @@ public class CartApplicationService : ICartApplicationService
         foreach (var item in items)
         {
             decimal unitPrice = item.Product.Price;
-            
-            // Check if this product is from a won auction
+
             var auction = await _auctionRepository.GetByProductIdAndWinnerAsync(item.ProductId, userId, ct);
             if (auction is not null && auction.Status == AuctionStatus.EndedPendingPayment && auction.FinalPrice.HasValue)
             {
-                // Use the final bid price instead of product price
                 unitPrice = auction.FinalPrice.Value;
             }
             
@@ -151,12 +149,10 @@ public class CartApplicationService : ICartApplicationService
         if (product is null || product.DeletedAt is not null)
             return Result.Fail("Product not found.", ApplicationErrorCode.ResourceNotFound);
 
-        // Check if auction item already in cart
         var existing = await _cartRepository.GetByUserAndProductAsync(userId, product.Id, ct);
         if (existing is not null)
-            return Result.Ok(); // Already in cart, no error
+            return Result.Ok();
 
-        // Add auction product to cart with quantity 1
         _cartRepository.Add(new CartItem
         {
             UserId = userId,

@@ -65,10 +65,7 @@ public class DisputeApplicationService : IDisputeApplicationService
         var duplicate = request.Items.GroupBy(x => x.OrderItemId).FirstOrDefault(g => g.Count() > 1);
         if (duplicate is not null) return Result<DisputeResponse>.Fail("Duplicate order items are not allowed in dispute.", ApplicationErrorCode.Validation);
 
-        // A previously rejected dispute (ResolvedSeller) leaves a row behind; the order has a unique
-        // dispute constraint, so reuse that row instead of inserting a second one.
         var prior = await _disputes.GetByOrderIdWithItemsAsync(order.Id, ct);
-
         var dispute = prior ?? new Dispute
         {
             OrderId = order.Id,
@@ -112,7 +109,6 @@ public class DisputeApplicationService : IDisputeApplicationService
 
         await _uow.SaveChangesAsync(ct);
 
-        // Notify all admins that a new dispute was opened and needs resolution.
         var adminIds = await _users.GetUserIdsByRoleAsync(UserRole.Admin, ct);
         if (adminIds.Count > 0)
         {
@@ -187,7 +183,6 @@ public class DisputeApplicationService : IDisputeApplicationService
             return Result<DisputeResponse>.Fail("Dispute already resolved.", ApplicationErrorCode.Validation);
         dispute.AdminNote = request.AdminNote?.Trim();
 
-        // Notify buyer (won)
         _notifications.Add(_notificationFactory.DisputeResolved(dispute.InitiatorId, dispute.Id, resolvedForBuyer: true));
 
         await _uow.SaveChangesAsync(ct);
@@ -215,7 +210,6 @@ public class DisputeApplicationService : IDisputeApplicationService
         if (order.MarkDelivered(DateTimeOffset.UtcNow) == TransitionOutcome.Invalid)
             return Result<DisputeResponse>.Fail("Order cannot be marked delivered in current status.", ApplicationErrorCode.Validation);
 
-        // Notify buyer (lost)
         _notifications.Add(_notificationFactory.DisputeResolved(dispute.InitiatorId, dispute.Id, resolvedForBuyer: false));
 
         await _uow.SaveChangesAsync(ct);
@@ -262,7 +256,6 @@ public class DisputeApplicationService : IDisputeApplicationService
                 return Result<DisputeResponse>.Fail("Payment cannot be refunded in current status.", ApplicationErrorCode.Validation);
         }
 
-        // Notify buyer that the refund has been paid out
         _notifications.Add(_notificationFactory.DisputeRefundCompleted(dispute.InitiatorId, dispute.Id, refund.Amount));
 
         await _uow.SaveChangesAsync(ct);
@@ -276,10 +269,6 @@ public class DisputeApplicationService : IDisputeApplicationService
         return disputes.Select(MapListItem).ToList();
     }
 
-    // The amount the buyer actually paid against this order. For auction orders the winner's held
-    // deposit is credited toward the final price, so Payment.Amount = Order.Total - deposit. A full-order
-    // dispute refunds the full Order.Total (item unit prices), so the refundable ceiling must add back the
-    // applied deposit; otherwise a deposited auction win can never be fully refunded.
     private static decimal EffectiveAmountPaid(Order order, Payment payment)
         => payment.Amount >= order.Total ? payment.Amount : order.Total;
 

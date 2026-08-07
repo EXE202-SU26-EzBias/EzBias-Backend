@@ -109,7 +109,6 @@ public class ProductManagementApplicationService : IProductManagementApplication
         p.Description = request.Description.Trim();
         p.Status = request.Status;
 
-        // Remove images not in the keep list (when caller explicitly provides the list)
         if (request.KeepImageUrls is not null)
         {
             var keepSet = new HashSet<string>(request.KeepImageUrls, StringComparer.OrdinalIgnoreCase);
@@ -135,11 +134,9 @@ public class ProductManagementApplicationService : IProductManagementApplication
             }
         }
 
-        // Must have at least one image after all changes
         if (p.Images.Count == 0)
             return Result<ProductItemResponse>.Fail("At least one product image is required.", ApplicationErrorCode.Validation);
 
-        // Recalculate primary: first remaining image wins
         var firstImage = p.Images.OrderBy(x => x.SortOrder).FirstOrDefault();
         if (firstImage is not null)
             p.PrimaryImageUrl = firstImage.Url;

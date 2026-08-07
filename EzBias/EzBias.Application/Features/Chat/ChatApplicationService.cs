@@ -47,8 +47,6 @@ public class ChatApplicationService : IChatApplicationService
         var caller = await _users.GetByIdAsync(callerId, ct);
         if (caller is null) return Result<ConversationSummary>.Fail("Unauthorized.", ApplicationErrorCode.Unauthorized);
 
-        // Caller is always treated as buyer, counterpart as seller.
-        // Both parties can initiate — the first caller becomes buyer.
         long buyerId = callerId;
         long sellerId = request.CounterpartId;
 
@@ -113,7 +111,6 @@ public class ChatApplicationService : IChatApplicationService
         _messages.Add(message);
         conversation.LastMessageAt = message.SentAt;
 
-        // Use "📷 Photo" for image URLs in notification preview
         var preview = IsImageUrl(trimmed) 
             ? "📷 Photo" 
             : (trimmed.Length > 100 ? trimmed[..100] : trimmed);
@@ -187,8 +184,7 @@ public class ChatApplicationService : IChatApplicationService
 
         var lastMsgs = await _messages.GetPageAsync(c.Id, null, 1, ct);
         var lastMsg = lastMsgs.FirstOrDefault();
-        
-        // Check if content is an image URL
+
         var preview = lastMsg?.Content is { } content
             ? IsImageUrl(content) 
                 ? "📷 Photo" 
@@ -212,13 +208,11 @@ public class ChatApplicationService : IChatApplicationService
     private static bool IsImageUrl(string content)
     {
         if (string.IsNullOrWhiteSpace(content)) return false;
-        
-        // Check if it's a Cloudinary URL (most common case)
+
         if (content.Contains("cloudinary.com", StringComparison.OrdinalIgnoreCase) ||
             content.Contains("res.cloudinary.com", StringComparison.OrdinalIgnoreCase))
             return true;
-        
-        // Check if it's a standard image URL with common extensions
+
         var lowerContent = content.ToLowerInvariant();
         return lowerContent.StartsWith("http://") || lowerContent.StartsWith("https://")
             && (lowerContent.Contains(".jpg") || lowerContent.Contains(".jpeg") || 

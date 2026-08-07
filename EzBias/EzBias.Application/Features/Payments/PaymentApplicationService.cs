@@ -81,7 +81,7 @@ public class PaymentApplicationService : IPaymentApplicationService
             var amountDueResult = await _deposits.ComputeWinnerAmountDueAsync(
                 winnerAuctionId, userId, auctionOrder.Total, ct);
             if (amountDueResult.IsSuccess)
-                amount = amountDueResult.Value; // Req 6.2/6.4: reduce by held deposit; Order.Total stays = FinalPrice
+                amount = amountDueResult.Value;
         }
         var now = DateTimeOffset.UtcNow;
         var reference = $"PAY-{now:yyyyMMddHHmmss}-{userId}";
@@ -249,8 +249,6 @@ public class PaymentApplicationService : IPaymentApplicationService
 
         if (payment.Type == PaymentType.AuctionDeposit)
         {
-            // Deposit payments have no orders/escrow/commission. Persist the Paid status, then hand off
-            // to the Deposit_Service to transition the linked deposit PendingPayment -> Held (Req 3.1).
             await _uow.SaveChangesAsync(ct);
             var hold = await _deposits.ConfirmDepositAsync(payment.Id, ct);
             if (!hold.IsSuccess)
@@ -268,7 +266,6 @@ public class PaymentApplicationService : IPaymentApplicationService
             if (po.Order.MarkPaid(now) == TransitionOutcome.Invalid)
                 return Result.Fail("Order cannot be marked paid in current status.", ApplicationErrorCode.Validation);
 
-            // Notify seller of new order
             var productNames = string.Join(", ", po.Order.Items.Select(i => i.ProductName));
             _notifications.Add(_notificationFactory.OrderPlaced(po.Order.SellerId, po.OrderId, productNames));
 
@@ -279,8 +276,7 @@ public class PaymentApplicationService : IPaymentApplicationService
                 {
                     if (auction.MarkSold(now) == TransitionOutcome.Invalid)
                         return Result.Fail("Auction cannot be marked sold in current status.", ApplicationErrorCode.Validation);
-                    
-                    // Product was successfully sold in auction, free it up
+
                     var product = await _products.GetByIdAsync(auction.ProductId, ct);
                     if (product is not null)
                     {
@@ -288,9 +284,6 @@ public class PaymentApplicationService : IPaymentApplicationService
                         product.UpdatedAt = DateTimeOffset.UtcNow;
                     }
 
-                    // Req 6.3: the winner's Held deposit is consumed toward the final payment (Held -> Applied).
-                    // Ignore the result: the winner has already paid, so a missing/already-applied deposit
-                    // must not block marking the order Paid.
                     await _deposits.ApplyWinnerDepositAsync(po.Order.AuctionId.Value, po.Order.UserId, ct);
                 }
                 continue;

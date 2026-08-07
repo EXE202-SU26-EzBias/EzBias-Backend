@@ -101,7 +101,6 @@ public class AuctionBiddingApplicationService : IAuctionBiddingApplicationServic
             if (auction.EndsAt <= DateTimeOffset.UtcNow) return Result<PlaceBidResponse>.Fail("Auction has ended.", ApplicationErrorCode.Validation);
             if (auction.SellerId == bidderId) return Result<PlaceBidResponse>.Fail("Seller cannot bid own auction.", ApplicationErrorCode.Validation);
 
-            // Req 4: a held deposit is required to bid when the auction is deposit-gated.
             if (auction.RequiredDepositAmount > 0m)
             {
                 var hasHeld = await _deposits.HasHeldDepositAsync(bidderId, auctionId, ct);
@@ -114,12 +113,10 @@ public class AuctionBiddingApplicationService : IAuctionBiddingApplicationServic
             decimal minRequired;
             if (highest is null)
             {
-                // No bids yet — first bid must be >= floor price
                 minRequired = auction.FloorPrice;
             }
             else
             {
-                // Subsequent bids must exceed current highest by at least 1,000 VND
                 minRequired = highest.Value + 1_000m;
             }
 
@@ -135,7 +132,6 @@ public class AuctionBiddingApplicationService : IAuctionBiddingApplicationServic
                 PlacedAt = DateTimeOffset.UtcNow
             };
 
-            // Notify the previous winner that they've been outbid
             var previousTopBid = await _bids.GetTopBidAsync(auctionId, ct);
             if (previousTopBid is not null && previousTopBid.UserId != bidderId)
             {
@@ -148,21 +144,6 @@ public class AuctionBiddingApplicationService : IAuctionBiddingApplicationServic
 
             await _bids.ClearWinningFlagsAsync(auction.Id, ct);
             _bids.Add(bid);
-
-            // TEMPORARILY DISABLED: Auction extension for testing
-            // var remaining = auction.EndsAt - DateTimeOffset.UtcNow;
-            // if (remaining.TotalSeconds <= auction.TriggerBeforeEnd)
-            // {
-            //     auction.EndsAt = auction.EndsAt.AddSeconds(auction.ExtensionSeconds);
-            //     auction.ExtensionCount += 1;
-            //     auction.Status = AuctionStatus.Extended;
-            //     // Reset reminder flag so the 5-min reminder fires again after extension
-            //     auction.ReminderSent5Min = false;
-            // }
-            // else
-            // {
-            //     auction.Status = AuctionStatus.Live;
-            // }
 
             var transition = auction.RecordBid(request.Amount, now);
             if (transition == TransitionOutcome.Invalid)

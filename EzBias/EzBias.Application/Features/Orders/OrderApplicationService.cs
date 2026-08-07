@@ -66,8 +66,6 @@ public class OrderApplicationService : IOrderApplicationService
 
             item.Quantity = newQuantity;
 
-            // Allow auction products in cart (added when winner proceeds to payment)
-            // but reject if product is deleted or inactive
             if (item.Product.DeletedAt is not null || item.Product.Status != ProductStatus.Active)
                 return Result<CreateOrderResponse>.Fail($"Product '{item.Product.Name}' is not available for checkout.", ApplicationErrorCode.Validation);
 
@@ -105,16 +103,13 @@ public class OrderApplicationService : IOrderApplicationService
             foreach (var cartItem in group.Items)
             {
                 decimal unitPrice = cartItem.Product.Price;
-                
-                // Check if this product is from a won auction
+
                 var auction = await _auctions.GetByProductIdAndWinnerAsync(cartItem.ProductId, userId, ct);
                 if (auction is not null && auction.Status == AuctionStatus.EndedPendingPayment && auction.FinalPrice.HasValue)
                 {
-                    // Use the final bid price instead of product price
                     unitPrice = auction.FinalPrice.Value;
                     auctionId = auction.Id;
-                    
-                    // Check if Order already exists from AuctionCloseScheduler
+
                     existingAuctionOrder = await _orders.GetByAuctionIdAsync(auction.Id, ct);
                 }
                 
@@ -132,17 +127,14 @@ public class OrderApplicationService : IOrderApplicationService
                 });
             }
             
-            // If this is an auction order and Order already exists, UPDATE it instead of creating new
             if (existingAuctionOrder is not null)
             {
                 existingAuctionOrder.AddressSnap = normalizedAddressSnap;
                 existingAuctionOrder.UpdatedAt = now;
-                // Items already exist, just update address
                 orderList.Add(existingAuctionOrder);
             }
             else
             {
-                // Create new order for regular cart or first-time auction
                 orderList.Add(new Order
                 {
                     UserId = userId,
@@ -158,7 +150,7 @@ public class OrderApplicationService : IOrderApplicationService
             }
         }
 
-        _orders.AddRange(orderList.Where(o => o.Id == 0).ToList()); // Only add NEW orders
+        _orders.AddRange(orderList.Where(o => o.Id == 0).ToList());
         _carts.RemoveRange(cartItems);
         await _uow.SaveChangesAsync(ct);
 

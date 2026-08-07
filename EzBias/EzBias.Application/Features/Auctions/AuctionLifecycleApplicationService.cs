@@ -202,7 +202,6 @@ public sealed class AuctionLifecycleApplicationService : IAuctionLifecycleApplic
                 auction.Id,
                 auction.Product.Name));
 
-            // Non-winner deposit refunds remain intentionally manual/admin-gated.
             await _uow.SaveChangesAsync(ct);
             await transaction.CommitAsync(ct);
             return AuctionCloseOutcome.NoWinner;
@@ -256,7 +255,6 @@ public sealed class AuctionLifecycleApplicationService : IAuctionLifecycleApplic
             _orders.Add(order);
         }
 
-        // Non-winner deposit refunds remain intentionally manual/admin-gated.
         await _uow.SaveChangesAsync(ct);
         await transaction.CommitAsync(ct);
         return AuctionCloseOutcome.PendingPayment;

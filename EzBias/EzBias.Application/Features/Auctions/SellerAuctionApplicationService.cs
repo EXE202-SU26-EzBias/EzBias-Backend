@@ -22,11 +22,6 @@ public class SellerAuctionApplicationService : ISellerAuctionApplicationService
         _deposits = deposits;
     }
 
-    /// <summary>
-    /// Validates and normalizes a seller-supplied bid deposit. The deposit must be a whole VND amount
-    /// between 0 and the floor price (inclusive); 0 disables the deposit gate. Returns the rounded amount
-    /// on success, or an error when out of range.
-    /// </summary>
     private static (bool Success, string? Error, decimal Amount) ResolveSellerDeposit(decimal requiredDeposit, decimal floorPrice)
     {
         if (requiredDeposit < 0m)
@@ -51,7 +46,6 @@ public class SellerAuctionApplicationService : ISellerAuctionApplicationService
         var hasLive = await _auctions.ExistsLiveByProductIdAsync(product.Id, ct);
         if (hasLive) return Result<AuctionActionResponse>.Fail("A live auction already exists for this product.", ApplicationErrorCode.Validation);
 
-        // Seller sets the required bid deposit. 0 disables the deposit gate; it may not exceed the floor price.
         var (depositOk, depositError, resolvedDeposit) = ResolveSellerDeposit(request.RequiredDepositAmount, request.FloorPrice);
         if (!depositOk)
             return Result<AuctionActionResponse>.Fail(
@@ -117,8 +111,7 @@ public class SellerAuctionApplicationService : ISellerAuctionApplicationService
 
         if (auction.Cancel(DateTimeOffset.UtcNow) == TransitionOutcome.Invalid)
             return Result<AuctionActionResponse>.Fail("Auction cannot be canceled in current status.", ApplicationErrorCode.Validation);
-        
-        // Free up the product so seller can create a new auction or relist
+
         var product = await _products.GetByIdAsync(auction.ProductId, ct);
         if (product is not null)
         {
@@ -144,7 +137,6 @@ public class SellerAuctionApplicationService : ISellerAuctionApplicationService
         if (source.Status is not (AuctionStatus.Canceled or AuctionStatus.EndedNoWinner or AuctionStatus.WinnerFailed))
             return Result<AuctionActionResponse>.Fail("Auction cannot be relisted in current status.", ApplicationErrorCode.Validation);
 
-        // Floor price is carried over from the source auction — it cannot be changed on relist.
         var floorPrice = source.FloorPrice;
         if (request.ReservePrice.HasValue && request.ReservePrice.Value < floorPrice) return Result<AuctionActionResponse>.Fail("Reserve price must be >= floor price.", ApplicationErrorCode.Validation);
         if (request.EndsAt <= DateTimeOffset.UtcNow.AddMinutes(1)) return Result<AuctionActionResponse>.Fail("EndsAt must be in the future.", ApplicationErrorCode.Validation);
@@ -152,13 +144,11 @@ public class SellerAuctionApplicationService : ISellerAuctionApplicationService
         var hasDraftOrLive = await _auctions.ExistsDraftOrLiveByProductIdAsync(source.ProductId, ct);
         if (hasDraftOrLive) return Result<AuctionActionResponse>.Fail("An active/draft auction already exists for this product.", ApplicationErrorCode.Validation);
 
-        // Seller sets the required bid deposit. 0 disables the deposit gate; it may not exceed the floor price.
         var (depositOk, depositError, resolvedDeposit) = ResolveSellerDeposit(request.RequiredDepositAmount, floorPrice);
         if (!depositOk)
             return Result<AuctionActionResponse>.Fail(
                 depositError ?? "Required deposit is invalid.", ApplicationErrorCode.Validation);
 
-        // Mark product as in auction again (it was freed when the source auction ended/canceled)
         var product = await _products.GetByIdAsync(source.ProductId, ct);
         if (product is not null)
         {
@@ -184,11 +174,8 @@ public class SellerAuctionApplicationService : ISellerAuctionApplicationService
         };
 
         _auctions.Add(newAuction);
-        
-        // Save first to generate the new auction ID
         await _uow.SaveChangesAsync(ct);
-        
-        // Now mark the source auction as relisted with the generated ID
+
         source.RelistedToAuctionId = newAuction.Id;
         source.UpdatedAt = DateTimeOffset.UtcNow;
         

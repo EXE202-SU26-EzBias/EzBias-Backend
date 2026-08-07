@@ -81,17 +81,13 @@ public class UserProfileApplicationService : IUserProfileApplicationService
     {
         var user = await _users.GetByIdAsync(sellerId, ct);
 
-        // Orders
         var sellerOrders = await _orders.GetBySellerAsync(sellerId, ct);
         int Count(OrderStatus s) => sellerOrders.Count(o => o.Status == s);
 
-        // Payouts
         var payouts = await _payouts.GetBySellerAsync(sellerId, null, ct);
         var pendingPayouts = payouts.Where(p => p.Status == PayoutStatus.Pending).ToList();
         var paidPayouts = payouts.Where(p => p.Status == PayoutStatus.Approved).ToList();
 
-        // Revenue + items sold come from commission transactions (written when an order is Paid)
-        // — the authoritative record of realized sales, gross/commission/net per order.
         var commissions = await _commissions.GetBySellerWithItemsAsync(sellerId, null, ct);
         var grossRevenue = commissions.Sum(c => c.GrossAmount);
         var commissionPaid = commissions.Sum(c => c.CommissionAmount);
@@ -101,10 +97,8 @@ public class UserProfileApplicationService : IUserProfileApplicationService
         var monthlySales = BuildMonthlySeries(commissions);
         var topListings = BuildTopListings(commissions);
 
-        // Auctions
         var allAuctions = await _auctions.GetBySellerAsync(sellerId, null, ct);
 
-        // Avg rating from product reviews (not seller ratings)
         var (avgStars, totalReviews) = await _productReviews.GetSellerStatsAsync(sellerId, ct);
 
         return new SellerDashboardResponse(
@@ -133,8 +127,6 @@ public class UserProfileApplicationService : IUserProfileApplicationService
         );
     }
 
-    // Builds a dense last-12-calendar-months series (oldest first) so the chart has no gaps,
-    // even for months with zero sales. Buckets by commission CreatedAt (UTC).
     private static readonly string[] _monthAbbr = { "Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec" };
 
     private static IReadOnlyList<SellerMonthlySalesPoint> BuildMonthlySeries(IReadOnlyList<Domain.Entities.CommissionTransaction> commissions)
@@ -172,8 +164,6 @@ public class UserProfileApplicationService : IUserProfileApplicationService
         return points;
     }
 
-    // Ranks the seller's best-selling listings by units sold (desc), tie-broken by revenue (desc).
-    // Aggregates OrderItem rows across all realized (Paid) sales recorded as commission transactions.
     private static IReadOnlyList<SellerTopListing> BuildTopListings(IReadOnlyList<Domain.Entities.CommissionTransaction> commissions)
         => commissions
             .SelectMany(c => c.Order?.Items ?? Enumerable.Empty<Domain.Entities.OrderItem>())
