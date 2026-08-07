@@ -54,7 +54,7 @@
 - Shared Cloudinary upload validation allows JPEG, PNG, and WEBP images up to 5 MB. Chat upload controller also accepts GIF at the controller validation layer, but the shared uploader will reject GIF unless the uploader is extended.
 
 ## Fixed Code-Level Settings
-- CORS origins are hard-coded in `Program.cs`: `http://localhost:5173` and `https://ez-bias-frontend.vercel.app`.
+- CORS origins are hard-coded in `Program.cs`: `http://localhost:5173`, `https://ez-bias-frontend.vercel.app`, `http://ezbias.io.vn`, and `https://ezbias.io.vn`.
 - JWT via query string is accepted only for request paths starting with `/hubs`.
 - Auth refresh cookie name is `ezbias_refresh_token`, path is `/api/auth`, and cookie expiry is 14 days in `AuthController`.
 - Auction winner payment deadline is 24 hours from scheduler close time.

@@ -132,20 +132,21 @@ public class AuthApplicationService : IAuthApplicationService
             user.Role.ToString()));
     }
 
-    public async Task LogoutAsync(RefreshRequest req, CancellationToken ct)
+    public async Task<Result> LogoutAsync(RefreshRequest req, CancellationToken ct)
     {
         if (string.IsNullOrWhiteSpace(req.RefreshToken))
-            return;
+            return Result.Ok();
 
         var hash = _tokenService.HashRefreshToken(req.RefreshToken);
         var stored = await _refreshTokens.GetByHashAsync(hash, ct);
 
         if (stored is null)
-            return;
+            return Result.Ok();
 
         stored.IsRevoked = true;
         stored.RevokedAt = DateTimeOffset.UtcNow;
         await _uow.SaveChangesAsync(ct);
+        return Result.Ok();
     }
 
     public async Task<Result> ForgotPasswordAsync(ForgotPasswordRequest req, CancellationToken ct)

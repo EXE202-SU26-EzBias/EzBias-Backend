@@ -64,7 +64,10 @@ public class AuthController : ControllerBase
         var tokenFromCookie = Request.Cookies[RefreshCookieName];
         var token = !string.IsNullOrWhiteSpace(tokenFromCookie) ? tokenFromCookie : req?.RefreshToken;
 
-        await _authService.LogoutAsync(new RefreshRequest(token), ct);
+        var result = await _authService.LogoutAsync(new RefreshRequest(token), ct);
+        if (!result.IsSuccess)
+            return this.ToErrorActionResult(result);
+
         ClearRefreshCookie();
         return NoContent();
     }

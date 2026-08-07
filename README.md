@@ -218,7 +218,7 @@ The current solution file does not include a committed test project. If adding t
 
 - Keep `EzBias.Domain` free of framework, EF, HTTP, SignalR, and external-service dependencies.
 - Application services should use repository interfaces plus `IUnitOfWork`.
-- Do not bypass `NotificationDispatchingUnitOfWork` when saving changes that may include notifications.
+- Persist notifications through `INotificationRepository` and `IUnitOfWork`; delivery is handled by `NotificationDispatchScheduler`/`NotificationDispatchProcessor` through `IRealtimeNotifier`.
 - Keep monetary values as `decimal`.
 - Keep persisted timestamps as `DateTimeOffset` / PostgreSQL `timestamptz`.
 - Preserve soft-delete semantics for `User.DeletedAt` and `Product.DeletedAt`.

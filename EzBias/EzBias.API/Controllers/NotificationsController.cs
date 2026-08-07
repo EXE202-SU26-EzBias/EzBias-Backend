@@ -39,8 +39,11 @@ public class NotificationsController : ControllerBase
     public async Task<IActionResult> MarkReadAll(CancellationToken ct)
     {
         if (!TryGetUserId(out var userId)) return Unauthorized();
-        var count = await _notifications.MarkReadAllAsync(userId, ct);
-        return Ok(new { updated = count });
+        var result = await _notifications.MarkReadAllAsync(userId, ct);
+        if (!result.IsSuccess)
+            return this.ToErrorActionResult(result);
+
+        return Ok(new { updated = result.Value });
     }
 
     private bool TryGetUserId(out long userId)

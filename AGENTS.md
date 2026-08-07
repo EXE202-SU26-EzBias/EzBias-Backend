@@ -37,12 +37,12 @@ Run commands from `EzBias/` unless noted.
 ## Key Constraints
 - Keep Domain pure: entities, enums, and repository interfaces live in `EzBias.Domain`; EF, auth, external clients, and SignalR live outside Domain.
 - Application services use repositories plus `IUnitOfWork`; do not call `EzBiasDbContext.SaveChangesAsync` directly from Application.
-- `IUnitOfWork` is registered as `NotificationDispatchingUnitOfWork`; new `Notification` entities are pushed over SignalR after successful save.
-- Preserve the service result tuple pattern: `(bool Success, string? Error, ... Data)` and let controllers map errors to HTTP responses.
+- `IUnitOfWork` is registered as `UnitOfWork`; notification rows are dispatched by `NotificationDispatchScheduler`/`NotificationDispatchProcessor` through `IRealtimeNotifier` after persistence.
+- State-changing application methods use `Result`/`Result<T>` and let controllers map errors to HTTP responses. Read-only list/query methods may return DTOs directly.
 - Monetary values are `decimal` and persisted as `numeric(18,2)` unless a config explicitly uses another precision.
 - Timestamps are `DateTimeOffset` and persisted as PostgreSQL `timestamptz`.
 - Soft delete currently uses nullable `DeletedAt` on `User` and `Product`; do not replace it with hard delete for user/product flows.
-- CORS origins are fixed in `Program.cs`: `http://localhost:5173` and `https://ez-bias-frontend.vercel.app`.
+- CORS origins are fixed in `Program.cs`: `http://localhost:5173`, `https://ez-bias-frontend.vercel.app`, `http://ezbias.io.vn`, and `https://ezbias.io.vn`.
 - SignalR hubs accept JWT via `?access_token=` only for paths under `/hubs`.
 - Non-winner auction deposit auto-refund is intentionally disabled in `AuctionCloseScheduler`; admins process those refunds manually.
 

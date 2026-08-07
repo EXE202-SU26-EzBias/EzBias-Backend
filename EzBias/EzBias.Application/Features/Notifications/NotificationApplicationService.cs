@@ -34,7 +34,7 @@ public class NotificationApplicationService : INotificationApplicationService
         return Result.Ok();
     }
 
-    public async Task<int> MarkReadAllAsync(long userId, CancellationToken ct)
+    public async Task<Result<int>> MarkReadAllAsync(long userId, CancellationToken ct)
     {
         var items = await _notifications.GetByUserIdAsync(userId, ct);
         var changed = 0;
@@ -46,6 +46,6 @@ public class NotificationApplicationService : INotificationApplicationService
         }
 
         if (changed > 0) await _uow.SaveChangesAsync(ct);
-        return changed;
+        return Result<int>.Ok(changed);
     }
 }

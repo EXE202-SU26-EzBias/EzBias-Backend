@@ -35,7 +35,7 @@
 - First bid must be at least the floor price. Later bids must be at least current highest bid plus `1,000` VND.
 - The previous winning bid is cleared, the new bid is marked winning, `Auction.CurrentBid` is updated, and the previous winner receives an `Outbid` notification.
 - Auction extension logic remains in comments and is currently disabled. Accepted bids force the auction status to `Live`.
-- `AuctionsController` pushes `BidPlaced` to the SignalR group `auction-{auctionId}` after the bid service succeeds.
+- `AuctionBiddingApplicationService` calls `IAuctionRealtime`; the SignalR adapter pushes `BidPlaced` to the group `auction-{auctionId}` after the bid transaction succeeds.
 
 ## Deposit Initiation
 - `POST /api/auctions/{auctionId}/deposit` requires auth.
