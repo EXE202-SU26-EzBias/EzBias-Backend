@@ -32,9 +32,9 @@ public class AuctionRepository : IAuctionRepository
     public Task<Auction?> GetByIdWithProductForUpdateAsync(long auctionId, CancellationToken ct)
         => _db.Auctions
             .FromSqlInterpolated($"""
-                SELECT *
-                FROM auctions
-                WHERE id = {auctionId}
+                SELECT a.*, a.xmin
+                FROM auctions AS a
+                WHERE a.id = {auctionId}
                 FOR UPDATE
                 """)
             .Include(x => x.Product).ThenInclude(p => p.Images)
