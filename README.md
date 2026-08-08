@@ -210,16 +210,6 @@ dotnet ef database update -p EzBias.Infrastructure -s EzBias.API
 
 The API also runs `db.Database.Migrate()` at startup.
 
-## Tests
-
-Run:
-
-```powershell
-dotnet test EzBias.sln
-```
-
-The current solution file does not include a committed test project. If adding tests, keep them in the solution and cover application service rules around payments, deposits, auctions, disputes, and payout finalization.
-
 ## Development Constraints
 
 - Keep `EzBias.Domain` free of framework, EF, HTTP, SignalR, and external-service dependencies.
