@@ -1,7 +1,7 @@
 namespace EzBias.Application.Features.Deposits.Dtos;
 
 public record InitiateDepositResponse(
-    long DepositId, long AuctionId, string State,
+    long DepositId, long AuctionId, long? PaymentId, string State,
     string PaymentReference, string TransferContent, decimal AmountDue, string Currency);
 
 public record DepositStatusResponse(

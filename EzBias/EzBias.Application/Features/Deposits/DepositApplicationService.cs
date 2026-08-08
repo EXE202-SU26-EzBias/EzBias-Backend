@@ -104,6 +104,7 @@ public class DepositApplicationService : IDepositApplicationService
             var existingResponse = new InitiateDepositResponse(
                 existing.Id,
                 auctionId,
+                existingPayment?.Id,
                 existing.State.ToString(),
                 existingPayment?.Reference ?? string.Empty,
                 existingPayment?.TransferContent ?? string.Empty,
@@ -161,6 +162,7 @@ public class DepositApplicationService : IDepositApplicationService
         var response = new InitiateDepositResponse(
             deposit.Id,
             auctionId,
+            payment.Id,
             deposit.State.ToString(),
             payment.Reference,
             payment.TransferContent!,

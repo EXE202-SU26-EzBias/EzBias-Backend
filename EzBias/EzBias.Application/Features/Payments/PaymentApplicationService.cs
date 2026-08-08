@@ -23,6 +23,7 @@ public class PaymentApplicationService : IPaymentApplicationService
     private readonly ISePayWebhookVerifier _webhookVerifier;
     private readonly ICommissionRateProvider _commissionRateProvider;
     private readonly IDepositApplicationService _deposits;
+    private readonly IAuctionDepositRepository _auctionDeposits;
 
     public PaymentApplicationService(
         IPaymentRepository payments,
@@ -37,7 +38,8 @@ public class PaymentApplicationService : IPaymentApplicationService
         IUnitOfWork uow,
         ISePayWebhookVerifier webhookVerifier,
         ICommissionRateProvider commissionRateProvider,
-        IDepositApplicationService deposits)
+        IDepositApplicationService deposits,
+        IAuctionDepositRepository auctionDeposits)
     {
         _payments = payments;
         _orders = orders;
@@ -52,6 +54,7 @@ public class PaymentApplicationService : IPaymentApplicationService
         _webhookVerifier = webhookVerifier;
         _commissionRateProvider = commissionRateProvider;
         _deposits = deposits;
+        _auctionDeposits = auctionDeposits;
     }
 
     public async Task<Result<CreatePaymentResponse>> CreateAsync(long userId, CreatePaymentRequest request, CancellationToken ct)
@@ -119,6 +122,44 @@ public class PaymentApplicationService : IPaymentApplicationService
             .ToList();
 
         return Result<PaymentStatusResponse>.Ok(new PaymentStatusResponse(payment.Id, payment.Reference, payment.Amount, payment.Status.ToString(), payment.CreatedAt, payment.PaidAt, orderIds, orders));
+    }
+
+    public async Task<Result> ConfirmAuctionDepositAsync(long userId, long auctionId, CancellationToken ct)
+    {
+        var auction = await _auctions.GetByIdAsync(auctionId, ct);
+        if (auction is null)
+            return Result.Fail("Auction not found.", ApplicationErrorCode.ResourceNotFound);
+
+        var deposit = await _auctionDeposits.GetLatestByUserAndAuctionAsync(userId, auctionId, ct);
+        if (deposit is null)
+            return Result.Fail("Deposit not found for this auction.", ApplicationErrorCode.ResourceNotFound);
+
+        if (deposit.State == DepositState.Held)
+            return Result.Ok();
+
+        if (deposit.State != DepositState.PendingPayment)
+            return Result.Fail("Deposit is not awaiting payment.", ApplicationErrorCode.Validation);
+
+        if (deposit.PaymentId is not long paymentId)
+            return Result.Fail("Deposit has no linked payment.", ApplicationErrorCode.Validation);
+
+        var payment = await _payments.GetByIdAsync(paymentId, ct);
+        if (payment is null)
+            return Result.Fail("Deposit payment not found.", ApplicationErrorCode.ResourceNotFound);
+
+        if (payment.UserId != userId || payment.Type != PaymentType.AuctionDeposit)
+            return Result.Fail("Deposit payment is invalid.", ApplicationErrorCode.Validation);
+
+        if (payment.Amount != deposit.Amount)
+            return Result.Fail("Deposit payment amount is invalid.", ApplicationErrorCode.Validation);
+
+        if (payment.Status == PaymentStatus.Paid)
+            return await _deposits.ConfirmDepositAsync(payment.Id, ct);
+
+        if (payment.Status != PaymentStatus.Pending)
+            return Result.Fail("Deposit payment cannot be confirmed in its current state.", ApplicationErrorCode.Validation);
+
+        return await ConfirmBySePayPullAsync(payment, ct);
     }
 
     public async Task<Result> ConfirmManualAsync(long adminId, long paymentId, CancellationToken ct)
