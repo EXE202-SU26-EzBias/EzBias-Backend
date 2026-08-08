@@ -29,7 +29,7 @@ Run commands from `EzBias/` unless noted.
 
 ## Core Logic Summary
 - Commission is recorded on paid order payments as `round(order.Total * clampedRate / 100, 2)`, with configured `Commission:RatePercent` clamped to 5-10% and defaulting to 8%.
-- Auction deposits use `Auction.RequiredDepositAmount`; seller auction creation accepts a whole-VND required deposit between 0 and floor price. `Deposit:DepositFractionOfFloor` defaults to 10% for the configured deposit policy helper.
+- Auction deposits use `Auction.RequiredDepositAmount`; seller auction creation accepts a whole-VND required deposit between 0 and floor price. A value of `0` disables the deposit gate.
 - Auction close creates a pending winner order with temporary address `{}`; winner checkout later updates that order address and the held deposit reduces amount due for a single auction order.
 - `DeliveredOrderFinalizeScheduler` completes delivered orders after `Order:DeliveredFinalizeScheduler:GraceDays` (default 3) when no open dispute/pending refund blocks finalization, then creates seller payout and escrow OUT records.
 - Buyer disputes are item-level, allowed only while an order is `Delivered` and inside the 3-day delivery grace window; admin approval creates a pending refund that is completed by a separate refund-payment action.
@@ -42,7 +42,7 @@ Run commands from `EzBias/` unless noted.
 - Monetary values are `decimal` and persisted as `numeric(18,2)` unless a config explicitly uses another precision.
 - Timestamps are `DateTimeOffset` and persisted as PostgreSQL `timestamptz`.
 - Soft delete currently uses nullable `DeletedAt` on `User` and `Product`; do not replace it with hard delete for user/product flows.
-- CORS origins are fixed in `Program.cs`: `http://localhost:5173` and `https://ez-bias-frontend.vercel.app`.
+- CORS origins are fixed in `Program.cs`: `http://localhost:5173`, `https://ez-bias-frontend.vercel.app`, `http://ezbias.io.vn`, and `https://ezbias.io.vn`.
 - SignalR hubs accept JWT via `?access_token=` only for paths under `/hubs`.
 - Non-winner auction deposit auto-refund is intentionally disabled in `AuctionCloseScheduler`; admins process those refunds manually.
 

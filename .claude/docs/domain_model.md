@@ -62,7 +62,7 @@
 - `Message`: conversation sender, content, sent timestamp, and read flag.
 - `CallSession`: conversation, caller, callee, `CallSessionStatus`, created/answered/ended timestamps.
 - `ContactMessage`: contact form name, email, subject, message, read flag, and created timestamp.
-- `NotificationType`: `Outbid`, `AuctionWon`, `AuctionExpired`, `AuctionEndingSoon`, `OrderPlaced`, `OrderShipped`, `OrderDelivered`, `PayoutPaid`, `DisputeOpened`, `DisputeResolved`, `UserVerified`, `OrderConfirmed`, `NewMessage`, `DepositConfirmed`, `DepositRefundInitiated`, `DepositForfeited`, `DisputeRefundCompleted`, `DepositPendingReview`, `DisputePendingReview`.
+- `NotificationType`: `Outbid`, `AuctionWon`, `AuctionExpired`, `AuctionEndingSoon`, `OrderPlaced`, `OrderShipped`, `OrderDelivered`, `PayoutPaid`, `DisputeOpened`, `DisputeResolved`, `UserVerified`, `OrderConfirmed`, `NewMessage`, `DepositConfirmed`, `DepositRefundInitiated`, `DepositForfeited`, `DisputeRefundCompleted`, `DepositPendingReview`, `DisputePendingReview`. `NewMessage = 13` is retained for persisted enum compatibility, but new chat messages no longer create notification rows.
 - `CallSessionStatus`: `Ringing`, `Accepted`, `Rejected`, `Ended`, `Missed`, `Failed`.
 
 ## Important Indexes and One-to-One Constraints

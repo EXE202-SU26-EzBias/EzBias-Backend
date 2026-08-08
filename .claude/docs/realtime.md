@@ -32,11 +32,12 @@
 ## Chat Flow
 - On connect, authenticated clients join `chat-user-{userId}`.
 - `POST /api/conversations` starts or resumes a conversation. The caller is stored as buyer and the counterpart as seller; `(BuyerId, SellerId)` is unique.
-- `POST /api/conversations/{id}/messages` persists the message, updates `LastMessageAt`, creates a `NewMessage` notification, saves through `IUnitOfWork`, then calls `IChatRealtime` to push `ReceiveMessage` to the recipient's chat group. Chat transport failures are logged as best-effort post-save failures.
+- `POST /api/conversations/{id}/messages` persists the message, updates `LastMessageAt`, saves through `IUnitOfWork`, then calls `IChatRealtime` to push `ReceiveMessage` to the recipient's chat group. Chat messages do not create notification rows; unread state is tracked on `Message` and the conversation summary. Chat transport failures are logged as best-effort post-save failures.
 - Messages must be non-empty and at most 2000 characters.
 - Image messages are represented as URLs in `Message.Content`; notification/conversation previews use an image label when the content looks like a Cloudinary or image URL.
 - `GET /api/conversations/{id}/messages` uses cursor pagination with `before` and clamps `pageSize` to `1..100`.
-- `PUT /api/conversations/{id}/read` marks unread messages for the caller and calls `IChatRealtime` to push `ConversationRead` to the original sender's chat group. Transport failures are logged without undoing the persisted read state.
+- `PUT /api/conversations/{id}/read` marks unread messages for the caller and calls `IChatRealtime` to push `ConversationRead` to the original sender's chat group. When an active frontend thread receives `ReceiveMessage`, it immediately invokes this endpoint for unread incoming messages. Transport failures are logged without undoing the persisted read state.
+- The frontend shows `Đã gửi` or `Đã xem` only for the latest outgoing message in the loaded thread; older outgoing messages and incoming messages have no delivery label.
 - `POST /api/conversations/{id}/upload-image` validates membership, accepts multipart JPEG/JPG/PNG/GIF/WebP up to 5 MB at the controller layer, and uploads through the shared Cloudinary image uploader. The uploader itself currently accepts JPEG/PNG/WebP.
 
 ## CallHub Flow

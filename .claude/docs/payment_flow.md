@@ -48,7 +48,7 @@
 - Deposit initiation creates `Payment.Type = AuctionDeposit`, `Status = Pending`, and amount equal to `Auction.RequiredDepositAmount`.
 - Deposit payments have no `PaymentOrder`, no order escrow, and no commission.
 - Confirmation first saves `Payment.Status = Paid`, then calls `ConfirmDepositAsync`.
-- `ConfirmDepositAsync` transitions the linked deposit `PendingPayment -> Held`, records `HeldAt`, queues `DepositConfirmed`, and leaves `ConfirmationNotificationDelivered = false`.
+- `ConfirmDepositAsync` transitions the linked deposit `PendingPayment -> Held`, records `HeldAt`, and queues `DepositConfirmed`.
 
 ## Manual Confirmation
 - `POST /api/payments/{paymentId}/manual-confirm` requires `Admin`.
