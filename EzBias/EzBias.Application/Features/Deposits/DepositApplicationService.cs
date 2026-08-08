@@ -58,24 +58,6 @@ public class DepositApplicationService : IDepositApplicationService
         };
     }
 
-    private async Task<(bool Success, string? Error, TransitionOutcome Outcome)> ApplyTransitionAndSaveAsync(
-        AuctionDeposit deposit, DepositState to, CancellationToken ct)
-    {
-        var (success, error) = TryTransition(deposit, to, out var outcome);
-        if (!success)
-        {
-            return (false, error, outcome);
-        }
-
-        var (saved, saveError) = await SaveAsync(ct);
-        if (!saved)
-        {
-            return (false, saveError, outcome);
-        }
-
-        return (true, null, outcome);
-    }
-
     private async Task<(bool Ok, string? Error)> SaveAsync(CancellationToken ct)
     {
         try
@@ -290,10 +272,6 @@ public class DepositApplicationService : IDepositApplicationService
         var auction = await _auctions.GetByIdWithProductAsync(auctionId, ct);
         return auction?.Product?.Name ?? "the auction item";
     }
-
-    public async Task<Result> RefundNonWinnerDepositsAsync(
-        long auctionId, long? winnerId, CancellationToken ct)
-        => await RefundHeldDepositsAsync(auctionId, winnerId, ct);
 
     private async Task<Result> RefundHeldDepositsAsync(
         long auctionId, long? excludeUserId, CancellationToken ct)

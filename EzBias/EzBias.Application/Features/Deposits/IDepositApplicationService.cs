@@ -13,9 +13,6 @@ public interface IDepositApplicationService
 
     Task<Result> ConfirmDepositAsync(long paymentId, CancellationToken ct);
 
-    Task<Result> RefundNonWinnerDepositsAsync(
-        long auctionId, long? winnerId, CancellationToken ct);
-
     Task<Result> ApplyWinnerDepositAsync(long auctionId, long winnerId, CancellationToken ct);
 
     Task<Result<decimal>> ComputeWinnerAmountDueAsync(

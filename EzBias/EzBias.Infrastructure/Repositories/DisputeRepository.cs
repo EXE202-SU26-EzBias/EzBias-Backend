@@ -33,13 +33,6 @@ public class DisputeRepository : IDisputeRepository
             .Include(x => x.Items)
             .FirstOrDefaultAsync(x => x.OrderId == orderId, ct);
 
-    public async Task<IReadOnlyList<DisputeItem>> GetItemsByDisputeIdAsync(long disputeId, CancellationToken ct)
-        => await _db.DisputeItems
-            .Include(x => x.OrderItem)
-            .Where(x => x.DisputeId == disputeId)
-            .OrderBy(x => x.Id)
-            .ToListAsync(ct);
-
     public Task<Dispute?> GetOpenByOrderIdAsync(long orderId, CancellationToken ct)
         => _db.Disputes.FirstOrDefaultAsync(x => x.OrderId == orderId && (x.Status == DisputeStatus.Open || x.Status == DisputeStatus.UnderReview), ct);
 

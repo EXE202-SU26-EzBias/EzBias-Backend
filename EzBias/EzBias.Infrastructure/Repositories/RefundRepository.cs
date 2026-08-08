@@ -23,9 +23,6 @@ public class RefundRepository : IRefundRepository
     public async Task<decimal> GetProcessedTotalByPaymentIdAsync(long paymentId, CancellationToken ct)
         => await _db.Refunds.Where(x => x.PaymentId == paymentId && x.Status == RefundStatus.Completed).SumAsync(x => (decimal?)x.Amount, ct) ?? 0m;
 
-    public Task<bool> ExistsPendingByOrderIdAsync(long orderId, CancellationToken ct)
-        => _db.Refunds.AnyAsync(x => x.OrderId == orderId && x.Status == RefundStatus.Pending, ct);
-
     public Task<Refund?> GetLatestByDisputeIdAsync(long disputeId, CancellationToken ct)
         => _db.Refunds.Where(x => x.DisputeId == disputeId).OrderByDescending(x => x.Id).FirstOrDefaultAsync(ct);
 

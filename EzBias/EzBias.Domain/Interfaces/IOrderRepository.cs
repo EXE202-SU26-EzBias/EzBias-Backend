@@ -6,7 +6,6 @@ public interface IOrderRepository
 {
     void AddRange(IEnumerable<Order> orders);
     void Add(Order order);
-    Task<bool> ExistsByAuctionIdAsync(long auctionId, CancellationToken ct);
     Task<Order?> GetByAuctionIdAsync(long auctionId, CancellationToken ct);
     Task<Order?> GetByIdAsync(long orderId, CancellationToken ct);
     Task<Order?> GetByIdForUpdateAsync(long orderId, CancellationToken ct);

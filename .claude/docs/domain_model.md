@@ -10,23 +10,18 @@
 - Snapshot/denormalized fields include `OrderItem.ProductName`, `OrderItem.ProductImage`, `Bid.UsernameSnap`, `Bid.AvatarSnap`, `Bid.AvatarBgSnap`, `Order.AddressSnap`, and commission monetary fields.
 
 ## Users and Identity
-- `User`: account identity, role, profile, address, avatar, bank information, email/phone verification timestamps, seller rating counters, soft delete, and relations to products, cart, wishlist, follows, auctions, bids, orders, payments, payouts, escrows, notifications, refresh tokens, boosts, disputes, and OTPs.
+- `User`: account identity, role, profile, address, avatar, bank information, email/phone verification timestamps, seller rating counters, soft delete, and relations to products, cart, auctions, bids, orders, payments, payouts, escrows, notifications, refresh tokens, disputes, and OTPs.
 - `RefreshToken`: SHA256-hashed token, revocation state/timestamps, expiry, and optional device info.
 - `OtpVerification`: user, channel, purpose, BCrypt-hashed code, used flag, expiry, and created timestamp.
 - `UserRole`: `User`, `Admin`.
 
 ## Catalog and Products
 - `Fandom`: slug `Id`, name, active flag, and products.
-- `Product`: seller, fandom, artist/name/type, condition, price, stock, description, primary image, auction flag, status, version, view count, boost state, soft delete, images, photocard detail, auctions, boosts, and reviews.
+- `Product`: seller, fandom, artist/name/type, condition, price, stock, description, primary image, auction flag, status, version, soft delete, images, auctions, and reviews.
 - `ProductImage`: product image URL and sort order.
-- `PhotocardDetail`: optional one-to-one product detail with member, album series, version, and POB flag.
-- `ProductBoost`: product/user boost window with `BoostStatus`.
 - `ProductReview`: product/user rating with 1-5 stars and optional comment. `(ProductId, UserId)` is unique.
-- `Wishlist`: user/product join entity.
-- `SellerFollow`: follower/seller join entity.
 - `ProductStatus`: `Active`, `SoldOut`, `Archived`.
 - `ProductCondition`: `New`, `LikeNew`, `Good`, `Fair`.
-- `BoostStatus`: `Active`, `Expired`, `Canceled`.
 
 ## Cart, Orders, and Fulfillment
 - `CartItem`: user/product quantity. Cart service rejects normal auction products, but auction winners can add a won item through the auction cart endpoint.

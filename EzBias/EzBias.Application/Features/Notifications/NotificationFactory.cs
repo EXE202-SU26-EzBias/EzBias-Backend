@@ -44,23 +44,11 @@ public sealed class NotificationFactory : INotificationFactory
                 : $"Your order is on its way. Tracking: {trackingNumber}",
             new { orderId });
 
-    public Notification OrderDelivered(long userId, long orderId)
-        => Build(userId, NotificationType.OrderDelivered,
-            "Order delivered",
-            "Your order has been marked as delivered. Please confirm receipt.",
-            new { orderId });
-
     public Notification PayoutPaid(long sellerId, long payoutId, decimal amount)
         => Build(sellerId, NotificationType.PayoutPaid,
             "Payout completed",
             $"Your payout of {amount:N0} VND has been transferred to your bank account.",
             new { payoutId });
-
-    public Notification DisputeOpened(long sellerId, long disputeId, long orderId)
-        => Build(sellerId, NotificationType.DisputeOpened,
-            "Dispute opened on your order",
-            "A buyer has opened a dispute on one of your orders. Please check the admin panel.",
-            new { disputeId, orderId });
 
     public Notification DisputeResolved(long userId, long disputeId, bool resolvedForBuyer)
         => Build(userId, NotificationType.DisputeResolved,

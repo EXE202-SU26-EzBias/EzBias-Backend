@@ -34,10 +34,6 @@ public class User
 
     public ICollection<Product> Products { get; set; } = new List<Product>();
     public ICollection<CartItem> CartItems { get; set; } = new List<CartItem>();
-    public ICollection<Wishlist> Wishlists { get; set; } = new List<Wishlist>();
-
-    public ICollection<SellerFollow> FollowingSellers { get; set; } = new List<SellerFollow>();
-    public ICollection<SellerFollow> Followers { get; set; } = new List<SellerFollow>();
 
     public ICollection<Auction> AuctionsAsSeller { get; set; } = new List<Auction>();
     public ICollection<Auction> AuctionsAsWinner { get; set; } = new List<Auction>();
@@ -53,7 +49,6 @@ public class User
 
     public ICollection<Notification> Notifications { get; set; } = new List<Notification>();
     public ICollection<RefreshToken> RefreshTokens { get; set; } = new List<RefreshToken>();
-    public ICollection<ProductBoost> ProductBoosts { get; set; } = new List<ProductBoost>();
     public ICollection<Dispute> DisputesOpened { get; set; } = new List<Dispute>();
     public ICollection<OtpVerification> OtpVerifications { get; set; } = new List<OtpVerification>();
 }

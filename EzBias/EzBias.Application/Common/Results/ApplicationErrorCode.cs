@@ -9,6 +9,5 @@ public enum ApplicationErrorCode
     Conflict = 5,
     PaymentAlreadyPaid = 6,
     InvalidWebhookSignature = 7,
-    ConcurrencyConflict = 8,
-    InvalidStateTransition = 9
+    ConcurrencyConflict = 8
 }

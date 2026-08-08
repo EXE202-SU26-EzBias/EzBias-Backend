@@ -21,10 +21,6 @@ public class Product
     public ProductStatus Status { get; set; } = ProductStatus.Active;
     public int Version { get; set; } = 0;
 
-    public long ViewCount { get; set; } = 0;
-    public bool IsBoosted { get; set; } = false;
-    public DateTimeOffset? BoostEndsAt { get; set; }
-
     public DateTimeOffset? DeletedAt { get; set; }
     public DateTimeOffset CreatedAt { get; set; } = DateTimeOffset.UtcNow;
     public DateTimeOffset? UpdatedAt { get; set; }
@@ -32,8 +28,6 @@ public class Product
     public User Seller { get; set; } = null!;
     public Fandom Fandom { get; set; } = null!;
     public ICollection<ProductImage> Images { get; set; } = new List<ProductImage>();
-    public PhotocardDetail? PhotocardDetail { get; set; }
     public ICollection<Auction> Auctions { get; set; } = new List<Auction>();
-    public ICollection<ProductBoost> ProductBoosts { get; set; } = new List<ProductBoost>();
     public ICollection<ProductReview> Reviews { get; set; } = new List<ProductReview>();
 }

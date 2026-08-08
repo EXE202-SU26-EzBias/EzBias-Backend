@@ -29,10 +29,6 @@ public sealed class ProductConfiguration : IEntityTypeConfiguration<Product>
         builder.Property(x => x.Status).HasColumnName("status").HasConversion<string>().HasColumnType("text").HasDefaultValue(Domain.Enums.ProductStatus.Active).IsRequired();
         builder.Property(x => x.Version).HasColumnName("version").HasDefaultValue(0).IsRequired();
 
-        builder.Property(x => x.ViewCount).HasColumnName("view_count").HasDefaultValue(0L).IsRequired();
-        builder.Property(x => x.IsBoosted).HasColumnName("is_boosted").HasDefaultValue(false).IsRequired();
-        builder.Property(x => x.BoostEndsAt).HasColumnName("boost_ends_at").HasColumnType("timestamptz");
-
         builder.Property(x => x.DeletedAt).HasColumnName("deleted_at").HasColumnType("timestamptz");
         builder.Property(x => x.CreatedAt).HasColumnName("created_at").HasColumnType("timestamptz").HasDefaultValueSql("now()").IsRequired();
         builder.Property(x => x.UpdatedAt).HasColumnName("updated_at").HasColumnType("timestamptz");
@@ -51,6 +47,5 @@ public sealed class ProductConfiguration : IEntityTypeConfiguration<Product>
         builder.HasIndex(x => x.FandomId);
         builder.HasIndex(x => x.Type);
         builder.HasIndex(x => new { x.FandomId, x.CreatedAt }).HasDatabaseName("idx_products_browse");
-        builder.HasIndex(x => new { x.IsBoosted, x.BoostEndsAt }).HasDatabaseName("idx_products_boosted");
     }
 }

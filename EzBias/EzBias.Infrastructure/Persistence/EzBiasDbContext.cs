@@ -13,10 +13,7 @@ public class EzBiasDbContext : DbContext
     public DbSet<Fandom> Fandoms => Set<Fandom>();
     public DbSet<Product> Products => Set<Product>();
     public DbSet<ProductImage> ProductImages => Set<ProductImage>();
-    public DbSet<PhotocardDetail> PhotocardDetails => Set<PhotocardDetail>();
     public DbSet<CartItem> CartItems => Set<CartItem>();
-    public DbSet<Wishlist> Wishlists => Set<Wishlist>();
-    public DbSet<SellerFollow> SellerFollows => Set<SellerFollow>();
     public DbSet<Auction> Auctions => Set<Auction>();
     public DbSet<AuctionDeposit> AuctionDeposits => Set<AuctionDeposit>();
     public DbSet<Bid> Bids => Set<Bid>();
@@ -31,7 +28,6 @@ public class EzBiasDbContext : DbContext
     public DbSet<Notification> Notifications => Set<Notification>();
     public DbSet<RefreshToken> RefreshTokens => Set<RefreshToken>();
     public DbSet<ContactMessage> ContactMessages => Set<ContactMessage>();
-    public DbSet<ProductBoost> ProductBoosts => Set<ProductBoost>();
     public DbSet<Dispute> Disputes => Set<Dispute>();
     public DbSet<DisputeItem> DisputeItems => Set<DisputeItem>();
     public DbSet<Refund> Refunds => Set<Refund>();
