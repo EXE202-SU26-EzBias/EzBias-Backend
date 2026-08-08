@@ -76,12 +76,6 @@ public sealed class NotificationFactory : INotificationFactory
             "The buyer has confirmed receiving their order. Funds will be released to your balance.",
             new { orderId });
 
-    public Notification NewMessage(long recipientId, long conversationId, string senderName, string preview)
-        => Build(recipientId, NotificationType.NewMessage,
-            $"New message from {senderName}",
-            preview,
-            new { conversationId, senderName });
-
     public Notification DepositConfirmed(long userId, long auctionId, string productName, decimal amount)
         => Build(userId, NotificationType.DepositConfirmed,
             "Deposit confirmed",

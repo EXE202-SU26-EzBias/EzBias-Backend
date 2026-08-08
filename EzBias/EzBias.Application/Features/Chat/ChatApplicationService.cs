@@ -1,6 +1,5 @@
 using EzBias.Application.Common.Results;
 using EzBias.Application.Features.Chat.Dtos;
-using EzBias.Application.Features.Notifications;
 using EzBias.Domain.Entities;
 using EzBias.Domain.Interfaces;
 
@@ -11,8 +10,6 @@ public class ChatApplicationService : IChatApplicationService
     private readonly IConversationRepository _conversations;
     private readonly IMessageRepository _messages;
     private readonly IUserRepository _users;
-    private readonly INotificationRepository _notifications;
-    private readonly INotificationFactory _notificationFactory;
     private readonly IUnitOfWork _uow;
     private readonly IChatRealtime _chatRealtime;
 
@@ -20,16 +17,12 @@ public class ChatApplicationService : IChatApplicationService
         IConversationRepository conversations,
         IMessageRepository messages,
         IUserRepository users,
-        INotificationRepository notifications,
-        INotificationFactory notificationFactory,
         IUnitOfWork uow,
         IChatRealtime chatRealtime)
     {
         _conversations = conversations;
         _messages = messages;
         _users = users;
-        _notifications = notifications;
-        _notificationFactory = notificationFactory;
         _uow = uow;
         _chatRealtime = chatRealtime;
     }
@@ -110,11 +103,6 @@ public class ChatApplicationService : IChatApplicationService
 
         _messages.Add(message);
         conversation.LastMessageAt = message.SentAt;
-
-        var preview = IsImageUrl(trimmed) 
-            ? "📷 Photo" 
-            : (trimmed.Length > 100 ? trimmed[..100] : trimmed);
-        _notifications.Add(_notificationFactory.NewMessage(recipientId, conversationId, sender.Username, preview));
 
         await _uow.SaveChangesAsync(ct);
 

@@ -1,5 +1,6 @@
 using EzBias.Application.Common.Results;
 using EzBias.Application.Features.Notifications.Dtos;
+using EzBias.Domain.Enums;
 using EzBias.Domain.Interfaces;
 
 namespace EzBias.Application.Features.Notifications;
@@ -17,6 +18,7 @@ public class NotificationApplicationService : INotificationApplicationService
 
     public async Task<IReadOnlyList<NotificationItem>> GetMyAsync(long userId, CancellationToken ct)
         => (await _notifications.GetByUserIdAsync(userId, ct))
+            .Where(x => x.Type != NotificationType.NewMessage)
             .Select(x => new NotificationItem(x.Id, x.Type, x.Title, x.Body, x.Meta, x.IsRead, x.CreatedAt, x.ReadAt))
             .ToList();
 
