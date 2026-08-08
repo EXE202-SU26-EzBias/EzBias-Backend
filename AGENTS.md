@@ -49,10 +49,10 @@ Run commands from `EzBias/` unless noted.
 ## Additional Documentation
 | Topic | File |
 | --- | --- |
-| Architecture | [.claude/docs/architecture.md](.claude/docs/architecture.md) |
-| Domain model | [.claude/docs/domain_model.md](.claude/docs/domain_model.md) |
-| Auction lifecycle | [.claude/docs/auction_lifecycle.md](.claude/docs/auction_lifecycle.md) |
-| Payment flow | [.claude/docs/payment_flow.md](.claude/docs/payment_flow.md) |
-| Realtime | [.claude/docs/realtime.md](.claude/docs/realtime.md) |
-| Auth | [.claude/docs/auth.md](.claude/docs/auth.md) |
-| Configuration | [.claude/docs/configuration.md](.claude/docs/configuration.md) |
+| Architecture | [docs/architecture.md](docs/architecture.md) |
+| Domain model | [docs/domain_model.md](docs/domain_model.md) |
+| Auction lifecycle | [docs/auction_lifecycle.md](docs/auction_lifecycle.md) |
+| Payment flow | [docs/payment_flow.md](docs/payment_flow.md) |
+| Realtime | [docs/realtime.md](docs/realtime.md) |
+| Auth | [docs/auth.md](docs/auth.md) |
+| Configuration | [docs/configuration.md](docs/configuration.md) |

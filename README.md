@@ -14,16 +14,16 @@ EzBias/
   .env.example            Local Docker environment template
 ```
 
-Additional agent/developer documentation is in:
+Project instructions and technical documentation are in:
 
-- [CLAUDE.md](CLAUDE.md)
-- [.claude/docs/architecture.md](.claude/docs/architecture.md)
-- [.claude/docs/domain_model.md](.claude/docs/domain_model.md)
-- [.claude/docs/auction_lifecycle.md](.claude/docs/auction_lifecycle.md)
-- [.claude/docs/payment_flow.md](.claude/docs/payment_flow.md)
-- [.claude/docs/realtime.md](.claude/docs/realtime.md)
-- [.claude/docs/auth.md](.claude/docs/auth.md)
-- [.claude/docs/configuration.md](.claude/docs/configuration.md)
+- [AGENTS.md](AGENTS.md)
+- [docs/architecture.md](docs/architecture.md)
+- [docs/domain_model.md](docs/domain_model.md)
+- [docs/auction_lifecycle.md](docs/auction_lifecycle.md)
+- [docs/payment_flow.md](docs/payment_flow.md)
+- [docs/realtime.md](docs/realtime.md)
+- [docs/auth.md](docs/auth.md)
+- [docs/configuration.md](docs/configuration.md)
 
 ## Tech Stack
 
@@ -113,7 +113,7 @@ Production deployments must change:
 - Cloudinary keys if uploads are enabled
 - Swagger exposure policy
 
-Full configuration notes are in [.claude/docs/configuration.md](.claude/docs/configuration.md).
+Full configuration notes are in [docs/configuration.md](docs/configuration.md).
 
 ## Core Business Rules
 
@@ -186,7 +186,13 @@ Authenticated hubs support JWT via query string:
 /hubs/chat?access_token=<jwt>
 ```
 
-More details are in [.claude/docs/realtime.md](.claude/docs/realtime.md).
+Realtime behavior follows these rules:
+
+- Notification rows are persisted first and delivered by `NotificationDispatchScheduler`/`NotificationDispatchProcessor` through `IRealtimeNotifier`, with lease, retry, and backoff handling.
+- Chat messages are delivered through `ReceiveMessage` and read-state changes through `ConversationRead`; chat messages do not create notification rows for the notification bell.
+- When a user is already inside a conversation, the frontend marks unread incoming messages as read in realtime. Only the latest outgoing message displays `Đã gửi` or `Đã xem`.
+
+More details are in [docs/realtime.md](docs/realtime.md).
 
 ## Database Migrations
 
